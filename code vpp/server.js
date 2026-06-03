@@ -6,6 +6,14 @@ const express = require("express"); // tạo server
 const cors = require("cors");       // cho phép frontend gọi API
 const db = require("./database");         // file kết nối MySQL
 
+// API lấy sản phẩm từ MYSQL
+app.get("/products", (req, res) => {
+  db.query("SELECT * FROM products", (err, result) => {
+    if (err) return res.status(500).send(err);
+    res.json(result);
+  });
+});
+
 // tạo app
 const app = express();
 

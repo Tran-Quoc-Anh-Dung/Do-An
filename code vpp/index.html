@@ -154,13 +154,13 @@ function checkout() {
     return;
   }
 
-  fetch("http://localhost:3000/orders", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ cart })
-  })
+fetch("https://pos-api.onrender.com/orders", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ cart })
+})
   .then(res => res.text())
   .then(data => {
     alert("Thanh toán thành công!");

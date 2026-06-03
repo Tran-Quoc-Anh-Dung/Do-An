@@ -1,5 +1,8 @@
 require("dotenv").config();
+
 const mysql = require("mysql");
+
+console.log("ENV CHECK:", process.env.DB_USER, process.env.DB_PASSWORD);
 
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
@@ -13,7 +16,7 @@ db.connect(err => {
   if (err) {
     console.log("❌ Lỗi kết nối:", err);
   } else {
-    console.log("✅ Kết nối MySQL online thành công");
+    console.log("✅ Kết nối MySQL thành công");
   }
 });
 

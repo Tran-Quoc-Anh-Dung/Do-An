@@ -78,3 +78,10 @@ app.listen(PORT, "0.0.0.0", () => {
 const cors = require("cors");
 app.use(cors());
 app.use(express.json());
+
+app.get("/products", (req, res) => {
+  db.query("SELECT * FROM products", (err, result) => {
+    if (err) return res.status(500).send(err);
+    res.json(result);
+  });
+});

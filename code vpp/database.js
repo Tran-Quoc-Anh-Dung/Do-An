@@ -9,6 +9,7 @@ const db = mysql.createPool({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   port: process.env.DB_PORT
+  
 });
-
+db.query("SET NAMES utf8mb4");
 module.exports = db;

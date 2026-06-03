@@ -11,12 +11,4 @@ const db = mysql.createPool({
   port: process.env.DB_PORT
 });
 
-db.connect(err => {
-  if (err) {
-    console.log("❌ Lỗi kết nối:", err);
-  } else {
-    console.log("✅ Kết nối MySQL thành công");
-  }
-});
-
 module.exports = db;

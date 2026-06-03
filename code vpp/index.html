@@ -112,10 +112,10 @@ fetch("https://do-an-o44d.onrender.com/products")
     data.forEach(p => {
       html += `
         <div class="card">
-          <img src="https://via.placeholder.com/100" />
+          <img src="${p.image || 'https://via.placeholder.com/100'}" />
           <h4>${p.name}</h4>
           <p>${p.price}đ</p>
-          <button onclick="addToCart('${p.name}', ${p.price})">Mua</button>
+          <button onclick='addToCart(${JSON.stringify(p.name)}, ${p.price})'>Mua</button>
         </div>
       `;
     });
@@ -154,7 +154,7 @@ function checkout() {
     return;
   }
 
-fetch("https://pos-api.onrender.com/orders", {
+fetch("https://do-an-o44d.onrender.com/orders", {
   method: "POST",
   headers: {
     "Content-Type": "application/json"

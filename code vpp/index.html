@@ -82,6 +82,7 @@
   <h1>POS Văn Phòng Phẩm</h1>
   <div class="meta">
     <span id="userStatus">Chưa đăng nhập</span>
+    <button class="button-outline hidden" id="profileButton" onclick="openSection('profile')">Hồ sơ</button>
     <button class="button-outline hidden" id="logoutButton" onclick="logout()">Đăng xuất</button>
   </div>
 </header>
@@ -192,6 +193,14 @@
           </div>
         </div>
         <div class="card"><table class="table"><thead><tr><th>Tên</th><th>Mã</th><th>Danh mục</th><th>Giá</th><th>Tồn kho</th><th>Người quản lý</th><th>Hành động</th></tr></thead><tbody id="productTable"></tbody></table></div>
+        <div class="card" id="inventorySummaryCard">
+          <h3>Tồn kho theo danh mục</h3>
+          <table class="table"><thead><tr><th>Danh mục</th><th>Số sản phẩm</th><th>Tổng tồn kho</th></tr></thead><tbody id="inventorySummaryTable"></tbody></table>
+        </div>
+        <div class="card" id="inventoryLogsCard">
+          <h3>Lịch sử tồn kho</h3>
+          <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Chi nhánh</th><th>SL thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
+        </div>
       </div>
 
       <div id="ordersSection" class="section hidden">
@@ -217,7 +226,8 @@
       <div id="reportsSection" class="section hidden">
         <h2>Báo cáo doanh thu</h2>
         <div class="grid-2" style="margin-bottom:20px;"><div class="small-card"><span>Doanh thu 30 ngày</span><strong id="reportSalesTotal">0đ</strong></div><div class="small-card"><span>Đơn hàng 30 ngày</span><strong id="reportOrdersCount">0</strong></div></div>
-        <div class="card"><table class="table"><thead><tr><th>Ngày</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportTable"></tbody></table></div>
+        <div class="card"><h3>Doanh thu theo ngày</h3><table class="table"><thead><tr><th>Ngày</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportDailyTable"></tbody></table></div>
+        <div class="card" style="margin-top:20px;"><h3>Doanh thu theo tuần</h3><table class="table"><thead><tr><th>Tuần</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportWeeklyTable"></tbody></table></div>
       </div>
 
       <div id="profileSection" class="section hidden">
@@ -328,21 +338,23 @@
     showAuth();
   }
 
-  function showAuth() {
-    document.getElementById('authSection').classList.remove('hidden');
-    document.getElementById('appSection').classList.add('hidden');
-    document.getElementById('logoutButton').classList.add('hidden');
-    setStatus('Chưa đăng nhập');
-  }
-
   function showApp() {
     document.getElementById('authSection').classList.add('hidden');
     document.getElementById('appSection').classList.remove('hidden');
     document.getElementById('logoutButton').classList.remove('hidden');
+    document.getElementById('profileButton').classList.remove('hidden');
     setStatus(`${state.user.full_name || state.user.username} • ${roleLabel(state.user.role)}`);
     renderMenu();
     openSection('dashboard');
     refreshData();
+  }
+
+  function showAuth() {
+    document.getElementById('authSection').classList.remove('hidden');
+    document.getElementById('appSection').classList.add('hidden');
+    document.getElementById('logoutButton').classList.add('hidden');
+    document.getElementById('profileButton').classList.add('hidden');
+    setStatus('Chưa đăng nhập');
   }
 
   function roleLabel(role) {
@@ -381,7 +393,7 @@
   }
 
   function renderMenu() {
-    const tabs = [ { id:'dashboard', label:'Dashboard' }, { id:'pos', label:'POS', role: ['seller', 'manager', 'admin'] }, { id:'products', label:'Sản phẩm', role: ['admin', 'manager'] }, { id:'orders', label:'Đơn hàng' }, { id:'reports', label:'Báo cáo', role: ['admin', 'manager'] }, { id:'profile', label:'Hồ sơ' }, { id:'inventory', label:'Tồn kho', role: ['admin', 'manager'] }, { id:'branches', label:'Chi nhánh', role: ['admin'] } ];
+    const tabs = [ { id:'dashboard', label:'Dashboard' }, { id:'pos', label:'POS', role: ['seller', 'manager', 'admin'] }, { id:'products', label:'Sản phẩm', role: ['admin', 'manager'] }, { id:'orders', label:'Đơn hàng' }, { id:'reports', label:'Báo cáo', role: ['admin', 'manager'] }, { id:'branches', label:'Chi nhánh', role: ['admin'] } ];
     if (state.user.role === 'admin') tabs.push({ id:'users', label:'Nhân sự' });
     
     const visibleTabs = tabs.filter(tab => !tab.role || tab.role.includes(state.user.role));
@@ -541,6 +553,10 @@
       state.products = products.map(product => ({ ...product, image: resolveProductImage(product) }));
       renderPOSProducts();
       renderProductTable();
+      renderInventorySummary();
+      if (state.user.role === 'admin' || state.user.role === 'manager') {
+        loadInventoryLogs();
+      }
     } catch (err) { console.error(err); }
   }
 
@@ -582,21 +598,83 @@
       const catMatch = category === 'all' || category === 'no-orders' || (product.category || 'Khác') === category;
       return match && catMatch;
     });
+
+    const grouped = filtered.reduce((acc, product) => {
+      const name = product.category || 'Chưa phân loại';
+      if (!acc[name]) acc[name] = [];
+      acc[name].push(product);
+      return acc;
+    }, {});
+
     const tbody = document.getElementById('productTable');
-    tbody.innerHTML = filtered.map(product => `
-      <tr>
-        <td>${product.name}</td>
-        <td>${product.code || '-'}</td>
-        <td>${product.category || 'Chưa phân loại'}</td>
-        <td>${formatCurrency(product.price)}</td>
-        <td>${product.stock}</td>
-        <td>${product.created_at ? new Date(product.created_at).toLocaleDateString() : '-'}</td>
-        <td style="white-space:nowrap; display:flex; gap:8px;">
-          <button class="button-outline" onclick="editProduct(${product.id})">Sửa</button>
-          ${state.user.role === 'admin' ? `<button class="button-danger" onclick="deleteProduct(${product.id})">Xóa</button>` : ''}
-        </td>
-      </tr>
-    `).join('');
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7">Không có sản phẩm phù hợp.</td></tr>';
+      return;
+    }
+
+    const categories = Object.keys(grouped).sort();
+    tbody.innerHTML = categories.map(categoryName => {
+      const rows = grouped[categoryName].map(product => `
+        <tr>
+          <td>${product.name}</td>
+          <td>${product.code || '-'}</td>
+          <td>${product.category || 'Chưa phân loại'}</td>
+          <td>${formatCurrency(product.price)}</td>
+          <td>${product.stock}</td>
+          <td>${product.created_at ? new Date(product.created_at).toLocaleDateString() : '-'}</td>
+          <td style="white-space:nowrap; display:flex; gap:8px;">
+            <button class="button-outline" onclick="editProduct(${product.id})">Sửa</button>
+            ${state.user.role === 'admin' ? `<button class="button-danger" onclick="deleteProduct(${product.id})">Xóa</button>` : ''}
+          </td>
+        </tr>
+      `).join('');
+      return `
+        <tr style="background:#f8fafc;"><td colspan="7"><strong>${categoryName}</strong></td></tr>
+        ${rows}
+      `;
+    }).join('');
+  }
+
+  function renderInventorySummary() {
+    const summary = state.products.reduce((acc, product) => {
+      const key = product.category || 'Chưa phân loại';
+      if (!acc[key]) acc[key] = { count: 0, stock: 0 };
+      acc[key].count += 1;
+      acc[key].stock += Number(product.stock) || 0;
+      return acc;
+    }, {});
+    const tbody = document.getElementById('inventorySummaryTable');
+    const categories = Object.keys(summary).sort();
+    tbody.innerHTML = categories.length === 0 ? '<tr><td colspan="3">Không có sản phẩm.</td></tr>' : categories.map(categoryName => {
+      const item = summary[categoryName];
+      return `
+        <tr>
+          <td>${categoryName}</td>
+          <td>${item.count}</td>
+          <td>${item.stock}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function loadInventoryLogs() {
+    try {
+      const res = await apiFetch('/inventory', { method: 'GET' });
+      const logs = await res.json();
+      document.getElementById('inventoryTable').innerHTML = logs.map(log => `
+        <tr>
+          <td>${new Date(log.created_at).toLocaleString()}</td>
+          <td>${log.product_name || '-'}</td>
+          <td>${log.branch_name || '-'}</td>
+          <td>${log.quantity_change}</td>
+          <td>${log.reason || '-'}</td>
+          <td>${log.created_by_user || '-'}</td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      console.error(err);
+      document.getElementById('inventoryTable').innerHTML = '<tr><td colspan="6">Không thể tải lịch sử tồn kho.</td></tr>';
+    }
   }
 
   function showProductEditor(product = null) {
@@ -814,20 +892,30 @@
     try {
       const res = await apiFetch('/reports/sales', { method: 'GET' });
       const data = await res.json();
-      document.getElementById('reportTable').innerHTML = data.map(row => `
+      const daily = data.daily || [];
+      const weekly = data.weekly || [];
+      document.getElementById('reportDailyTable').innerHTML = daily.map(row => `
         <tr>
           <td>${new Date(row.date).toLocaleDateString()}</td>
           <td>${row.orders}</td>
           <td>${formatCurrency(row.total_sales)}</td>
         </tr>
       `).join('');
-      const totalRevenue = data.reduce((sum, row) => sum + Number(row.total_sales), 0);
-      const totalOrders = data.reduce((sum, row) => sum + Number(row.orders), 0);
+      document.getElementById('reportWeeklyTable').innerHTML = weekly.map(row => `
+        <tr>
+          <td>${row.week}</td>
+          <td>${row.orders}</td>
+          <td>${formatCurrency(row.total_sales)}</td>
+        </tr>
+      `).join('');
+      const totalRevenue = daily.reduce((sum, row) => sum + Number(row.total_sales), 0);
+      const totalOrders = daily.reduce((sum, row) => sum + Number(row.orders), 0);
       document.getElementById('reportSalesTotal').textContent = formatCurrency(totalRevenue);
       document.getElementById('reportOrdersCount').textContent = totalOrders;
     } catch (err) {
       console.error(err);
-      document.getElementById('reportTable').innerHTML = '<tr><td colspan="3">Không thể tải báo cáo.</td></tr>';
+      document.getElementById('reportDailyTable').innerHTML = '<tr><td colspan="3">Không thể tải báo cáo.</td></tr>';
+      document.getElementById('reportWeeklyTable').innerHTML = '<tr><td colspan="3">Không thể tải báo cáo.</td></tr>';
     }
   }
 

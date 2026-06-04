@@ -47,6 +47,7 @@ async function ensureDatabase() {
     name VARCHAR(255) NOT NULL,
     description TEXT,
     category VARCHAR(100),
+    category_id INT DEFAULT NULL,
     code VARCHAR(100),
     price DECIMAL(10,2) NOT NULL,
     stock INT NOT NULL DEFAULT 0,
@@ -67,6 +68,12 @@ async function ensureDatabase() {
 
   await ensureColumn("products", "stock", "stock INT NOT NULL DEFAULT 0");
   await ensureColumn("products", "category", "category VARCHAR(100) DEFAULT NULL");
+  await ensureColumn("products", "category_id", "category_id INT DEFAULT NULL");
+
+  await ensureColumn("orders", "product_id", "product_id INT DEFAULT NULL");
+  await ensureColumn("orders", "product_name", "product_name VARCHAR(255) DEFAULT NULL");
+  await ensureColumn("orders", "price", "price DECIMAL(10,2) DEFAULT 0");
+  await ensureColumn("orders", "quantity", "quantity INT NOT NULL DEFAULT 1");
   await ensureColumn("orders", "seller_id", "seller_id INT DEFAULT NULL");
   await ensureColumn("orders", "seller_name", "seller_name VARCHAR(120) DEFAULT NULL");
   await ensureColumn("orders", "created_at", "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
@@ -678,7 +685,7 @@ app.post("/orders", authenticateToken, async (req, res) => {
         return res.status(400).send("Dữ liệu giỏ hàng không hợp lệ.");
       }
 
-      const products = await query("SELECT id, stock, name FROM products WHERE id = ? LIMIT 1", [productId]);
+      const products = await query("SELECT id, stock, name, price FROM products WHERE id = ? LIMIT 1", [productId]);
       if (products.length === 0) {
         return res.status(400).send("Sản phẩm không tồn tại.");
       }
@@ -687,9 +694,14 @@ app.post("/orders", authenticateToken, async (req, res) => {
         return res.status(400).send(`Sản phẩm ${product.name} chỉ còn ${product.stock} chiếc.`);
       }
 
+      let price = Number(item.price);
+      if (!Number.isFinite(price) || price <= 0) {
+        price = Number(product.price) || 0;
+      }
+
       await query(
         "INSERT INTO orders (product_id, product_name, price, quantity, seller_id, seller_name) VALUES (?, ?, ?, ?, ?, ?)",
-        [productId, item.product_name || product.name, item.price, quantity, req.user.id, req.user.username]
+        [productId, item.product_name || product.name, price, quantity, req.user.id, req.user.username]
       );
       await query("UPDATE products SET stock = stock - ? WHERE id = ?", [quantity, productId]);
       await query("INSERT INTO inventory_logs (product_id, quantity_change, reason, created_by) VALUES (?, ?, ?, ?)", 
@@ -723,10 +735,18 @@ app.get("/orders", authenticateToken, async (req, res) => {
 
 app.get("/reports/sales", authenticateToken, authorizeRoles(["admin", "manager"]), async (req, res) => {
   try {
-    const sales = await query(
+    const daily = await query(
       `SELECT DATE(created_at) AS date, COUNT(*) AS orders, IFNULL(SUM(price * quantity), 0) AS total_sales FROM orders GROUP BY DATE(created_at) ORDER BY DATE(created_at) DESC LIMIT 30`
     );
-    res.json(sales);
+    const weeklyRows = await query(
+      `SELECT YEAR(created_at) AS year, WEEK(created_at, 1) AS week, COUNT(*) AS orders, IFNULL(SUM(price * quantity), 0) AS total_sales FROM orders GROUP BY year, week ORDER BY year DESC, week DESC LIMIT 12`
+    );
+    const weekly = weeklyRows.map(row => ({
+      week: `${row.year}-W${String(row.week).padStart(2, '0')}`,
+      orders: row.orders,
+      total_sales: row.total_sales
+    }));
+    res.json({ daily, weekly });
   } catch (err) {
     console.error(err);
     res.status(500).send("Lỗi lấy báo cáo doanh thu.");

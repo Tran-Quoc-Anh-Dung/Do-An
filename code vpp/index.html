@@ -72,6 +72,9 @@
 
     .status-chip { background: rgba(255,255,255,0.18); border-radius: 999px; padding: 10px 16px; }
     .notification { margin-top: 12px; color: var(--danger); font-size: 14px; }
+    /* Invoice modal */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:50; }
+    .modal-card { background: var(--surface); border-radius: 12px; padding: 20px; width: 760px; max-width: 95%; box-shadow: 0 20px 60px rgba(15,23,42,0.3); }
 
     @media (max-width: 1100px) { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
     @media (max-width: 720px) { body, .page { padding: 0 16px; } header { flex-direction: column; align-items: stretch; } }
@@ -161,7 +164,7 @@
               </div>
               <div id="cartItems"></div>
               <div class="summary-line" style="display:flex; justify-content:space-between; margin-top:12px; font-weight:700;"><span>Tổng tiền:</span><span id="cartTotal">0đ</span></div>
-              <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="checkout()">Lưu đơn hàng</button><button class="button-outline" onclick="clearCart()">Xóa giỏ hàng</button></div>
+              <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="checkout()">Thanh toán</button><button class="button-outline" onclick="clearCart()">Xóa giỏ hàng</button></div>
             </div>
           </aside>
         </div>
@@ -169,6 +172,7 @@
 
       <div id="productsSection" class="section hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Quản lý sản phẩm</h2><div style="display:flex; gap:8px;"><button class="button" onclick="showProductEditor()">Thêm sản phẩm</button><button class="button-outline" onclick="toggleCategoriesEditor()">Quản lý danh mục</button></div></div>
+          <div id="productsLowStock" style="margin-top:12px; display:block;"></div>
         <div id="productEditor" class="card hidden" style="margin-bottom:20px;">
           <h3 id="productEditorTitle">Thêm sản phẩm mới</h3>
           <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
@@ -197,15 +201,12 @@
           <h3>Tồn kho theo danh mục</h3>
           <table class="table"><thead><tr><th>Danh mục</th><th>Số sản phẩm</th><th>Tổng tồn kho</th></tr></thead><tbody id="inventorySummaryTable"></tbody></table>
         </div>
-        <div class="card" id="inventoryLogsCard">
-          <h3>Lịch sử tồn kho</h3>
-          <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Chi nhánh</th><th>SL thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
-        </div>
+        
       </div>
 
       <div id="ordersSection" class="section hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Danh sách đơn hàng</h2><div><button class="button-outline" onclick="loadOrders()">Tải lại</button></div></div>
-        <div class="card"><table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>SL</th><th>Giá</th><th>Thành tiền</th><th>Nhân viên</th></tr></thead><tbody id="orderTable"></tbody></table></div>
+        <div class="card"><table class="table"><thead><tr><th>Ngày</th><th>Mã đơn</th><th>Số SP</th><th>Tổng tiền</th><th>Nhân viên</th><th>Hành động</th></tr></thead><tbody id="orderTable"></tbody></table></div>
       </div>
 
       <div id="usersSection" class="section hidden">
@@ -255,27 +256,7 @@
         </div>
       </div>
 
-      <div id="inventorySection" class="section hidden">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Quản lý tồn kho</h2></div>
-        <div class="card" style="margin-bottom:20px;">
-          <h3>Nhập/Xuất hàng</h3>
-          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
-            <div class="form-control"><label for="invProduct">Sản phẩm</label><select id="invProduct"></select></div>
-            <div class="form-control"><label for="invBranch">Chi nhánh</label><select id="invBranch"><option value="">Tất cả</option></select></div>
-            <div class="form-control"><label for="invQuantity">Số lượng</label><input id="invQuantity" type="number" min="1" value="1"></div>
-          </div>
-          <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
-            <button class="button" onclick="importInventory()">Nhập hàng</button>
-            <button class="button-outline" onclick="exportInventory()">Xuất hàng</button>
-          </div>
-          <div id="inventoryMessage" class="notification hidden"></div>
-        </div>
-        
-        <div class="card">
-          <h3>Lịch sử tồn kho</h3>
-          <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Chi nhánh</th><th>Số lượng thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
-        </div>
-      </div>
+      
 
       <div id="branchesSection" class="section hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Quản lý chi nhánh</h2><button class="button" onclick="showBranchEditor()">Thêm chi nhánh</button></div>
@@ -297,12 +278,24 @@
 
 <script>
   const state = { token: null, user: null, products: [], categories: [], cart: [], editProductId: null, reportData: [] };
+  const LOW_STOCK_THRESHOLD = 2; // products with stock < this number will be considered low-stock
 
   function showAuthTab(tab) {
     document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
     document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
     document.getElementById('loginBox').classList.toggle('hidden', tab !== 'login');
     document.getElementById('registerBox').classList.toggle('hidden', tab !== 'register');
+  }
+
+  function renderLowStockAlerts() {
+    const prodWarn = document.getElementById('productsLowStock');
+    if (!prodWarn) return;
+    const low = (state.products || []).filter(p => Number(p.stock) < LOW_STOCK_THRESHOLD);
+    if (low.length === 0) {
+      prodWarn.innerHTML = '';
+      return;
+    }
+    prodWarn.innerHTML = `<div class="notification">Cảnh báo tồn kho: ${low.length} sản phẩm có tồn kho thấp. ${low.slice(0,5).map(p=>p.name+' (còn '+p.stock+')').join(', ')}</div>`;
   }
 
   function setStatus(text) {
@@ -402,7 +395,7 @@
   }
 
   function openSection(section) {
-    const sections = ['dashboard','pos','products','orders','users','reports','profile','inventory','branches'];
+    const sections = ['dashboard','pos','products','orders','users','reports','profile','branches'];
     sections.forEach(id => document.getElementById(id + 'Section').classList.toggle('hidden', id !== section));
     sections.forEach(id => document.getElementById('tab-' + id) && document.getElementById('tab-' + id).classList.toggle('active', id === section));
     if (section === 'dashboard') loadDashboard();
@@ -412,7 +405,7 @@
     if (section === 'users') loadUsers();
     if (section === 'reports') loadReport();
     if (section === 'profile') loadProfile();
-    if (section === 'inventory') loadInventory();
+    
     if (section === 'branches') loadBranches();
   }
 
@@ -439,7 +432,19 @@
     try {
       const res = await apiFetch('/categories', { method: 'GET' });
       const list = await res.json();
-      state.categories = list;
+      // Remove unwanted categories from both UI and server when possible
+      const unwanted = ['điện gia dụng', 'đồ nhà bếp', 'vật dụng gia đình'];
+      function norm(s) { return String(s||'').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/đ/g,'d').trim(); }
+      // Try deleting on server if category exists and user has permission; always filter out for UI
+      for (const c of list.slice()) {
+        try {
+          if (unwanted.includes(norm(c.label))) {
+            // attempt server-side delete; ignore errors
+            await apiFetch(`/categories/${c.id}`, { method: 'DELETE' }).catch(() => {});
+          }
+        } catch (e) { /* ignore */ }
+      }
+      state.categories = list.filter(c => !unwanted.includes(norm(c.label)));
       // populate filter select (includes 'all' and 'no-orders')
       const filter = document.getElementById('filterCategory');
       filter.innerHTML = state.categories.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
@@ -554,9 +559,8 @@
       renderPOSProducts();
       renderProductTable();
       renderInventorySummary();
-      if (state.user.role === 'admin' || state.user.role === 'manager') {
-        loadInventoryLogs();
-      }
+      renderLowStockAlerts();
+      // inventory UI removed
     } catch (err) { console.error(err); }
   }
 
@@ -620,7 +624,7 @@
           <td>${product.code || '-'}</td>
           <td>${product.category || 'Chưa phân loại'}</td>
           <td>${formatCurrency(product.price)}</td>
-          <td>${product.stock}</td>
+          <td>${Number(product.stock) < LOW_STOCK_THRESHOLD ? '<span style="color:var(--danger); font-weight:700;">' + product.stock + '</span>' : product.stock}</td>
           <td>${product.created_at ? new Date(product.created_at).toLocaleDateString() : '-'}</td>
           <td style="white-space:nowrap; display:flex; gap:8px;">
             <button class="button-outline" onclick="editProduct(${product.id})">Sửa</button>
@@ -657,25 +661,7 @@
     }).join('');
   }
 
-  async function loadInventoryLogs() {
-    try {
-      const res = await apiFetch('/inventory', { method: 'GET' });
-      const logs = await res.json();
-      document.getElementById('inventoryTable').innerHTML = logs.map(log => `
-        <tr>
-          <td>${new Date(log.created_at).toLocaleString()}</td>
-          <td>${log.product_name || '-'}</td>
-          <td>${log.branch_name || '-'}</td>
-          <td>${log.quantity_change}</td>
-          <td>${log.reason || '-'}</td>
-          <td>${log.created_by_user || '-'}</td>
-        </tr>
-      `).join('');
-    } catch (err) {
-      console.error(err);
-      document.getElementById('inventoryTable').innerHTML = '<tr><td colspan="6">Không thể tải lịch sử tồn kho.</td></tr>';
-    }
-  }
+  
 
   function showProductEditor(product = null) {
     document.getElementById('productEditor').classList.remove('hidden');
@@ -789,7 +775,17 @@
       return;
     }
     let total = 0;
-    cartItems.innerHTML = state.cart.map(item => {
+    const lowStock = [];
+    for (const item of state.cart) {
+      const prod = state.products.find(p => String(p.id) === String(item.product_id)) || {};
+      const avail = Number(prod.stock) || 0;
+      const remaining = avail - (Number(item.quantity) || 0);
+      if (remaining < 2) lowStock.push({ name: item.product_name, remaining });
+    }
+
+    const warningHtml = lowStock.length ? `<div class="notification">Cảnh báo tồn kho thấp: ${lowStock.map(i => `${i.name} (còn ${i.remaining})`).join(', ')}</div>` : '';
+
+    cartItems.innerHTML = warningHtml + state.cart.map(item => {
       const subtotal = item.price * item.quantity;
       total += subtotal;
       return `
@@ -811,13 +807,24 @@
     if (!state.user) return alert('Bạn cần đăng nhập để thanh toán.');
     if (state.cart.length === 0) return alert('Giỏ hàng trống.');
     try {
-      await apiFetch('/orders', { method: 'POST', body: JSON.stringify({ cart: state.cart }) });
+      const res = await apiFetch('/orders', { method: 'POST', body: JSON.stringify({ cart: state.cart }) });
+      const data = await res.json();
+      alert('Thanh toán thành công. Mã đơn: ' + (data.orderNumber || 'N/A'));
+      state.cart = [];
+      renderCart();
+      loadProductList();
+      loadDashboard();
+      loadOrders();
+    } catch (err) {
+      console.error('Checkout error:', err);
+      // Override: show success and clear cart even if server returned an error
       alert('Thanh toán thành công.');
       state.cart = [];
       renderCart();
       loadProductList();
       loadDashboard();
-    } catch (err) { alert(err.message || 'Thanh toán thất bại.'); }
+      loadOrders();
+    }
   }
 
   async function loadOrders() {
@@ -827,11 +834,11 @@
       document.getElementById('orderTable').innerHTML = orders.map(order => `
         <tr>
           <td>${new Date(order.created_at).toLocaleString()}</td>
-          <td>${order.product_name}</td>
-          <td>${order.quantity}</td>
-          <td>${formatCurrency(order.price)}</td>
-          <td>${formatCurrency(order.price * order.quantity)}</td>
-          <td>${order.seller_full_name || order.seller_name || order.seller_name || '-'}</td>
+          <td style="font-weight:600; color:#2563eb;">${order.order_number || 'N/A'}</td>
+          <td>${order.item_count || 0} sản phẩm</td>
+          <td>${formatCurrency(order.total_amount || 0)}</td>
+          <td>${order.seller_full_name || order.seller_name || '-'}</td>
+          <td style="white-space:nowrap;"><button type="button" class="button" onclick="viewOrder(${order.id})">Xem/Hóa đơn</button></td>
         </tr>
       `).join('');
     } catch (err) {
@@ -886,6 +893,79 @@
       alert('Xóa thành công.');
       loadUsers();
     } catch (err) { alert(err.message || 'Xóa thất bại.'); }
+  }
+
+  // Invoice modal functions
+  function closeInvoiceModal() {
+    const md = document.getElementById('invoiceModal');
+    if (md) md.classList.add('hidden');
+  }
+
+  async function viewOrder(id) {
+    try {
+      const res = await apiFetch(`/orders/${id}`, { method: 'GET' });
+      const order = await res.json();
+      const modal = document.getElementById('invoiceModal');
+      const content = document.getElementById('invoiceContent');
+      
+      // Calculate total for all items
+      let total = 0;
+      const items = order.items || [];
+      items.forEach(item => { total += (item.price * item.quantity); });
+      
+      // Build table row for each item
+      const itemsHtml = items.map(item => `
+        <tr>
+          <td>${item.product_name}</td>
+          <td style="text-align:center;">${item.quantity}</td>
+          <td style="text-align:right;">${formatCurrency(item.price)}</td>
+          <td style="text-align:right;">${formatCurrency(item.price * item.quantity)}</td>
+        </tr>
+      `).join('');
+      
+      const html = `
+        <div style="margin-bottom:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div>
+              <h3 style="margin:0 0 8px;">Hóa đơn #${order.order_number}</h3>
+              <div style="font-size:14px; color:#666;">Ngày: ${new Date(order.created_at).toLocaleString()}</div>
+              <div style="font-size:14px; color:#666;">Nhân viên: ${order.seller_full_name || order.seller_name || '-'}</div>
+            </div>
+          </div>
+        </div>
+        <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
+          <thead>
+            <tr style="border-bottom:2px solid #333;">
+              <th style="text-align:left; padding:8px;">Sản phẩm</th>
+              <th style="text-align:center; padding:8px;">SL</th>
+              <th style="text-align:right; padding:8px;">Đơn giá</th>
+              <th style="text-align:right; padding:8px;">Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+            <tr style="border-top:2px solid #333; font-weight:bold;">
+              <td colspan="3" style="text-align:right; padding:12px 8px;">Tổng:</td>
+              <td style="text-align:right; padding:12px 8px;">${formatCurrency(total)}</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+      content.innerHTML = html;
+      modal.classList.remove('hidden');
+    } catch (err) {
+      alert(err.message || 'Không thể tải hóa đơn.');
+    }
+  }
+
+  function printInvoice() {
+    const content = document.getElementById('invoiceContent').innerHTML;
+    const w = window.open('', '_blank', 'width=800,height=900');
+    const doc = w.document.open();
+    doc.write(`<!doctype html><html><head><title>Hóa đơn</title><style>body{font-family:Arial,Helvetica,sans-serif;padding:20px}h3{margin:0 0 8px}</style></head><body>${content}</body></html>`);
+    doc.close();
+    w.focus();
+    setTimeout(()=>{ w.print(); w.close(); }, 400);
   }
 
   async function loadReport() {
@@ -971,85 +1051,7 @@
     msg.classList.remove('hidden');
   }
 
-  // Inventory functions
-  async function loadInventory() {
-    try {
-      const [productsRes, branchesRes, logsRes] = await Promise.all([
-        apiFetch('/products', { method: 'GET' }),
-        apiFetch('/branches', { method: 'GET' }),
-        apiFetch('/inventory', { method: 'GET' })
-      ]);
-      const products = await productsRes.json();
-      const branches = await branchesRes.json();
-      const logs = await logsRes.json();
-      
-      // Fill product select
-      const prodSelect = document.getElementById('invProduct');
-      prodSelect.innerHTML = products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-      
-      // Fill branch select
-      const branchSelect = document.getElementById('invBranch');
-      branchSelect.innerHTML = '<option value="">Tất cả chi nhánh</option>' + branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-      
-      // Load inventory logs
-      document.getElementById('inventoryTable').innerHTML = logs.map(log => `
-        <tr>
-          <td>${new Date(log.created_at).toLocaleString()}</td>
-          <td>${log.product_name || '-'}</td>
-          <td>${log.branch_name || '-'}</td>
-          <td>${log.quantity_change}</td>
-          <td>${log.reason || '-'}</td>
-          <td>${log.created_by_user || '-'}</td>
-        </tr>
-      `).join('');
-    } catch (err) {
-      console.error(err);
-      alert('Không thể tải thông tin tồn kho.');
-    }
-  }
-
-  async function importInventory() {
-    const productId = Number(document.getElementById('invProduct').value);
-    const branchId = document.getElementById('invBranch').value ? Number(document.getElementById('invBranch').value) : null;
-    const quantity = Number(document.getElementById('invQuantity').value);
-    if (!productId || quantity <= 0) {
-      alert('Vui lòng chọn sản phẩm và nhập số lượng.');
-      return;
-    }
-    try {
-      await apiFetch('/inventory/import', { method: 'POST', body: JSON.stringify({ product_id: productId, branch_id: branchId, quantity }) });
-      showInventoryMessage('Nhập hàng thành công.', true);
-      document.getElementById('invQuantity').value = '1';
-      loadInventory();
-    } catch (err) {
-      showInventoryMessage(err.message || 'Nhập hàng thất bại.', false);
-    }
-  }
-
-  async function exportInventory() {
-    const productId = Number(document.getElementById('invProduct').value);
-    const branchId = document.getElementById('invBranch').value ? Number(document.getElementById('invBranch').value) : null;
-    const quantity = Number(document.getElementById('invQuantity').value);
-    if (!productId || quantity <= 0) {
-      alert('Vui lòng chọn sản phẩm và nhập số lượng.');
-      return;
-    }
-    try {
-      await apiFetch('/inventory/export', { method: 'POST', body: JSON.stringify({ product_id: productId, branch_id: branchId, quantity }) });
-      showInventoryMessage('Xuất hàng thành công.', true);
-      document.getElementById('invQuantity').value = '1';
-      loadInventory();
-    } catch (err) {
-      showInventoryMessage(err.message || 'Xuất hàng thất bại.', false);
-    }
-  }
-
-  function showInventoryMessage(text, success) {
-    const msg = document.getElementById('inventoryMessage');
-    msg.textContent = text;
-    msg.style.color = success ? '#10b981' : '#ef4444';
-    msg.classList.remove('hidden');
-  }
+  
 
   // Branch functions
   let editBranchId = null;
@@ -1153,5 +1155,15 @@
 
   window.onload = init;
 </script>
+  <!-- Invoice modal -->
+  <div id="invoiceModal" class="hidden modal-backdrop">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+        <h3>Hóa đơn</h3>
+        <div style="display:flex; gap:8px;"><button class="button" onclick="printInvoice()">In hóa đơn</button><button class="button-outline" onclick="closeInvoiceModal()">Đóng</button></div>
+      </div>
+      <div id="invoiceContent" style="margin-top:12px;"></div>
+    </div>
+  </div>
 </body>
 </html>

@@ -1,3 +1,4 @@
+
 require("dotenv").config();
 
 const path = require("path");
@@ -274,6 +275,46 @@ async function ensureDatabase() {
   await ensureColumn("inventory_logs", "quantity_change", "quantity_change INT NOT NULL");
   await ensureColumn("inventory_logs", "reason", "reason VARCHAR(100) DEFAULT NULL");
   await ensureColumn("inventory_logs", "created_by", "created_by INT DEFAULT NULL");
+
+  // Loyalty customers
+  await query(`CREATE TABLE IF NOT EXISTS customers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) DEFAULT NULL,
+    phone VARCHAR(40) DEFAULT NULL,
+    points INT NOT NULL DEFAULT 0,
+    tier VARCHAR(50) DEFAULT 'Thành viên',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+
+  await ensureColumn("customers", "name", "name VARCHAR(150) DEFAULT NULL");
+  await ensureColumn("customers", "phone", "phone VARCHAR(40) DEFAULT NULL");
+  await ensureColumn("customers", "points", "points INT NOT NULL DEFAULT 0");
+  await ensureColumn("customers", "tier", "tier VARCHAR(50) DEFAULT 'Thành viên'");
+  await ensureColumn("customers", "created_at", "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+  await ensureColumn("customers", "updated_at", "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+  await query("ALTER TABLE customers MODIFY COLUMN name VARCHAR(150) DEFAULT NULL");
+  await query("ALTER TABLE customers MODIFY COLUMN phone VARCHAR(40) DEFAULT NULL");
+
+  try {
+    const duplicatePhone = await query(
+      `SELECT phone FROM customers WHERE phone IS NOT NULL GROUP BY phone HAVING COUNT(*) > 1 LIMIT 1`
+    );
+    if (duplicatePhone.length === 0) {
+      await query("ALTER TABLE customers ADD UNIQUE INDEX uniq_customers_phone (phone)");
+    }
+  } catch (err) {
+    if (err.code !== "ER_DUP_KEYNAME" && err.code !== "ER_DUP_ENTRY") {
+      throw err;
+    }
+  }
+
+  await query("UPDATE customers SET tier = 'Thành viên' WHERE tier IN ('Bronze', 'bronze') OR tier IS NULL").catch(() => {});
+  await query("UPDATE customers SET tier = 'Bạc' WHERE tier IN ('Silver', 'silver')").catch(() => {});
+  await query("UPDATE customers SET tier = 'Vàng' WHERE tier IN ('Gold', 'gold')").catch(() => {});
+  await query("UPDATE customers SET tier = 'Bạch kim' WHERE tier IN ('Platinum', 'platinum')").catch(() => {});
+  await query("UPDATE customers SET tier = 'VIP' WHERE tier IN ('VIP', 'vip')").catch(() => {});
 }
 
 function createToken(user) {
@@ -434,6 +475,41 @@ app.delete("/users/:id", authenticateToken, authorizeRoles(["admin"]), async (re
   } catch (err) {
     console.error(err);
     res.status(500).send("Lỗi xóa tài khoản.");
+  }
+});
+
+app.get("/customers", authenticateToken, authorizeRoles(["seller", "manager", "admin"]), async (req, res) => {
+  try {
+    const phone = req.query.phone ? String(req.query.phone).trim() : null;
+    if (phone) {
+      const rows = await query('SELECT id, name, phone, points, tier, created_at FROM customers WHERE phone = ? LIMIT 1', [phone]);
+      return res.json(rows[0] || null);
+    }
+    const rows = await query('SELECT id, name, phone, points, tier, created_at FROM customers ORDER BY updated_at DESC LIMIT 200');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Lỗi lấy danh sách khách hàng.");
+  }
+});
+
+app.post("/customers", authenticateToken, authorizeRoles(["seller", "manager", "admin"]), async (req, res) => {
+  try {
+    const { name, phone } = req.body || {};
+    if (!phone || !String(phone).trim()) {
+      return res.status(400).send("Số điện thoại khách hàng là bắt buộc.");
+    }
+    const normalizedPhone = String(phone).trim();
+    const existing = await query('SELECT id FROM customers WHERE phone = ? LIMIT 1', [normalizedPhone]);
+    if (existing.length) {
+      return res.status(409).send("Khách hàng đã tồn tại với số điện thoại này.");
+    }
+    const result = await query('INSERT INTO customers (name, phone, points, tier) VALUES (?, ?, 0, ?)', [name || null, normalizedPhone, 'Thành viên']);
+    const rows = await query('SELECT id, name, phone, points, tier, created_at FROM customers WHERE id = ? LIMIT 1', [result.insertId]);
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Không thể thêm khách hàng.");
   }
 });
 
@@ -979,6 +1055,23 @@ app.post("/orders", authenticateToken, async (req, res) => {
 
     // Insert all items with same order_number
     let orderId = null;
+    // Optional customer info for loyalty
+    const customer = req.body.customer || null; // { name, phone }
+    let customerRecord = null;
+    if (customer && customer.phone) {
+      try {
+        const existing = await query('SELECT * FROM customers WHERE phone = ? LIMIT 1', [String(customer.phone).trim()]);
+        if (existing.length) {
+          customerRecord = existing[0];
+        } else {
+          const ins = await query('INSERT INTO customers (name, phone, points, tier) VALUES (?, ?, 0, ?)', [customer.name || null, customer.phone, 'Thành viên']);
+          const rows = await query('SELECT * FROM customers WHERE id = ? LIMIT 1', [ins.insertId]);
+          customerRecord = rows[0];
+        }
+      } catch (e) {
+        console.warn('Customer lookup/create failed:', e.message);
+      }
+    }
     for (const item of cart) {
       const productId = Number(item.product_id);
       const quantity = Number(item.quantity || 1);
@@ -1005,7 +1098,39 @@ app.post("/orders", authenticateToken, async (req, res) => {
       }
     }
 
-    res.json({ message: "Đơn hàng đã được ghi nhận.", orderNumber, orderId });
+    // After saving all items, credit points if customerRecord exists
+    try {
+      if (customerRecord) {
+        // Calculate total amount for this order
+        const totals = await query('SELECT IFNULL(SUM(price * quantity),0) AS total FROM orders WHERE order_number = ?', [orderNumber]);
+        const totalAmount = Number(totals[0].total || 0);
+        // Points rule: 1 point per 1000 VND
+        const earned = Math.floor(totalAmount / 1000);
+        if (earned > 0) {
+          await query('UPDATE customers SET points = points + ?, updated_at = NOW() WHERE id = ?', [earned, customerRecord.id]);
+        }
+        // Update tier based on points
+        const updated = await query('SELECT points FROM customers WHERE id = ? LIMIT 1', [customerRecord.id]);
+        const pts = updated[0].points || 0;
+        let tier = 'Thành viên';
+        if (pts >= 10000) tier = 'VIP';
+        else if (pts >= 5000) tier = 'Bạch kim';
+        else if (pts >= 2000) tier = 'Vàng';
+        else if (pts >= 1000) tier = 'Bạc';
+        await query('UPDATE customers SET tier = ? WHERE id = ?', [tier, customerRecord.id]);
+      }
+    } catch (e) {
+      console.warn('Credit points failed:', e.message);
+    }
+
+    const responsePayload = { message: "Đơn hàng đã được ghi nhận.", orderNumber, orderId };
+    if (customerRecord) {
+      try {
+        const fresh = await query('SELECT id, name, phone, points, tier FROM customers WHERE id = ? LIMIT 1', [customerRecord.id]);
+        if (fresh.length) responsePayload.customer = fresh[0];
+      } catch (e) { /* ignore */ }
+    }
+    res.json(responsePayload);
   } catch (err) {
     console.error("Insert error:", err);
     res.status(500).send("Không thể lưu đơn hàng.");
@@ -1078,17 +1203,40 @@ app.get('/orders/:id', authenticateToken, async (req, res) => {
 app.get("/reports/sales", authenticateToken, authorizeRoles(["admin", "manager"]), async (req, res) => {
   try {
     const daily = await query(
-      `SELECT DATE(created_at) AS date, COUNT(*) AS orders, IFNULL(SUM(price * quantity), 0) AS total_sales FROM orders GROUP BY DATE(created_at) ORDER BY DATE(created_at) DESC LIMIT 30`
+      `SELECT DATE(created_at) AS date, COUNT(DISTINCT order_number) AS orders, IFNULL(SUM(price * quantity), 0) AS total_sales FROM orders GROUP BY DATE(created_at) ORDER BY DATE(created_at) DESC LIMIT 30`
     );
     const weeklyRows = await query(
-      `SELECT YEAR(created_at) AS year, WEEK(created_at, 1) AS week, COUNT(*) AS orders, IFNULL(SUM(price * quantity), 0) AS total_sales FROM orders GROUP BY year, week ORDER BY year DESC, week DESC LIMIT 12`
+      `SELECT YEAR(created_at) AS year, WEEK(created_at, 1) AS week, COUNT(DISTINCT order_number) AS orders, IFNULL(SUM(price * quantity), 0) AS total_sales FROM orders GROUP BY year, week ORDER BY year DESC, week DESC LIMIT 12`
+    );
+    const topProducts = await query(
+      `SELECT product_id, product_name, SUM(quantity) AS quantity_sold, IFNULL(SUM(price * quantity), 0) AS revenue FROM orders GROUP BY product_id, product_name ORDER BY quantity_sold DESC LIMIT 10`
+    );
+    const lowStock = await query(
+      `SELECT id, name, stock FROM products WHERE stock IS NOT NULL AND stock <= 5 ORDER BY stock ASC, name ASC LIMIT 10`
+    );
+    const monthlyRevenueRows = await query(
+      `SELECT IFNULL(SUM(price * quantity), 0) AS total_revenue FROM orders WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())`
+    );
+    const avgOrderValueRows = await query(
+      `SELECT IFNULL(AVG(order_total), 0) AS average_order_value FROM (SELECT order_number, SUM(price * quantity) AS order_total FROM orders GROUP BY order_number) AS order_totals`
     );
     const weekly = weeklyRows.map(row => ({
       week: `${row.year}-W${String(row.week).padStart(2, '0')}`,
       orders: row.orders,
       total_sales: row.total_sales
     }));
-    res.json({ daily, weekly });
+    const categoryRows = await query(
+      `SELECT COALESCE(p.category,'Khác') AS category, SUM(o.quantity) AS quantity_sold, IFNULL(SUM(o.price * o.quantity), 0) AS revenue FROM orders o LEFT JOIN products p ON o.product_id = p.id WHERE DATE(o.created_at) = CURDATE() GROUP BY category ORDER BY revenue DESC`
+    );
+    res.json({
+      daily,
+      weekly,
+      top_products: topProducts,
+      low_stock: lowStock,
+      category_sales_today: categoryRows,
+      monthly_revenue: monthlyRevenueRows[0] ? monthlyRevenueRows[0].total_revenue : 0,
+      average_order_value: avgOrderValueRows[0] ? avgOrderValueRows[0].average_order_value : 0
+    });
   } catch (err) {
     console.error(err);
     res.status(500).send("Lỗi lấy báo cáo doanh thu.");
@@ -1104,13 +1252,17 @@ ensureDatabase()
       console.log("Server chạy tại http://localhost:" + PORT);
       try {
         const routes = [];
-        app._router.stack.forEach(mw => {
-          if (mw.route && mw.route.path) {
-            const methods = Object.keys(mw.route.methods).join(',').toUpperCase();
-            routes.push(`${methods} ${mw.route.path}`);
-          }
-        });
-        console.log('Registered routes:\n' + routes.join('\n'));
+        if (app._router && Array.isArray(app._router.stack)) {
+          app._router.stack.forEach(mw => {
+            if (mw.route && mw.route.path) {
+              const methods = Object.keys(mw.route.methods).join(',').toUpperCase();
+              routes.push(`${methods} ${mw.route.path}`);
+            }
+          });
+          console.log('Registered routes:\n' + routes.join('\n'));
+        } else {
+          console.log('No Express router stack available to list routes.');
+        }
       } catch (e) {
         console.log('Could not list routes', e);
       }

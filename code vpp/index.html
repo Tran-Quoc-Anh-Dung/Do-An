@@ -9,8 +9,8 @@
       --bg: #f3f6fb;
       --surface: #ffffff;
       --card: #f7f9fd;
-      --text: #1f2937;
-      --muted: #6b7280;
+      --text: #111827;
+      --muted: #4b5563;
       --primary: #2563eb;
       --secondary: #10b981;
       --danger: #ef4444;
@@ -24,72 +24,98 @@
     button { cursor: pointer; }
 
     header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 24px 32px; background: rgba(37, 99, 235, 0.98); color: white; position: sticky; top: 0; z-index: 10; }
-    header h1 { margin: 0; font-size: 24px; letter-spacing: -0.03em; }
+    header h1 { margin: 0; font-size: 24px; font-weight: 900; letter-spacing: -0.03em; }
     header .meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
     header .meta span, header .meta button { background: rgba(255,255,255,0.16); border-radius: 999px; padding: 10px 16px; color: white; border: none; }
 
     .page { max-width: 1400px; margin: 24px auto; padding: 0 24px; display: grid; gap: 24px; }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; box-shadow: var(--shadow); padding: 24px; }
-    .card h2 { margin-top: 0; font-size: 22px; }
-    .small-card { border-radius: 24px; background: var(--card); padding: 20px; display: grid; gap: 12px; }
-    .small-card strong { display: block; font-size: 28px; }
+    .card { background: var(--surface); border: 1px solid rgba(209,213,219,0.6); border-radius: 24px; box-shadow: 0 30px 90px rgba(15,23,42,0.08); padding: 28px; }
+    h1, h2, h3, h4 { margin-top: 0; font-weight: 900; text-transform: none; letter-spacing: 0.02em; color: #111827; }
+    .card h2 { font-size: 24px; }
+    .card h3 { font-size: 18px; }
+    .tabs .tab-button { font-weight: 700; text-transform: none; letter-spacing: 0.02em; }
+    .small-card { border-radius: 26px; background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(248,250,252,0.95)); padding: 24px; display: grid; gap: 12px; border: 1px solid rgba(203,213,225,0.8); }
+    .small-card span { color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .small-card strong { display: block; font-size: 34px; color: #1e3a8a; }
+    .chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-bottom: 20px; }
+    .chart-card { background: var(--card); border: 1px solid rgba(209,213,219,0.75); border-radius: 24px; padding: 22px; }
+    .chart-card h3 { margin-bottom: 16px; }
+    .chart-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .chart-header span { color: var(--muted); font-size: 14px; }
+    .bar-chart { display: flex; align-items: flex-end; gap: 12px; height: 220px; padding-bottom: 16px; border-bottom: 1px solid rgba(148,163,184,0.35); }
+    .bar-chart .bar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; height: 100%; }
+    .bar-chart .bar span { display: block; width: 100%; border-radius: 16px 16px 0 0; background: linear-gradient(180deg, rgba(59,130,246,0.92), rgba(37,99,235,1)); height: var(--bar-height, 20%); transition: height 0.32s ease; box-shadow: inset 0 6px 12px rgba(255,255,255,0.16); }
+    .bar-chart .bar .bar-value { font-size: 12px; color: var(--text); font-weight: 700; line-height: 1.2; }
+    .bar-chart .bar label { font-size: 12px; color: var(--muted); text-align: center; white-space: nowrap; }
+    .report-metrics { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 20px; margin-bottom: 20px; }
+    .report-metrics .small-card { border-radius: 24px; padding: 22px; }
+    .report-table-card { margin-top: 20px; }
+    .report-table-card h3 { margin-bottom: 16px; }
+    .table-compact th, .table-compact td { padding: 12px 14px; }
+    .table-compact tbody tr:hover { background: rgba(37,99,235,0.04); }
     .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
     .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
     .hidden { display: none !important; }
-    .button { border: none; border-radius: 14px; padding: 14px 18px; background: var(--primary); color: white; font-weight: 700; transition: transform 0.16s ease; }
-    .button:hover { transform: translateY(-1px); }
-    .button-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .button { border: none; border-radius: 16px; padding: 14px 24px; background: linear-gradient(135deg, var(--primary), #1d4ed8); color: white; font-weight: 800; letter-spacing: 0.01em; box-shadow: 0 18px 35px rgba(37,99,235,0.25); transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease; }
+    .button:hover { transform: translateY(-2px); box-shadow: 0 22px 40px rgba(37,99,235,0.28); }
+    .button-outline { background: transparent; color: var(--text); border: 1px solid rgba(148,163,184,0.8); }
+    .button-outline:hover { filter: brightness(1.05); }
     .button-danger { background: var(--danger); }
 
-    .tabs { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
-    .tab-button { border-radius: 999px; border: 1px solid transparent; background: var(--card); color: var(--text); padding: 12px 18px; }
-    .tab-button.active { background: var(--primary); color: white; border-color: rgba(255,255,255,0.2); }
+    .app-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 24px; align-items: start; }
+    .sidebar { position: sticky; top: 96px; height: fit-content; padding: 28px 22px; background: #111827; color: #e2e8f0; border-radius: 28px; border: 1px solid rgba(148,163,184,0.24); box-shadow: 0 30px 70px rgba(15,23,42,0.14); }
+    .sidebar-title { margin-bottom: 24px; }
+    .sidebar-title h2 { font-size: 16px; letter-spacing: 0.16em; color: #94a3b8; }
+    .tabs { display: grid; gap: 12px; }
+    .tab-button { display: block; width: 100%; text-align: left; border-radius: 18px; border: 1px solid transparent; background: transparent; color: #e2e8f0; padding: 16px 18px; transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease; font-size: 14px; }
+    .tab-button:hover { transform: translateX(2px); background: rgba(255,255,255,0.08); }
+    .tab-button.active { background: #4338ca; color: white; border-color: rgba(255,255,255,0.18); box-shadow: 0 18px 32px rgba(67,56,202,0.18); }
+    .main-panel { display: grid; gap: 24px; }
+    .dashboard-summary { display: grid; grid-template-columns: repeat(3, minmax(240px, 1fr)); gap: 20px; margin-bottom: 24px; }
+    .dashboard-actions button { min-width: 150px; }
+    .content-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+    .content-header h2 { font-size: 28px; }
 
-    .form-grid { display: grid; gap: 16px; }
+    .form-grid { display: grid; gap: 18px; }
     .form-control { display: grid; gap: 8px; }
-    .form-control label { font-size: 14px; color: var(--muted); }
-    .form-control input, .form-control select, .form-control textarea { width: 100%; border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; background: white; color: var(--text); }
-    .form-control textarea { min-height: 120px; resize: vertical; }
+    .form-control label { font-size: 13px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+    #customersSection { color: #111827; }
+    #customersSection .form-control label, #customersSection .content-header h2, #customersSection .table th, #customersSection .table td { font-weight: 900; color: #111827; }
+    .form-control input, .form-control select, .form-control textarea { width: 100%; border: 1px solid rgba(209,213,219,0.85); border-radius: 16px; padding: 14px 18px; background: #fbfdff; color: var(--text); transition: border-color 0.16s ease, box-shadow 0.16s ease; }
+    .form-control input:focus, .form-control select:focus, .form-control textarea:focus { outline: none; border-color: rgba(37,99,235,0.8); box-shadow: 0 0 0 4px rgba(37,99,235,0.12); }
+    .form-control textarea { min-height: 140px; resize: vertical; }
 
-    .table { width: 100%; border-collapse: collapse; }
-    .table th, .table td { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: middle; }
-    .table th { color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
-    .table tbody tr:hover { background: #f8fafc; }
+    .table { width: 100%; border-collapse: collapse; background: transparent; }
+    .table th, .table td { padding: 16px 18px; border-bottom: 1px solid rgba(229,231,235,0.95); text-align: left; vertical-align: middle; }
+    .table th { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+    .table tbody tr { transition: background 0.16s ease; }
+    .table tbody tr:hover { background: rgba(37,99,235,0.06); }
 
     .pos-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.95fr); gap: 20px; align-items: flex-start; }
     .cart-panel { position: sticky; top: 100px; }
-    .cart-panel .card { display: flex; flex-direction: column; gap: 16px; max-height: calc(100vh - 140px); overflow-y: auto; }
-    .cart-panel h2 { margin: 0; }
+    .cart-panel .card { display: flex; flex-direction: column; gap: 18px; max-height: calc(100vh - 140px); overflow-y: auto; }
+    .cart-panel h2 { margin: 0; font-size: 22px; }
     .cart-summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-    .cart-summary .status-chip { margin: 0; }
+    .cart-summary .status-chip { margin: 0; background: rgba(16,185,129,0.12); color: #065f46; font-weight: 700; }
     .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
-    .product-card { background: var(--card); border-radius: 24px; display: flex; flex-direction: column; gap: 16px; padding: 18px; cursor: pointer; transition: transform 0.16s ease, box-shadow 0.16s ease; }
-    .product-card:hover { transform: translateY(-2px); box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12); }
+    .product-card { background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); border-radius: 24px; display: flex; flex-direction: column; gap: 16px; padding: 18px; cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease; border: 1px solid rgba(209,213,219,0.7); }
+    .product-card:hover { transform: translateY(-4px); box-shadow: 0 24px 60px rgba(15,23,42,0.12); }
     .product-card img { width: 100%; height: 180px; object-fit: cover; border-radius: 18px; }
     .product-card .meta { display: flex; justify-content: space-between; gap: 12px; align-items: center; font-size: 14px; color: var(--muted); }
-    .product-card .price { font-size: 18px; font-weight: 700; }
+    .product-card .price { font-size: 18px; font-weight: 800; color: #1d4ed8; }
     .product-card .actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-    .status-chip { background: rgba(255,255,255,0.18); border-radius: 999px; padding: 10px 16px; }
+    .status-chip { background: rgba(255,255,255,0.18); border-radius: 999px; padding: 10px 16px; font-weight: 700; }
     .notification { margin-top: 12px; color: var(--danger); font-size: 14px; }
     /* Invoice modal */
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:50; }
-    .modal-card { background: var(--surface); border-radius: 12px; padding: 20px; width: 760px; max-width: 95%; box-shadow: 0 20px 60px rgba(15,23,42,0.3); }
+    .modal-card { background: var(--surface); border-radius: 20px; padding: 26px; width: 760px; max-width: 95%; box-shadow: 0 20px 60px rgba(15,23,42,0.3); }
 
-    @media (max-width: 1100px) { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
-    @media (max-width: 720px) { body, .page { padding: 0 16px; } header { flex-direction: column; align-items: stretch; } }
+    @media (max-width: 1100px) { .grid-3, .grid-2 { grid-template-columns: 1fr; } .app-layout { grid-template-columns: 1fr; } .sidebar { position: relative; top: auto; } }
+    @media (max-width: 720px) { body, .page { padding: 0 16px; } header { flex-direction: column; align-items: stretch; } .sidebar { margin-bottom: 20px; } }
   </style>
 </head>
 <body>
-<header>
-  <h1>Bán Hàng Văn Phòng Phẩm</h1>
-  <div class="meta">
-    <span id="userStatus">Chưa đăng nhập</span>
-    <button class="button-outline hidden" id="profileButton" onclick="openSection('profile')">Hồ sơ</button>
-    <button class="button-outline hidden" id="logoutButton" onclick="logout()">Đăng xuất</button>
-  </div>
-</header>
-
 <div class="page">
   <section id="authSection" class="card">
     <div class="tabs">
@@ -108,11 +134,18 @@
   </section>
 
   <section id="appSection" class="hidden">
-    <div class="card">
-      <div class="tabs" id="menuTabs"></div>
-      <div id="dashboardSection" class="section">
-        <h2>Bảng điều khiển</h2>
-        <div class="grid-3">
+    <div class="app-layout">
+      <aside class="sidebar card">
+        <div class="sidebar-title"><h2>Chức năng</h2><div class="sidebar-status" id="userStatus">Chưa đăng nhập</div></div>
+        <div class="tabs" id="menuTabs"></div>
+        <div class="sidebar-footer"><button class="button-outline logout-button" onclick="logout()">Đăng xuất</button></div>
+      </aside>
+      <main class="main-panel">
+        <div id="dashboardSection" class="section">
+          <div class="content-header">
+          <h2>Bảng điều khiển</h2>
+        </div>
+        <div class="dashboard-summary">
           <div class="small-card"><span>Sản phẩm</span><strong id="metricProducts">0</strong><span>Tổng số sản phẩm đang quản lý</span></div>
           <div class="small-card"><span>Đơn hàng</span><strong id="metricOrders">0</strong><span>Tổng đơn hàng đã bán</span></div>
           <div class="small-card"><span>Doanh thu</span><strong id="metricRevenue">0đ</strong><span>Tổng doanh thu từ bán hàng</span></div>
@@ -150,10 +183,71 @@
                 <span class="status-chip">Theo dõi đơn hàng</span>
               </div>
               <div id="cartItems"></div>
-              <div class="summary-line" style="display:flex; justify-content:space-between; margin-top:12px; font-weight:700;"><span>Tổng tiền:</span><span id="cartTotal">0đ</span></div>
-              <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="checkout()">Thanh toán</button><button class="button-outline" onclick="clearCart()">Xóa giỏ hàng</button></div>
+                <div class="summary-line" style="display:flex; justify-content:space-between; margin-top:12px; font-weight:700;"><span>Tổng tiền:</span><span id="cartTotal">0đ</span></div>
+                <div style="margin-top:12px; display:grid; gap:8px;">
+                  <div style="display:flex; gap:8px;">
+                    <input id="customerName" placeholder="Tên khách hàng (tùy chọn)" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border);" />
+                    <input id="customerPhone" placeholder="SĐT khách (để tích điểm)" style="width:160px; padding:10px; border-radius:8px; border:1px solid var(--border);" onblur="lookupCustomerByPhone()" />
+                  </div>
+                  <div style="display:flex; gap:12px; align-items:center;">
+                    <div style="font-size:13px; color:var(--muted);">Điểm: <strong id="customerPoints">-</strong></div>
+                    <div style="font-size:13px; color:var(--muted);">Hạng: <strong id="customerTier">-</strong></div>
+                  </div>
+                  <div style="margin-top:10px; font-size:13px; color:var(--muted); line-height:1.4;">1.000đ = 1 điểm.</div>
+                </div>
+                <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="checkout()">Thanh toán</button><button class="button-outline" onclick="clearCart()">Xóa giỏ hàng</button></div>
             </div>
           </aside>
+        </div>
+      </div>
+
+      <div id="customersSection" class="section hidden">
+        <div class="content-header">
+          <h2>Tích điểm khách hàng</h2>
+        </div>
+        <div class="card">
+          <div class="form-grid" style="grid-template-columns: 1fr 280px; align-items:end; gap:16px;">
+            <div class="form-control"><label for="loyaltySearchPhone">Tìm theo số điện thoại</label><input id="loyaltySearchPhone" type="text" placeholder="Nhập số điện thoại khách" /></div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="searchCustomers()">Tìm khách hàng</button><button class="button-outline" onclick="resetCustomerSearch()">Tất cả khách hàng</button></div>
+          </div>
+          <div class="form-grid" style="grid-template-columns: 1fr 1fr 180px; align-items:end; gap:16px; margin-top:16px;">
+            <div class="form-control"><label for="newCustomerName">Tên khách hàng</label><input id="newCustomerName" type="text" placeholder="Tên khách hàng" /></div>
+            <div class="form-control"><label for="newCustomerPhone">SĐT khách hàng</label><input id="newCustomerPhone" type="text" placeholder="Số điện thoại" /></div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="createCustomer()">Thêm khách hàng</button></div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:20px;">
+          <h3 style="margin-bottom:12px;">Hạng hội viên</h3>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px;">
+            <div class="small-card" style="background: linear-gradient(180deg, #f8fafc 0%, #fff 100%); border:1px solid rgba(148,163,184,0.25);">
+              <span>Bronze</span>
+              <strong>Thành viên</strong>
+              <div>0 - 99 điểm</div>
+            </div>
+            <div class="small-card" style="background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%); border:1px solid rgba(96,165,250,0.25);">
+              <span>🥈 Silver</span>
+              <strong>Bạc</strong>
+              <div>1.000 - 1.999 điểm</div>
+            </div>
+            <div class="small-card" style="background: linear-gradient(180deg, #fef9c3 0%, #fef3c7 100%); border:1px solid rgba(234,179,8,0.25);">
+              <span>🥇 Gold</span>
+              <strong>Vàng</strong>
+              <div>2.000 - 4.999 điểm</div>
+            </div>
+            <div class="small-card" style="background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%); border:1px solid rgba(124,58,237,0.25);">
+              <span>💎 Platinum</span>
+              <strong>Bạch kim</strong>
+              <div>5.000 - 9.999 điểm</div>
+            </div>
+            <div class="small-card" style="background: linear-gradient(180deg, #ecfeff 0%, #cffafe 100%); border:1px solid rgba(20,184,166,0.25);">
+              <span>⭐ VIP</span>
+              <strong>VIP</strong>
+              <div>10.000 điểm trở lên</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <table class="table"><thead><tr><th>Họ tên</th><th>SĐT</th><th>Điểm</th><th>Hạng</th><th>Ngày tạo</th></tr></thead><tbody id="customerTable"></tbody></table>
         </div>
       </div>
 
@@ -242,30 +336,12 @@
       </div>
 
       <div id="usersSection" class="section hidden">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Quản lý nhân viên</h2><button class="button" onclick="toggleCreateUser()">Tạo tài khoản</button></div>
-        <div id="createUserBox" class="card hidden" style="margin-bottom:20px;">
-          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
-            <div class="form-control"><label for="staffUsername">Tên đăng nhập</label><input id="staffUsername" type="text"></div>
-            <div class="form-control"><label for="staffPassword">Mật khẩu</label><input id="staffPassword" type="password"></div>
-            <div class="form-control"><label for="staffFullname">Họ tên</label><input id="staffFullname" type="text"></div>
-            <div class="form-control"><label for="staffRole">Vai trò</label><select id="staffRole"><option value="seller">Nhân viên bán hàng</option><option value="manager">Quản lý cửa hàng</option><option value="admin">Quản trị viên</option></select></div>
-          </div>
-          <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="createUser()">Tạo tài khoản</button><button class="button-outline" onclick="toggleCreateUser()">Đóng</button></div>
-          <div id="userEditorMessage" class="notification hidden"></div>
+        <div class="content-header">
+          <h2>Nhân sự & hồ sơ</h2>
+          <div class="dashboard-actions"><button class="button" onclick="openSection('dashboard')">Về bảng điều khiển</button></div>
         </div>
-        <div class="card"><table class="table"><thead><tr><th>Họ tên</th><th>Tên đăng nhập</th><th>Vai trò</th><th>Ngày tạo</th><th>Hành động</th></tr></thead><tbody id="userTable"></tbody></table></div>
-      </div>
-
-      <div id="reportsSection" class="section hidden">
-        <h2>Báo cáo doanh thu</h2>
-        <div class="grid-2" style="margin-bottom:20px;"><div class="small-card"><span>Doanh thu 30 ngày</span><strong id="reportSalesTotal">0đ</strong></div><div class="small-card"><span>Đơn hàng 30 ngày</span><strong id="reportOrdersCount">0</strong></div></div>
-        <div class="card"><h3>Doanh thu theo ngày</h3><table class="table"><thead><tr><th>Ngày</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportDailyTable"></tbody></table></div>
-        <div class="card" style="margin-top:20px;"><h3>Doanh thu theo tuần</h3><table class="table"><thead><tr><th>Tuần</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportWeeklyTable"></tbody></table></div>
-      </div>
-
-      <div id="profileSection" class="section hidden">
         <div class="card">
-          <h2>Hồ sơ cá nhân</h2>
+          <h3>Thông tin cá nhân</h3>
           <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
             <div class="form-control"><label>Tên đăng nhập</label><input id="profileUsername" type="text" readonly></div>
             <div class="form-control"><label>Họ và tên</label><input id="profileFullname" type="text" readonly></div>
@@ -273,20 +349,62 @@
             <div class="form-control"><label>Ngày tạo</label><input id="profileCreatedAt" type="text" readonly></div>
           </div>
         </div>
-
-        <div class="card" style="margin-top:20px;">
-          <h2>Đổi mật khẩu</h2>
-          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
-            <div class="form-control"><label for="oldPassword">Mật khẩu cũ</label><input id="oldPassword" type="password" placeholder="••••••••"></div>
-            <div class="form-control"><label for="newPassword">Mật khẩu mới</label><input id="newPassword" type="password" placeholder="••••••••"></div>
-            <div class="form-control"><label for="confirmPassword">Xác nhận mật khẩu</label><input id="confirmPassword" type="password" placeholder="••••••••"></div>
+        <div id="adminUserManagement" class="card hidden" style="margin-top:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h3>Quản lý nhân viên</h3><button class="button" onclick="toggleCreateUser()">Tạo tài khoản</button></div>
+          <div id="createUserBox" class="card hidden" style="margin-top:16px;">
+            <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
+              <div class="form-control"><label for="staffUsername">Tên đăng nhập</label><input id="staffUsername" type="text"></div>
+              <div class="form-control"><label for="staffPassword">Mật khẩu</label><input id="staffPassword" type="password"></div>
+              <div class="form-control"><label for="staffFullname">Họ tên</label><input id="staffFullname" type="text"></div>
+              <div class="form-control"><label for="staffRole">Vai trò</label><select id="staffRole"><option value="seller">Nhân viên bán hàng</option><option value="manager">Quản lý cửa hàng</option><option value="admin">Quản trị viên</option></select></div>
+            </div>
+            <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="createUser()">Tạo tài khoản</button><button class="button-outline" onclick="toggleCreateUser()">Đóng</button></div>
+            <div id="userEditorMessage" class="notification hidden"></div>
           </div>
-          <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
-            <button class="button" onclick="changePassword()">Đổi mật khẩu</button>
-          </div>
-          <div id="changePasswordMessage" class="notification hidden"></div>
+          <div class="card" style="margin-top:16px;"><table class="table"><thead><tr><th>Họ tên</th><th>Tên đăng nhập</th><th>Vai trò</th><th>Ngày tạo</th><th>Hành động</th></tr></thead><tbody id="userTable"></tbody></table></div>
         </div>
       </div>
+
+      <div id="reportsSection" class="section hidden">
+        <h2>Báo cáo bán hàng</h2>
+        <div class="report-metrics">
+          <div class="small-card"><span>Doanh thu 30 ngày</span><strong id="reportSalesTotal">0đ</strong><span>Tổng doanh thu gần nhất</span></div>
+          <div class="small-card"><span>Đơn hàng 30 ngày</span><strong id="reportOrdersCount">0</strong><span>Tổng số đơn hàng</span></div>
+          <div class="small-card"><span>Doanh thu tháng</span><strong id="reportMonthlyRevenue">0đ</strong><span>Doanh thu tháng hiện tại</span></div>
+          <div class="small-card"><span>Giá trị đơn trung bình</span><strong id="reportAvgOrderValue">0đ</strong><span>Trung bình mỗi đơn</span></div>
+        </div>
+
+        <div class="chart-grid">
+          <div class="chart-card">
+            <div class="chart-header"><span>Biểu đồ doanh thu theo ngày</span><span id="reportDailyChartTotal">0đ</span></div>
+            <div id="reportDailyChart" class="bar-chart"></div>
+            <div class="report-table-card"><h3>Chi tiết theo ngày</h3><table class="table table-compact"><thead><tr><th>Ngày</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportDailyTable"></tbody></table></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header"><span>Biểu đồ doanh thu theo tuần</span><span id="reportWeeklyChartTotal">0đ</span></div>
+            <div id="reportWeeklyChart" class="bar-chart"></div>
+            <div class="report-table-card"><h3>Chi tiết theo tuần</h3><table class="table table-compact"><thead><tr><th>Tuần</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportWeeklyTable"></tbody></table></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card report-table-card">
+            <h3>Top sản phẩm bán chạy</h3>
+            <table class="table table-compact"><thead><tr><th>Sản phẩm</th><th>Số lượng</th><th>Doanh thu</th></tr></thead><tbody id="reportTopProductsBody"></tbody></table>
+          </div>
+          <div class="card report-table-card">
+            <h3>Sản phẩm tồn kho thấp</h3>
+            <table class="table table-compact"><thead><tr><th>Sản phẩm</th><th>Tồn kho</th><th>Ghi chú</th></tr></thead><tbody id="reportLowStockBody"></tbody></table>
+          </div>
+        </div>
+        <div class="card report-table-card" style="margin-top:20px;">
+          <h3>Doanh thu theo danh mục (Hôm nay)</h3>
+          <div id="reportCategoryChart" class="bar-chart" style="height:160px; margin-top:12px;"></div>
+          <table class="table table-compact" style="margin-top:12px;"><thead><tr><th>Danh mục</th><th>Số lượng</th><th>Doanh thu</th></tr></thead><tbody id="reportCategoryBody"></tbody></table>
+        </div>
+      </div>
+
+      </main>
     </div>
   </section>
 </div>
@@ -347,8 +465,6 @@
   function showApp() {
     document.getElementById('authSection').classList.add('hidden');
     document.getElementById('appSection').classList.remove('hidden');
-    document.getElementById('logoutButton').classList.remove('hidden');
-    document.getElementById('profileButton').classList.remove('hidden');
     setStatus(`${state.user.full_name || state.user.username} • ${roleLabel(state.user.role)}`);
     renderMenu();
     openSection('dashboard');
@@ -358,9 +474,6 @@
   function showAuth() {
     document.getElementById('authSection').classList.remove('hidden');
     document.getElementById('appSection').classList.add('hidden');
-    document.getElementById('logoutButton').classList.add('hidden');
-    document.getElementById('profileButton').classList.add('hidden');
-    setStatus('Chưa đăng nhập');
   }
 
   function roleLabel(role) {
@@ -389,12 +502,13 @@
       const tabs = [
         { id:'dashboard', label:'Tổng Quan' },
         { id:'pos', label:'Bán Hàng', role: ['seller', 'manager', 'admin'] },
+        { id:'customers', label:'Tích điểm', role: ['seller', 'manager', 'admin'] },
         { id:'products', label:'Sản phẩm', role: ['admin', 'manager'] },
         { id:'suppliers', label:'Nhà cung cấp', role: ['admin', 'manager'] },
         { id:'orders', label:'Đơn hàng' },
-        { id:'reports', label:'Báo cáo', role: ['admin', 'manager'] }
+        { id:'reports', label:'Báo cáo', role: ['admin', 'manager'] },
+        { id:'users', label:'Nhân sự', role: ['manager', 'admin'] }
       ];
-      if (state.user.role === 'admin') tabs.push({ id:'users', label:'Nhân sự' });
 
       const visibleTabs = tabs.filter(tab => !tab.role || tab.role.includes(state.user.role));
       const container = document.getElementById('menuTabs');
@@ -402,20 +516,28 @@
     }
 
     function openSection(section) {
-      const sections = ['dashboard','pos','products','suppliers','orders','users','reports','profile'];
+      const sections = ['dashboard','pos','customers','products','suppliers','orders','users','reports'];
       sections.forEach(id => document.getElementById(id + 'Section').classList.toggle('hidden', id !== section));
       sections.forEach(id => document.getElementById('tab-' + id) && document.getElementById('tab-' + id).classList.toggle('active', id === section));
       if (section === 'dashboard') loadDashboard();
       if (section === 'pos') loadProductList();
+      if (section === 'customers') loadCustomers();
       if (section === 'products') loadProductList();
       if (section === 'suppliers') {
         loadSuppliers();
         loadSupplierOrders();
       }
       if (section === 'orders') loadOrders();
-      if (section === 'users') loadUsers();
+      if (section === 'users') {
+        loadProfile();
+        if (state.user.role === 'admin') {
+          document.getElementById('adminUserManagement').classList.remove('hidden');
+          loadUsers();
+        } else {
+          document.getElementById('adminUserManagement').classList.add('hidden');
+        }
+      }
       if (section === 'reports') loadReport();
-      if (section === 'profile') loadProfile();
     }
   async function refreshData() {
     // Load products first so we can derive categories locally (and include special options)
@@ -829,7 +951,13 @@
     if (!state.user) return alert('Bạn cần đăng nhập để thanh toán.');
     if (state.cart.length === 0) return alert('Giỏ hàng trống.');
     try {
-      const res = await apiFetch('/orders', { method: 'POST', body: JSON.stringify({ cart: state.cart }) });
+      const customer = {
+        name: document.getElementById('customerName') ? document.getElementById('customerName').value.trim() : null,
+        phone: document.getElementById('customerPhone') ? document.getElementById('customerPhone').value.trim() : null
+      };
+      const payload = { cart: state.cart };
+      if (customer && customer.phone) payload.customer = customer;
+      const res = await apiFetch('/orders', { method: 'POST', body: JSON.stringify(payload) });
       const data = await res.json();
       state.cart = [];
       renderCart();
@@ -841,9 +969,85 @@
       } else {
         alert('Thanh toán thành công. Mã đơn: ' + (data.orderNumber || 'N/A'));
       }
+      if (data.customer) {
+        document.getElementById('customerPoints').textContent = data.customer.points;
+        document.getElementById('customerTier').textContent = data.customer.tier;
+        // update name input to canonical name
+        if (data.customer.name) document.getElementById('customerName').value = data.customer.name;
+      }
     } catch (err) {
       console.error('Checkout error:', err);
       alert(err.message || 'Thanh toán thất bại.');
+    }
+  }
+
+  async function lookupCustomerByPhone() {
+    const phone = document.getElementById('customerPhone').value.trim();
+    if (!phone) return;
+    try {
+      const res = await apiFetch('/customers?phone=' + encodeURIComponent(phone), { method: 'GET' });
+      const data = await res.json();
+      if (data) {
+        document.getElementById('customerName').value = data.name || '';
+        document.getElementById('customerPoints').textContent = data.points || 0;
+        document.getElementById('customerTier').textContent = data.tier || 'Bronze';
+      } else {
+        document.getElementById('customerPoints').textContent = '-';
+        document.getElementById('customerTier').textContent = '-';
+      }
+    } catch (e) {
+      console.error(e);
+      document.getElementById('customerPoints').textContent = '-';
+      document.getElementById('customerTier').textContent = '-';
+    }
+  }
+
+  async function loadCustomers(phone = null) {
+    try {
+      const url = phone ? `/customers?phone=${encodeURIComponent(phone)}` : '/customers';
+      const res = await apiFetch(url, { method: 'GET' });
+      const data = await res.json();
+      const rows = Array.isArray(data) ? data : (data ? [data] : []);
+      document.getElementById('customerTable').innerHTML = rows.length ? rows.map(customer => `
+        <tr>
+          <td>${customer.name || '-'}</td>
+          <td>${customer.phone || '-'}</td>
+          <td>${customer.points || 0}</td>
+          <td>${customer.tier || 'Bronze'}</td>
+          <td>${customer.created_at ? new Date(customer.created_at).toLocaleString() : '-'}</td>
+        </tr>
+      `).join('') : '<tr><td colspan="5">Không tìm thấy khách hàng.</td></tr>';
+    } catch (err) {
+      console.error(err);
+      document.getElementById('customerTable').innerHTML = '<tr><td colspan="5">Không thể tải khách hàng.</td></tr>';
+    }
+  }
+
+  function searchCustomers() {
+    const phone = document.getElementById('loyaltySearchPhone').value.trim();
+    loadCustomers(phone || null);
+  }
+
+  function resetCustomerSearch() {
+    document.getElementById('loyaltySearchPhone').value = '';
+    loadCustomers();
+  }
+
+  async function createCustomer() {
+    const name = document.getElementById('newCustomerName').value.trim();
+    const phone = document.getElementById('newCustomerPhone').value.trim();
+    if (!phone) {
+      return alert('Vui lòng nhập số điện thoại khách hàng.');
+    }
+    try {
+      await apiFetch('/customers', { method: 'POST', body: JSON.stringify({ name: name || null, phone }) });
+      alert('Khách hàng đã được thêm.');
+      document.getElementById('newCustomerName').value = '';
+      document.getElementById('newCustomerPhone').value = '';
+      document.getElementById('loyaltySearchPhone').value = phone;
+      loadCustomers(phone);
+    } catch (err) {
+      alert(err.message || 'Không thể thêm khách hàng.');
     }
   }
 
@@ -1281,13 +1485,30 @@
       const data = await res.json();
       const daily = data.daily || [];
       const weekly = data.weekly || [];
+      const topProducts = data.top_products || [];
+      const lowStock = data.low_stock || [];
+
+      const dailyTotal = daily.reduce((sum, row) => sum + Number(row.total_sales), 0);
+      const weeklyTotal = weekly.reduce((sum, row) => sum + Number(row.total_sales), 0);
+      const totalOrders = daily.reduce((sum, row) => sum + Number(row.orders), 0);
+      const monthlyRevenue = Number(data.monthly_revenue || 0);
+      const avgOrderValue = Number(data.average_order_value || 0);
+
+      document.getElementById('reportSalesTotal').textContent = formatCurrency(dailyTotal);
+      document.getElementById('reportOrdersCount').textContent = totalOrders;
+      document.getElementById('reportMonthlyRevenue').textContent = formatCurrency(monthlyRevenue);
+      document.getElementById('reportAvgOrderValue').textContent = formatCurrency(avgOrderValue);
+      document.getElementById('reportDailyChartTotal').textContent = formatCurrency(dailyTotal);
+      document.getElementById('reportWeeklyChartTotal').textContent = formatCurrency(weeklyTotal);
+
       document.getElementById('reportDailyTable').innerHTML = daily.map(row => `
         <tr>
-          <td>${new Date(row.date).toLocaleDateString()}</td>
+          <td>${new Date(row.date).toLocaleDateString('vi-VN')}</td>
           <td>${row.orders}</td>
           <td>${formatCurrency(row.total_sales)}</td>
         </tr>
       `).join('');
+
       document.getElementById('reportWeeklyTable').innerHTML = weekly.map(row => `
         <tr>
           <td>${row.week}</td>
@@ -1295,14 +1516,60 @@
           <td>${formatCurrency(row.total_sales)}</td>
         </tr>
       `).join('');
-      const totalRevenue = daily.reduce((sum, row) => sum + Number(row.total_sales), 0);
-      const totalOrders = daily.reduce((sum, row) => sum + Number(row.orders), 0);
-      document.getElementById('reportSalesTotal').textContent = formatCurrency(totalRevenue);
-      document.getElementById('reportOrdersCount').textContent = totalOrders;
+
+      const dailyChart = document.getElementById('reportDailyChart');
+      const dailyMax = Math.max(...daily.map(row => Number(row.total_sales)), 1);
+      dailyChart.innerHTML = daily.slice().reverse().map(row => {
+        const height = Math.max(4, Math.round((Number(row.total_sales) / dailyMax) * 100));
+        return `<div class="bar"><span style="--bar-height:${height}%"></span><div class="bar-value">${formatCurrency(row.total_sales)}</div><label>${new Date(row.date).toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit'})}</label></div>`;
+      }).join('');
+
+      const weeklyChart = document.getElementById('reportWeeklyChart');
+      const weeklyMax = Math.max(...weekly.map(row => Number(row.total_sales)), 1);
+      weeklyChart.innerHTML = weekly.slice().reverse().map(row => {
+        const height = Math.max(4, Math.round((Number(row.total_sales) / weeklyMax) * 100));
+        return `<div class="bar"><span style="--bar-height:${height}%"></span><div class="bar-value">${formatCurrency(row.total_sales)}</div><label>${row.week}</label></div>`;
+      }).join('');
+
+      document.getElementById('reportTopProductsBody').innerHTML = topProducts.length ? topProducts.map(row => `
+        <tr>
+          <td>${escapeHtml(row.product_name || 'Unknown')}</td>
+          <td>${row.quantity_sold}</td>
+          <td>${formatCurrency(row.revenue)}</td>
+        </tr>
+      `).join('') : '<tr><td colspan="3">Không có dữ liệu sản phẩm bán chạy.</td></tr>';
+      document.getElementById('reportLowStockBody').innerHTML = lowStock.length ? lowStock.map(row => `
+        <tr>
+          <td>${escapeHtml(row.name || 'N/A')}</td>
+          <td>${row.stock}</td>
+          <td style="color:${row.stock <= 2 ? '#dc2626' : '#ca8a04'}; font-weight:700;">${row.stock <= 2 ? 'Cần nhập ngay' : 'Sắp hết hàng'}</td>
+        </tr>
+      `).join('') : '<tr><td colspan="3">Không có sản phẩm tồn kho thấp.</td></tr>';
+
+      // Category sales for today
+      const categories = data.category_sales_today || [];
+      document.getElementById('reportCategoryBody').innerHTML = categories.length ? categories.map(r => `
+        <tr>
+          <td>${escapeHtml(r.category || 'Khác')}</td>
+          <td>${r.quantity_sold}</td>
+          <td>${formatCurrency(r.revenue)}</td>
+        </tr>
+      `).join('') : '<tr><td colspan="3">Không có dữ liệu danh mục hôm nay.</td></tr>';
+
+      const catChart = document.getElementById('reportCategoryChart');
+      if (catChart) {
+        const maxCat = Math.max(...categories.map(c => Number(c.revenue)), 1);
+        catChart.innerHTML = categories.map(r => {
+          const h = Math.max(6, Math.round((Number(r.revenue) / maxCat) * 100));
+          return `<div class="bar"><span style="--bar-height:${h}%"></span><div class="bar-value">${formatCurrency(r.revenue)}</div><label>${escapeHtml(r.category || 'Khác')}</label></div>`;
+        }).join('');
+      }
     } catch (err) {
       console.error(err);
       document.getElementById('reportDailyTable').innerHTML = '<tr><td colspan="3">Không thể tải báo cáo.</td></tr>';
       document.getElementById('reportWeeklyTable').innerHTML = '<tr><td colspan="3">Không thể tải báo cáo.</td></tr>';
+      document.getElementById('reportTopProductsBody').innerHTML = '<tr><td colspan="3">Không thể tải báo cáo.</td></tr>';
+      document.getElementById('reportLowStockBody').innerHTML = '<tr><td colspan="3">Không thể tải báo cáo.</td></tr>';
     }
   }
 

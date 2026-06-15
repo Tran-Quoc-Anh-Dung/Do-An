@@ -82,7 +82,7 @@
 </head>
 <body>
 <header>
-  <h1>POS Văn Phòng Phẩm</h1>
+  <h1>Bán Hàng Văn Phòng Phẩm</h1>
   <div class="meta">
     <span id="userStatus">Chưa đăng nhập</span>
     <button class="button-outline hidden" id="profileButton" onclick="openSection('profile')">Hồ sơ</button>
@@ -94,7 +94,6 @@
   <section id="authSection" class="card">
     <div class="tabs">
       <button class="tab-button active" id="tabLogin" onclick="showAuthTab('login')">Đăng nhập</button>
-      <button class="tab-button" id="tabRegister" onclick="showAuthTab('register')">Đăng ký</button>
     </div>
 
     <div id="loginBox">
@@ -104,18 +103,6 @@
       </div>
       <div class="form-actions" style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
         <button class="button" onclick="login(event)">Đăng nhập</button>
-      </div>
-    </div>
-
-    <div id="registerBox" class="hidden">
-      <div class="form-grid">
-        <div class="form-control"><label for="registerUsername">Tên đăng nhập</label><input id="registerUsername" type="text" placeholder="nhanvien01"></div>
-        <div class="form-control"><label for="registerPassword">Mật khẩu</label><input id="registerPassword" type="password" placeholder="••••••••"></div>
-        <div class="form-control"><label for="registerFullname">Họ và tên</label><input id="registerFullname" type="text" placeholder="Nguyễn Văn A"></div>
-      </div>
-      <div class="form-actions" style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
-        <button class="button" onclick="register(event)">Đăng ký</button>
-        <button class="button-outline" onclick="showAuthTab('login')">Quay lại đăng nhập</button>
       </div>
     </div>
   </section>
@@ -137,7 +124,7 @@
       </div>
 
       <div id="posSection" class="section hidden">
-        <h2>POS - Bán hàng</h2>
+        <h2>Bán Hàng</h2>
         <div class="form-grid" style="grid-template-columns: 1fr 200px; align-items: end; margin-bottom:20px; gap:16px;">
           <div class="form-control"><label for="searchProduct">Tìm kiếm sản phẩm</label><input id="searchProduct" type="text" placeholder="Nhập tên, mã, danh mục" oninput="applyProductFilter()"></div>
           <div class="form-control"><label for="filterCategory">Lọc danh mục</label><select id="filterCategory" onchange="applyProductFilter()"></select></div>
@@ -179,6 +166,7 @@
             <div class="form-control"><label for="productName">Tên sản phẩm</label><input id="productName" type="text"></div>
             <div class="form-control"><label for="productCode">Mã SP</label><input id="productCode" type="text"></div>
             <div class="form-control"><label for="productCategory">Danh mục</label><select id="productCategory"></select></div>
+            <div class="form-control"><label for="productSupplier">Nhà cung cấp</label><select id="productSupplier"><option value="">Chọn nhà cung cấp</option></select></div>
             <div class="form-control"><label for="productPrice">Giá bán</label><input id="productPrice" type="number" min="0" step="0.01"></div>
             <div class="form-control"><label for="productStock">Số lượng tồn kho</label><input id="productStock" type="number" min="0"></div>
             <div class="form-control"><label for="productImage">URL ảnh</label><input id="productImage" type="text"></div>
@@ -196,7 +184,7 @@
           <div id="categoriesList" style="margin-top:12px;">
           </div>
         </div>
-        <div class="card"><table class="table"><thead><tr><th>Tên</th><th>Mã</th><th>Danh mục</th><th>Giá</th><th>Tồn kho</th><th>Người quản lý</th><th>Hành động</th></tr></thead><tbody id="productTable"></tbody></table></div>
+        <div class="card"><table class="table"><thead><tr><th>Tên</th><th>Mã</th><th>Danh mục</th><th>Nhà cung cấp</th><th>Giá</th><th>Tồn kho</th><th>Hành động</th></tr></thead><tbody id="productTable"></tbody></table></div>
         <div class="card" id="inventorySummaryCard">
           <h3>Tồn kho theo danh mục</h3>
           <table class="table"><thead><tr><th>Danh mục</th><th>Số sản phẩm</th><th>Tổng tồn kho</th></tr></thead><tbody id="inventorySummaryTable"></tbody></table>
@@ -207,6 +195,50 @@
       <div id="ordersSection" class="section hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Danh sách đơn hàng</h2><div><button class="button-outline" onclick="loadOrders()">Tải lại</button></div></div>
         <div class="card"><table class="table"><thead><tr><th>Ngày</th><th>Mã đơn</th><th>Số SP</th><th>Tổng tiền</th><th>Nhân viên</th><th>Hành động</th></tr></thead><tbody id="orderTable"></tbody></table></div>
+      </div>
+
+      <div id="suppliersSection" class="section hidden">
+        <div style="display:grid; gap:20px;">
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Nhà cung cấp</h2><button class="button" onclick="toggleSupplierEditor()">Thêm nhà cung cấp</button></div>
+            <div id="supplierEditor" class="card hidden" style="margin-top:16px;">
+              <h3>Thêm nhà cung cấp mới</h3>
+              <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
+                <div class="form-control"><label for="supplierName">Tên nhà cung cấp</label><input id="supplierName" type="text"></div>
+                <div class="form-control"><label for="supplierPhone">Số điện thoại</label><input id="supplierPhone" type="text"></div>
+                <div class="form-control"><label for="supplierEmail">Email</label><input id="supplierEmail" type="email"></div>
+                <div class="form-control"><label for="supplierAddress">Địa chỉ</label><input id="supplierAddress" type="text"></div>
+              </div>
+              <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="createSupplier()">Lưu nhà cung cấp</button><button class="button-outline" onclick="toggleSupplierEditor()">Hủy</button></div>
+              <div id="supplierEditorMessage" class="notification hidden"></div>
+            </div>
+            <div class="card" style="margin-top:16px;"><table class="table"><thead><tr><th>Tên</th><th>Điện thoại</th><th>Email</th><th>Địa chỉ</th><th>Hành động</th></tr></thead><tbody id="supplierTable"></tbody></table></div>
+          </div>
+
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Đơn đặt hàng từ nhà cung cấp</h2><button class="button" onclick="toggleSupplierOrderEditor()">Tạo đơn mới</button></div>
+            <div id="supplierOrderEditor" class="card hidden" style="margin-top:16px;">
+              <h3>Đơn đặt hàng mới</h3>
+              <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
+                <div class="form-control"><label for="orderSupplier">Chọn nhà cung cấp</label><select id="orderSupplier"></select></div>
+                <div class="form-control"><label for="orderNote">Ghi chú</label><textarea id="orderNote"></textarea></div>
+              </div>
+              <div style="margin-top:16px;">
+                <h4>Sản phẩm đặt hàng</h4>
+                <div style="display:grid; gap:12px; grid-template-columns: 1fr 120px 120px 120px; align-items:end; margin-top:12px;">
+                  <div class="form-control"><label for="orderProduct">Sản phẩm</label><select id="orderProduct"></select></div>
+                  <div class="form-control"><label for="orderQuantity">Số lượng</label><input id="orderQuantity" type="number" min="1" value="1"></div>
+                  <div class="form-control"><label for="orderUnitCost">Đơn giá</label><input id="orderUnitCost" type="number" min="0" step="0.01" value="0"></div>
+                  <div><button class="button" style="width:100%;" onclick="addSupplierOrderItem()">Thêm sản phẩm</button></div>
+                </div>
+                <div id="supplierOrderItems" style="margin-top:16px;"></div>
+              </div>
+              <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="saveSupplierOrder()">Lưu đơn đặt hàng</button><button class="button-outline" onclick="toggleSupplierOrderEditor()">Hủy</button></div>
+              <div id="supplierOrderEditorMessage" class="notification hidden"></div>
+            </div>
+            <div class="card" style="margin-top:16px;"><table class="table"><thead><tr><th>Ngày</th><th>Mã PO</th><th>Nhà cung cấp</th><th>Trạng thái</th><th>Người tạo</th><th>Hành động</th></tr></thead><tbody id="supplierOrderTable"></tbody></table></div>
+          </div>
+        </div>
       </div>
 
       <div id="usersSection" class="section hidden">
@@ -255,36 +287,17 @@
           <div id="changePasswordMessage" class="notification hidden"></div>
         </div>
       </div>
-
-      
-
-      <div id="branchesSection" class="section hidden">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Quản lý chi nhánh</h2><button class="button" onclick="showBranchEditor()">Thêm chi nhánh</button></div>
-        <div id="branchEditor" class="card hidden" style="margin-bottom:20px;">
-          <h3 id="branchEditorTitle">Thêm chi nhánh mới</h3>
-          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
-            <div class="form-control"><label for="branchName">Tên chi nhánh</label><input id="branchName" type="text"></div>
-            <div class="form-control"><label for="branchLocation">Địa chỉ</label><input id="branchLocation" type="text"></div>
-            <div class="form-control"><label for="branchManager">Quản lý</label><select id="branchManager"><option value="">---</option></select></div>
-          </div>
-          <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="saveBranch()">Lưu</button><button class="button-outline" onclick="hideBranchEditor()">Hủy</button></div>
-          <div id="branchEditorMessage" class="notification hidden"></div>
-        </div>
-        <div class="card"><table class="table"><thead><tr><th>Tên</th><th>Địa chỉ</th><th>Quản lý</th><th>Hành động</th></tr></thead><tbody id="branchTable"></tbody></table></div>
-      </div>
     </div>
   </section>
 </div>
 
 <script>
-  const state = { token: null, user: null, products: [], categories: [], cart: [], editProductId: null, reportData: [] };
+  const state = { token: null, user: null, products: [], categories: [], suppliers: [], supplierOrders: [], supplierOrderDraft: [], cart: [], editProductId: null, reportData: [] };
   const LOW_STOCK_THRESHOLD = 2; // products with stock < this number will be considered low-stock
 
   function showAuthTab(tab) {
     document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
-    document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
     document.getElementById('loginBox').classList.toggle('hidden', tab !== 'login');
-    document.getElementById('registerBox').classList.toggle('hidden', tab !== 'register');
   }
 
   function renderLowStockAlerts() {
@@ -371,49 +384,47 @@
     } catch (err) { alert(err.message || 'Đăng nhập thất bại.'); }
   }
 
-  async function register(event) {
-    if (event) event.preventDefault();
-    const username = document.getElementById('registerUsername').value.trim();
-    const password = document.getElementById('registerPassword').value.trim();
-    const full_name = document.getElementById('registerFullname').value.trim();
-    if (!username || !password) return alert('Nhập tên đăng nhập và mật khẩu.');
-    try {
-      const response = await fetch('/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ username, password, full_name }) });
-      if (!response.ok) throw new Error(await response.text());
-      alert('Đăng ký thành công. Vui lòng đăng nhập.');
-      showAuthTab('login');
-    } catch (err) { alert(err.message || 'Đăng ký thất bại.'); }
-  }
 
   function renderMenu() {
-    const tabs = [ { id:'dashboard', label:'Dashboard' }, { id:'pos', label:'POS', role: ['seller', 'manager', 'admin'] }, { id:'products', label:'Sản phẩm', role: ['admin', 'manager'] }, { id:'orders', label:'Đơn hàng' }, { id:'reports', label:'Báo cáo', role: ['admin', 'manager'] }, { id:'branches', label:'Chi nhánh', role: ['admin'] } ];
-    if (state.user.role === 'admin') tabs.push({ id:'users', label:'Nhân sự' });
-    
-    const visibleTabs = tabs.filter(tab => !tab.role || tab.role.includes(state.user.role));
-    const container = document.getElementById('menuTabs');
-    container.innerHTML = visibleTabs.map(tab => `<button class="tab-button" id="tab-${tab.id}" onclick="openSection('${tab.id}')">${tab.label}</button>`).join('');
-  }
+      const tabs = [
+        { id:'dashboard', label:'Tổng Quan' },
+        { id:'pos', label:'Bán Hàng', role: ['seller', 'manager', 'admin'] },
+        { id:'products', label:'Sản phẩm', role: ['admin', 'manager'] },
+        { id:'suppliers', label:'Nhà cung cấp', role: ['admin', 'manager'] },
+        { id:'orders', label:'Đơn hàng' },
+        { id:'reports', label:'Báo cáo', role: ['admin', 'manager'] }
+      ];
+      if (state.user.role === 'admin') tabs.push({ id:'users', label:'Nhân sự' });
 
-  function openSection(section) {
-    const sections = ['dashboard','pos','products','orders','users','reports','profile','branches'];
-    sections.forEach(id => document.getElementById(id + 'Section').classList.toggle('hidden', id !== section));
-    sections.forEach(id => document.getElementById('tab-' + id) && document.getElementById('tab-' + id).classList.toggle('active', id === section));
-    if (section === 'dashboard') loadDashboard();
-    if (section === 'pos') loadProductList();
-    if (section === 'products') loadProductList();
-    if (section === 'orders') loadOrders();
-    if (section === 'users') loadUsers();
-    if (section === 'reports') loadReport();
-    if (section === 'profile') loadProfile();
-    
-    if (section === 'branches') loadBranches();
-  }
+      const visibleTabs = tabs.filter(tab => !tab.role || tab.role.includes(state.user.role));
+      const container = document.getElementById('menuTabs');
+      container.innerHTML = visibleTabs.map(tab => `<button class="tab-button" id="tab-${tab.id}" onclick="openSection('${tab.id}')">${tab.label}</button>`).join('');
+    }
 
+    function openSection(section) {
+      const sections = ['dashboard','pos','products','suppliers','orders','users','reports','profile'];
+      sections.forEach(id => document.getElementById(id + 'Section').classList.toggle('hidden', id !== section));
+      sections.forEach(id => document.getElementById('tab-' + id) && document.getElementById('tab-' + id).classList.toggle('active', id === section));
+      if (section === 'dashboard') loadDashboard();
+      if (section === 'pos') loadProductList();
+      if (section === 'products') loadProductList();
+      if (section === 'suppliers') {
+        loadSuppliers();
+        loadSupplierOrders();
+      }
+      if (section === 'orders') loadOrders();
+      if (section === 'users') loadUsers();
+      if (section === 'reports') loadReport();
+      if (section === 'profile') loadProfile();
+    }
   async function refreshData() {
     // Load products first so we can derive categories locally (and include special options)
     await loadProductList().catch(() => {});
     await Promise.all([loadCategories(), loadDashboard(), loadOrders(), loadReport()]).catch(() => {});
     if (state.user.role === 'admin') loadUsers();
+    if (['admin','manager'].includes(state.user.role)) {
+      await Promise.all([loadSuppliers(), loadSupplierOrders()]).catch(() => {});
+    }
   }
 
   async function loadDashboard() {
@@ -450,8 +461,15 @@
       filter.innerHTML = state.categories.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
       // populate product category select (exclude pseudo categories)
       const prodSelect = document.getElementById('productCategory');
+      const supplierSelect = document.getElementById('productSupplier');
       const productOptions = [{ value: '', label: 'Không chọn' }].concat(state.categories.filter(c => c.value !== 'all' && c.value !== 'no-orders'));
       prodSelect.innerHTML = productOptions.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+
+      const suppliersRes = await apiFetch('/api/suppliers', { method: 'GET' });
+      const suppliersList = (await suppliersRes.json()).data || [];
+      state.suppliers = suppliersList;
+      supplierSelect.innerHTML = ['<option value="">Chọn nhà cung cấp</option>']
+        .concat(suppliersList.map(s => `<option value="${s.id}">${s.name}</option>`)).join('');
       loadCategoriesList();
     } catch (err) { console.error(err); }
   }
@@ -502,6 +520,7 @@
           <div><strong>Tên:</strong> ${product.name}</div>
           <div><strong>Mã SP:</strong> ${product.code || '-'}</div>
           <div><strong>Danh mục:</strong> ${product.category || 'Chưa phân loại'}</div>
+          <div><strong>Nhà cung cấp:</strong> ${product.supplier || '-'}</div>
           <div><strong>Giá:</strong> ${formatCurrency(product.price)}</div>
           <div><strong>Tồn kho:</strong> ${product.stock}</div>
           <div><strong>Barcode:</strong> ${product.barcode || '-'}</div>
@@ -623,9 +642,9 @@
           <td>${product.name}</td>
           <td>${product.code || '-'}</td>
           <td>${product.category || 'Chưa phân loại'}</td>
+          <td>${product.supplier || '-'}</td>
           <td>${formatCurrency(product.price)}</td>
           <td>${Number(product.stock) < LOW_STOCK_THRESHOLD ? '<span style="color:var(--danger); font-weight:700;">' + product.stock + '</span>' : product.stock}</td>
-          <td>${product.created_at ? new Date(product.created_at).toLocaleDateString() : '-'}</td>
           <td style="white-space:nowrap; display:flex; gap:8px;">
             <button class="button-outline" onclick="editProduct(${product.id})">Sửa</button>
             ${state.user.role === 'admin' ? `<button class="button-danger" onclick="deleteProduct(${product.id})">Xóa</button>` : ''}
@@ -672,6 +691,7 @@
       document.getElementById('productName').value = product.name;
       document.getElementById('productCode').value = product.code || '';
       document.getElementById('productCategory').value = product.category || '';
+      document.getElementById('productSupplier').value = product.supplier_id || product.supplier_id === 0 ? product.supplier_id : '';
       document.getElementById('productPrice').value = product.price;
       document.getElementById('productStock').value = product.stock;
       document.getElementById('productImage').value = product.image || '';
@@ -681,6 +701,7 @@
       document.getElementById('productName').value = '';
       document.getElementById('productCode').value = '';
       document.getElementById('productCategory').value = '';
+      document.getElementById('productSupplier').value = '';
       document.getElementById('productPrice').value = '';
       document.getElementById('productStock').value = 0;
       document.getElementById('productImage').value = '';
@@ -698,6 +719,7 @@
       name: document.getElementById('productName').value.trim(),
       code: document.getElementById('productCode').value.trim(),
       category: document.getElementById('productCategory').value.trim(),
+      supplier_id: Number(document.getElementById('productSupplier').value) || null,
       price: Number(document.getElementById('productPrice').value),
       stock: Number(document.getElementById('productStock').value),
       image: document.getElementById('productImage').value.trim(),
@@ -809,21 +831,19 @@
     try {
       const res = await apiFetch('/orders', { method: 'POST', body: JSON.stringify({ cart: state.cart }) });
       const data = await res.json();
-      alert('Thanh toán thành công. Mã đơn: ' + (data.orderNumber || 'N/A'));
       state.cart = [];
       renderCart();
       loadProductList();
       loadDashboard();
       loadOrders();
+      if (data.orderId) {
+        viewOrder(data.orderId);
+      } else {
+        alert('Thanh toán thành công. Mã đơn: ' + (data.orderNumber || 'N/A'));
+      }
     } catch (err) {
       console.error('Checkout error:', err);
-      // Override: show success and clear cart even if server returned an error
-      alert('Thanh toán thành công.');
-      state.cart = [];
-      renderCart();
-      loadProductList();
-      loadDashboard();
-      loadOrders();
+      alert(err.message || 'Thanh toán thất bại.');
     }
   }
 
@@ -844,6 +864,224 @@
     } catch (err) {
       document.getElementById('orderTable').innerHTML = '<tr><td colspan="6">Không thể tải đơn hàng.</td></tr>';
       console.error(err);
+    }
+  }
+
+  function toggleSupplierEditor() {
+    document.getElementById('supplierEditor').classList.toggle('hidden');
+  }
+
+  function toggleSupplierOrderEditor() {
+    document.getElementById('supplierOrderEditor').classList.toggle('hidden');
+    if (!document.getElementById('supplierOrderEditor').classList.contains('hidden')) {
+      document.getElementById('orderSupplier').value = '';
+      document.getElementById('orderNote').value = '';
+      document.getElementById('orderProduct').value = '';
+      document.getElementById('orderQuantity').value = 1;
+      document.getElementById('orderUnitCost').value = 0;
+      state.supplierOrderDraft = [];
+      renderSupplierOrderItems();
+      populateSupplierOrderSelectors();
+      document.getElementById('supplierOrderEditorMessage').classList.add('hidden');
+    }
+  }
+
+  async function loadSuppliers() {
+    try {
+      const res = await apiFetch('/api/suppliers', { method: 'GET' });
+      const data = await res.json();
+      state.suppliers = data.data || [];
+      const supplierTable = document.getElementById('supplierTable');
+      if (state.suppliers.length === 0) {
+        supplierTable.innerHTML = '<tr><td colspan="4">Không có nhà cung cấp.</td></tr>';
+      } else {
+        supplierTable.innerHTML = state.suppliers.map(supplier => `
+          <tr>
+            <td>${supplier.name}</td>
+            <td>${supplier.phone || '-'}</td>
+            <td>${supplier.email || '-'}</td>
+            <td>${supplier.address || '-'}</td>
+            <td><button class="button-danger" onclick="deleteSupplier(${supplier.id})">Xóa</button></td>
+          </tr>
+        `).join('');
+      }
+      populateSupplierOrderSelectors();
+    } catch (err) {
+      console.error(err);
+      document.getElementById('supplierTable').innerHTML = '<tr><td colspan="4">Không thể tải nhà cung cấp.</td></tr>';
+    }
+  }
+
+  async function createSupplier() {
+    const name = document.getElementById('supplierName').value.trim();
+    const phone = document.getElementById('supplierPhone').value.trim();
+    const email = document.getElementById('supplierEmail').value.trim();
+    const address = document.getElementById('supplierAddress').value.trim();
+    if (!name) {
+      alert('Vui lòng nhập tên nhà cung cấp.');
+      return;
+    }
+    try {
+      await apiFetch('/suppliers', { method: 'POST', body: JSON.stringify({ name, phone, email, address }) });
+      alert('Nhà cung cấp đã được tạo.');
+      document.getElementById('supplierName').value = '';
+      document.getElementById('supplierPhone').value = '';
+      document.getElementById('supplierEmail').value = '';
+      document.getElementById('supplierAddress').value = '';
+      toggleSupplierEditor();
+      await loadSuppliers();
+    } catch (err) {
+      alert(err.message || 'Tạo nhà cung cấp thất bại.');
+    }
+  }
+
+  async function deleteSupplier(id) {
+    if (!confirm('Xác nhận xóa nhà cung cấp này?')) return;
+    try {
+      const res = await apiFetch(`/api/suppliers/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      alert(data.message || 'Nhà cung cấp đã được xóa.');
+      await loadSuppliers();
+      await loadProductList();
+    } catch (err) {
+      alert(err.message || 'Xóa nhà cung cấp thất bại.');
+    }
+  }
+
+  function populateSupplierOrderSelectors() {
+    const supplierSelect = document.getElementById('orderSupplier');
+    const productSelect = document.getElementById('orderProduct');
+    if (supplierSelect) {
+      supplierSelect.innerHTML = ['<option value="">Chọn nhà cung cấp</option>']
+        .concat(state.suppliers.map(s => `<option value="${s.id}">${s.name}</option>`)).join('');
+    }
+    if (productSelect) {
+      productSelect.innerHTML = ['<option value="">Chọn sản phẩm</option>']
+        .concat(state.products.map(p => `<option value="${p.id}" data-name="${escapeHtml(p.name)}" data-cost="${p.cost_price || p.price || 0}">${p.name}</option>`)).join('');
+    }
+  }
+
+  function escapeHtml(text) {
+    return String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  }
+
+  function addSupplierOrderItem() {
+    const productId = Number(document.getElementById('orderProduct').value);
+    const quantity = Number(document.getElementById('orderQuantity').value);
+    const unitCost = Number(document.getElementById('orderUnitCost').value);
+    if (!productId || quantity <= 0) {
+      alert('Chọn sản phẩm và số lượng hợp lệ.');
+      return;
+    }
+    const product = state.products.find(p => p.id === productId);
+    const existing = state.supplierOrderDraft.find(item => item.product_id === productId);
+    if (existing) {
+      existing.quantity += quantity;
+      existing.unit_cost = unitCost;
+    } else {
+      state.supplierOrderDraft.push({ product_id: productId, product_name: product ? product.name : 'Sản phẩm không xác định', quantity, unit_cost: unitCost });
+    }
+    renderSupplierOrderItems();
+  }
+
+  function renderSupplierOrderItems() {
+    const container = document.getElementById('supplierOrderItems');
+    if (!state.supplierOrderDraft.length) {
+      container.innerHTML = '<div class="small-card">Chưa có sản phẩm trong đơn.</div>';
+      return;
+    }
+    container.innerHTML = `
+      <table class="table">
+        <thead>
+          <tr><th>Sản phẩm</th><th style="width:80px; text-align:center;">SL</th><th style="width:120px; text-align:right;">Đơn giá</th><th style="width:120px; text-align:right;">Thành tiền</th><th style="width:120px; text-align:center;">Xóa</th></tr>
+        </thead>
+        <tbody>
+          ${state.supplierOrderDraft.map((item, index) => `
+            <tr>
+              <td>${escapeHtml(item.product_name)}</td>
+              <td style="text-align:center;">${item.quantity}</td>
+              <td style="text-align:right;">${formatCurrency(item.unit_cost)}</td>
+              <td style="text-align:right;">${formatCurrency(item.unit_cost * item.quantity)}</td>
+              <td style="text-align:center;"><button class="button-outline" onclick="removeSupplierOrderItem(${index})">Xóa</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  function removeSupplierOrderItem(index) {
+    state.supplierOrderDraft.splice(index, 1);
+    renderSupplierOrderItems();
+  }
+
+  async function saveSupplierOrder() {
+    const supplierId = Number(document.getElementById('orderSupplier').value);
+    const note = document.getElementById('orderNote').value.trim();
+    if (!supplierId) return alert('Chọn nhà cung cấp.');
+    if (!state.supplierOrderDraft.length) return alert('Thêm sản phẩm cho đơn đặt hàng.');
+    try {
+      const res = await apiFetch('/supplier-orders', { method: 'POST', body: JSON.stringify({ supplier_id: supplierId, note, items: state.supplierOrderDraft }) });
+      const data = await res.json();
+      alert(data.message || 'Tạo đơn đặt hàng thành công.');
+      state.supplierOrderDraft = [];
+      renderSupplierOrderItems();
+      document.getElementById('orderNote').value = '';
+      document.getElementById('orderProduct').value = '';
+      document.getElementById('orderQuantity').value = 1;
+      document.getElementById('orderUnitCost').value = 0;
+      loadSupplierOrders();
+      loadSuppliers();
+    } catch (err) {
+      alert(err.message || 'Tạo đơn đặt hàng thất bại.');
+    }
+  }
+
+  async function loadSupplierOrders() {
+    try {
+      const res = await apiFetch('/supplier-orders', { method: 'GET' });
+      const orders = await res.json();
+      state.supplierOrders = orders || [];
+      const tbody = document.getElementById('supplierOrderTable');
+      if (!state.supplierOrders.length) {
+        tbody.innerHTML = '<tr><td colspan="6">Không có đơn đặt hàng.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = state.supplierOrders.map(order => {
+        const actions = [`<button class="button-outline" onclick="viewSupplierOrder(${order.id})">Xem</button>`];
+        if (order.status === 'REQUESTED') {
+          actions.push(`<button class="button" onclick="updateSupplierOrderStatus(${order.id}, 'deliver')">Gửi phiếu giao</button>`);
+        }
+        if (order.status === 'DELIVERED') {
+          actions.push(`<button class="button" onclick="updateSupplierOrderStatus(${order.id}, 'confirm')">Xác nhận</button>`);
+        }
+        return `
+          <tr>
+            <td>${new Date(order.created_at).toLocaleString()}</td>
+            <td style="font-weight:600; color:#2563eb;">${order.order_number || 'N/A'}</td>
+            <td>${order.supplier_name || '-'}</td>
+            <td>${order.status || '-'}</td>
+            <td>${order.created_by_name || '-'}</td>
+            <td style="white-space:nowrap; display:flex; gap:8px;">${actions.join('')}</td>
+          </tr>
+        `;
+      }).join('');
+    } catch (err) {
+      console.error(err);
+      document.getElementById('supplierOrderTable').innerHTML = '<tr><td colspan="6">Không thể tải đơn đặt hàng.</td></tr>';
+    }
+  }
+
+  async function updateSupplierOrderStatus(id, action) {
+    const endpoint = action === 'deliver' ? `/supplier-orders/${id}/deliver` : `/supplier-orders/${id}/confirm`;
+    const body = action === 'deliver' ? { delivery_note: `Đơn hàng đã gửi bởi ${state.user.full_name || state.user.username}` } : {};
+    try {
+      await apiFetch(endpoint, { method: 'POST', body: JSON.stringify(body) });
+      loadSupplierOrders();
+      loadProductList();
+      alert(action === 'deliver' ? 'Phiếu giao đã được gửi.' : 'Đơn hàng đã được xác nhận.' );
+    } catch (err) {
+      alert(err.message || 'Cập nhật trạng thái thất bại.');
     }
   }
 
@@ -958,6 +1196,75 @@
     }
   }
 
+  function closeSupplierOrderModal() {
+    const md = document.getElementById('supplierOrderModal');
+    if (md) md.classList.add('hidden');
+  }
+
+  async function viewSupplierOrder(id) {
+    try {
+      const res = await apiFetch(`/supplier-orders/${id}`, { method: 'GET' });
+      const order = await res.json();
+      const modal = document.getElementById('supplierOrderModal');
+      const content = document.getElementById('supplierOrderContent');
+
+      let total = 0;
+      const items = order.items || [];
+      const itemsHtml = items.map(item => {
+        const lineTotal = Number(item.unit_cost || 0) * Number(item.quantity || 0);
+        total += lineTotal;
+        return `
+          <tr>
+            <td>${escapeHtml(item.product_name)}</td>
+            <td style="text-align:center;">${item.quantity}</td>
+            <td style="text-align:right;">${formatCurrency(item.unit_cost)}</td>
+            <td style="text-align:right;">${formatCurrency(lineTotal)}</td>
+          </tr>
+        `;
+      }).join('');
+
+      const html = `
+        <div style="margin-bottom:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:start; gap:16px; flex-wrap:wrap;">
+            <div>
+              <h3 style="margin:0 0 8px;">Đơn đặt hàng nhà cung cấp #${order.order_number || 'N/A'}</h3>
+              <div style="font-size:14px; color:#666;">Ngày tạo: ${order.created_at ? new Date(order.created_at).toLocaleString() : '-'}</div>
+              <div style="font-size:14px; color:#666;">Nhà cung cấp: ${order.supplier_name || '-'}</div>
+              <div style="font-size:14px; color:#666;">Trạng thái: ${order.status || '-'}</div>
+              <div style="font-size:14px; color:#666;">Người tạo: ${order.created_by_name || '-'}</div>
+            </div>
+            <div style="font-size:14px; color:#666; text-align:right; min-width:220px;">
+              <div>Ghi chú:</div>
+              <div style="margin-top:8px; white-space:pre-wrap;">${escapeHtml(order.note || '-')}</div>
+            </div>
+          </div>
+        </div>
+        <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
+          <thead>
+            <tr style="border-bottom:2px solid #333;">
+              <th style="text-align:left; padding:8px;">Sản phẩm</th>
+              <th style="text-align:center; padding:8px;">SL</th>
+              <th style="text-align:right; padding:8px;">Đơn giá</th>
+              <th style="text-align:right; padding:8px;">Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+            <tr style="border-top:2px solid #333; font-weight:bold;">
+              <td colspan="3" style="text-align:right; padding:12px 8px;">Tổng cộng:</td>
+              <td style="text-align:right; padding:12px 8px;">${formatCurrency(total)}</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+
+      content.innerHTML = html;
+      modal.classList.remove('hidden');
+    } catch (err) {
+      alert(err.message || 'Không thể tải chi tiết đơn đặt hàng.');
+    }
+  }
+
   function printInvoice() {
     const content = document.getElementById('invoiceContent').innerHTML;
     const w = window.open('', '_blank', 'width=800,height=900');
@@ -1053,109 +1360,19 @@
 
   
 
-  // Branch functions
-  let editBranchId = null;
-
-  async function loadBranches() {
-    try {
-      const [branchesRes, usersRes] = await Promise.all([
-        apiFetch('/branches', { method: 'GET' }),
-        apiFetch('/users', { method: 'GET' })
-      ]);
-      const branches = await branchesRes.json();
-      const users = await usersRes.json();
-      
-      // Fill users select for manager assignment
-      const managerSelect = document.getElementById('branchManager');
-      managerSelect.innerHTML = '<option value="">---</option>' + users.map(u => `<option value="${u.id}">${u.full_name || u.username}</option>`).join('');
-      
-      // Load branches table
-      document.getElementById('branchTable').innerHTML = branches.map(b => `
-        <tr>
-          <td>${b.name}</td>
-          <td>${b.location || '-'}</td>
-          <td>${b.manager_id ? users.find(u => u.id === b.manager_id)?.full_name || users.find(u => u.id === b.manager_id)?.username : '-'}</td>
-          <td style="white-space:nowrap; display:flex; gap:8px;">
-            <button class="button-outline" onclick="editBranch(${b.id})">Sửa</button>
-            <button class="button-danger" onclick="deleteBranch(${b.id})">Xóa</button>
-          </td>
-        </tr>
-      `).join('');
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  function showBranchEditor(branch = null) {
-    document.getElementById('branchEditor').classList.remove('hidden');
-    document.getElementById('branchEditorTitle').textContent = branch ? 'Chỉnh sửa chi nhánh' : 'Thêm chi nhánh mới';
-    document.getElementById('branchEditorMessage').classList.add('hidden');
-    if (branch) {
-      editBranchId = branch.id;
-      document.getElementById('branchName').value = branch.name;
-      document.getElementById('branchLocation').value = branch.location || '';
-      document.getElementById('branchManager').value = branch.manager_id || '';
-    } else {
-      editBranchId = null;
-      document.getElementById('branchName').value = '';
-      document.getElementById('branchLocation').value = '';
-      document.getElementById('branchManager').value = '';
-    }
-  }
-
-  function hideBranchEditor() {
-    document.getElementById('branchEditor').classList.add('hidden');
-    editBranchId = null;
-  }
-
-  async function saveBranch() {
-    const name = document.getElementById('branchName').value.trim();
-    const location = document.getElementById('branchLocation').value.trim();
-    const manager_id = document.getElementById('branchManager').value ? Number(document.getElementById('branchManager').value) : null;
-    if (!name) {
-      alert('Vui lòng nhập tên chi nhánh.');
-      return;
-    }
-    try {
-      if (editBranchId) {
-        await apiFetch(`/branches/${editBranchId}`, { method: 'PUT', body: JSON.stringify({ name, location, manager_id }) });
-        alert('Cập nhật chi nhánh thành công.');
-      } else {
-        await apiFetch('/branches', { method: 'POST', body: JSON.stringify({ name, location, manager_id }) });
-        alert('Tạo chi nhánh thành công.');
-      }
-      hideBranchEditor();
-      loadBranches();
-    } catch (err) {
-      alert(err.message || 'Lưu chi nhánh thất bại.');
-    }
-  }
-
-  async function editBranch(id) {
-    try {
-      const res = await apiFetch(`/branches`, { method: 'GET' });
-      const branches = await res.json();
-      const branch = branches.find(b => b.id === id);
-      if (branch) showBranchEditor(branch);
-    } catch (err) {
-      alert('Không thể tải thông tin chi nhánh.');
-    }
-  }
-
-  async function deleteBranch(id) {
-    if (!confirm('Xác nhận xóa chi nhánh này?')) return;
-    try {
-      await apiFetch(`/branches/${id}`, { method: 'DELETE' });
-      alert('Xóa chi nhánh thành công.');
-      loadBranches();
-    } catch (err) {
-      alert(err.message || 'Xóa chi nhánh thất bại.');
-    }
-  }
-
   window.onload = init;
 </script>
   <!-- Invoice modal -->
+  <div id="supplierOrderModal" class="hidden modal-backdrop">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+        <h3>Chi tiết đơn đặt hàng nhà cung cấp</h3>
+        <div style="display:flex; gap:8px;"><button class="button-outline" onclick="closeSupplierOrderModal()">Đóng</button></div>
+      </div>
+      <div id="supplierOrderContent" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
   <div id="invoiceModal" class="hidden modal-backdrop">
     <div class="modal-card">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">

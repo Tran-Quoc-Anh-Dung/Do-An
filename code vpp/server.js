@@ -227,53 +227,46 @@ async function ensureDatabase() {
   // Try delete by slug or exact name to clean existing rows
   await query(`DELETE FROM categories WHERE slug IN (?) OR name IN (?)`, [unwantedSlugs, ['Đồ nhà bếp','Điện gia dụng','Vật dụng gia đình']]).catch(() => {});
 
-  const defaultSuppliers = [
-    'Sunhouse',
-    'Kangaroo',
-    'LifeGood',
-    'SamsungHome',
-    'PanHome'
-  ];
-  for (const supplierName of defaultSuppliers) {
-    await query(
-      "INSERT IGNORE INTO suppliers (name, status) VALUES (?, 'ACTIVE')",
-      [supplierName]
-    );
-  }
+  const legacySupplierNames = ['Sunhouse', 'Kangaroo', 'LifeGood', 'SamsungHome', 'PanHome'];
+  await query(`DELETE FROM suppliers WHERE name IN (?)`, [legacySupplierNames]).catch(() => {});
 
-  // Create branches table for store/warehouse management
-  await query(`CREATE TABLE IF NOT EXISTS branches (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(150) NOT NULL UNIQUE,
-    location VARCHAR(255) DEFAULT NULL,
-    manager_id INT DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (manager_id) REFERENCES users(id)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
-
-  // Create product-branch association table
-  await query(`CREATE TABLE IF NOT EXISTS branch_products (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    branch_id INT NOT NULL,
-    product_id INT NOT NULL,
-    quantity INT DEFAULT 0,
-    UNIQUE KEY unique_branch_product (branch_id, product_id),
-    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+  // No default suppliers are seeded. Suppliers should be added manually.
 
   // Create inventory logs table
   await query(`CREATE TABLE IF NOT EXISTS inventory_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     product_id INT NOT NULL,
-    branch_id INT DEFAULT NULL,
     quantity_change INT NOT NULL,
     reason VARCHAR(100) DEFAULT NULL,
     created_by INT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (product_id) REFERENCES products(id),
-    FOREIGN KEY (branch_id) REFERENCES branches(id),
     FOREIGN KEY (created_by) REFERENCES users(id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+  
+  // Create supplier order tables for purchase orders and delivery confirmation
+  await query(`CREATE TABLE IF NOT EXISTS supplier_orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_number VARCHAR(80) NOT NULL UNIQUE,
+    supplier_id INT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'REQUESTED',
+    note TEXT,
+    created_by INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    FOREIGN KEY (created_by) REFERENCES users(id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+
+  await query(`CREATE TABLE IF NOT EXISTS supplier_order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    supplier_order_id INT NOT NULL,
+    product_id INT DEFAULT NULL,
+    product_name VARCHAR(255) NOT NULL,
+    quantity INT NOT NULL DEFAULT 0,
+    unit_cost DECIMAL(10,2) DEFAULT 0,
+    FOREIGN KEY (supplier_order_id) REFERENCES supplier_orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
   
   // Ensure inventory_logs columns exist
@@ -281,21 +274,6 @@ async function ensureDatabase() {
   await ensureColumn("inventory_logs", "quantity_change", "quantity_change INT NOT NULL");
   await ensureColumn("inventory_logs", "reason", "reason VARCHAR(100) DEFAULT NULL");
   await ensureColumn("inventory_logs", "created_by", "created_by INT DEFAULT NULL");
-  await ensureColumn("inventory_logs", "branch_id", "branch_id INT DEFAULT NULL");
-  
-  try {
-    const catRows = await query("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND TRIM(category) != ''");
-    for (const r of catRows) {
-      const name = r.category;
-      if (!name) continue;
-      const slug = String(name).replace(/\s+/g, '-').toLowerCase();
-      const unwantedSlugsLocal = ['do-nha-bep', 'dien-gia-dung', 'vat-dung-gia-dinh'];
-      if (unwantedSlugsLocal.includes(slug)) continue;
-      await query("INSERT IGNORE INTO categories (name, slug) VALUES (?, ?)", [name, slug]);
-    }
-  } catch (e) {
-    console.error('Category migration failed:', e);
-  }
 }
 
 function createToken(user) {
@@ -331,39 +309,20 @@ function authorizeRoles(roles = []) {
   };
 }
 
-app.post("/auth/register", async (req, res) => {
+app.post("/auth/register", authenticateToken, authorizeRoles(["admin"]), async (req, res) => {
   const { username, password, full_name, role } = req.body;
   if (!username || !password) {
     return res.status(400).send("Username and password are required.");
   }
-
-  let newRole = "seller";
-  const authHeader = req.headers.authorization;
-  let currentRole = null;
-
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    const token = authHeader.split(" ")[1];
-    try {
-      const payload = jwt.verify(token, AUTH_SECRET);
-      currentRole = payload.role;
-    } catch (_) {
-      currentRole = null;
-    }
-  }
-
-  if (role && ALLOWED_ROLES.includes(role)) {
-    if (currentRole === "admin") {
-      newRole = role;
-    } else if (currentRole === "manager" && role === "seller") {
-      newRole = "seller";
-    }
+  if (role && !ALLOWED_ROLES.includes(role)) {
+    return res.status(400).send("Vai trò không hợp lệ.");
   }
 
   try {
     const passwordHash = await bcrypt.hash(password, 10);
     await query(
       "INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)",
-      [username, passwordHash, full_name || null, newRole]
+      [username, passwordHash, full_name || null, role || "seller"]
     );
     res.send("Tạo tài khoản thành công.");
   } catch (err) {
@@ -478,100 +437,10 @@ app.delete("/users/:id", authenticateToken, authorizeRoles(["admin"]), async (re
   }
 });
 
-app.get("/branches", authenticateToken, async (req, res) => {
-  try {
-    const branches = await query("SELECT id, name, location, manager_id, created_at FROM branches ORDER BY name");
-    res.json(branches);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Lỗi lấy danh sách chi nhánh.");
-  }
-});
-
-app.post("/branches", authenticateToken, authorizeRoles(["admin"]), async (req, res) => {
-  const { name, location, manager_id } = req.body;
-  if (!name || !name.trim()) {
-    return res.status(400).send("Tên chi nhánh là bắt buộc.");
-  }
-  try {
-    await query("INSERT INTO branches (name, location, manager_id) VALUES (?, ?, ?)", [name.trim(), location || null, manager_id || null]);
-    res.send("Tạo chi nhánh thành công.");
-  } catch (err) {
-    if (err.code === "ER_DUP_ENTRY") {
-      return res.status(409).send("Tên chi nhánh đã tồn tại.");
-    }
-    console.error(err);
-    res.status(500).send("Không thể tạo chi nhánh.");
-  }
-});
-
-app.put("/branches/:id", authenticateToken, authorizeRoles(["admin"]), async (req, res) => {
-  const id = Number(req.params.id);
-  const { name, location, manager_id } = req.body;
-  if (!id || !name) {
-    return res.status(400).send("Dữ liệu không hợp lệ.");
-  }
-  try {
-    await query("UPDATE branches SET name = ?, location = ?, manager_id = ? WHERE id = ?", [name.trim(), location || null, manager_id || null, id]);
-    res.send("Cập nhật chi nhánh thành công.");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Không thể cập nhật chi nhánh.");
-  }
-});
-
-app.delete("/branches/:id", authenticateToken, authorizeRoles(["admin"]), async (req, res) => {
-  const id = Number(req.params.id);
-  if (!id) {
-    return res.status(400).send("ID không hợp lệ.");
-  }
-  try {
-    await query("DELETE FROM branches WHERE id = ?", [id]);
-    res.send("Xóa chi nhánh thành công.");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Không thể xóa chi nhánh.");
-  }
-});
-
-app.get("/branch-products/:branchId", authenticateToken, async (req, res) => {
-  const branchId = Number(req.params.branchId);
-  if (!branchId) {
-    return res.status(400).send("ID chi nhánh không hợp lệ.");
-  }
-  try {
-    const products = await query(
-      "SELECT p.*, bp.quantity as branch_quantity FROM products p LEFT JOIN branch_products bp ON p.id = bp.product_id AND bp.branch_id = ? ORDER BY p.name",
-      [branchId]
-    );
-    res.json(products);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Lỗi lấy sản phẩm chi nhánh.");
-  }
-});
-
-app.post("/branch-products", authenticateToken, authorizeRoles(["admin", "manager"]), async (req, res) => {
-  const { branch_id, product_id, quantity } = req.body;
-  if (!branch_id || !product_id) {
-    return res.status(400).send("Dữ liệu không hợp lệ.");
-  }
-  try {
-    await query(
-      "INSERT INTO branch_products (branch_id, product_id, quantity) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE quantity = ?",
-      [branch_id, product_id, quantity || 0, quantity || 0]
-    );
-    res.send("Cập nhật sản phẩm chi nhánh thành công.");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Không thể cập nhật sản phẩm chi nhánh.");
-  }
-});
-
 app.get("/inventory", authenticateToken, authorizeRoles(["admin", "manager"]), async (req, res) => {
   try {
     const logs = await query(
-      "SELECT il.*, p.name as product_name, b.name as branch_name, u.username as created_by_user FROM inventory_logs il LEFT JOIN products p ON il.product_id = p.id LEFT JOIN branches b ON il.branch_id = b.id LEFT JOIN users u ON il.created_by = u.id ORDER BY il.created_at DESC LIMIT 100"
+      "SELECT il.*, p.name as product_name, u.username as created_by_user FROM inventory_logs il LEFT JOIN products p ON il.product_id = p.id LEFT JOIN users u ON il.created_by = u.id ORDER BY il.created_at DESC LIMIT 100"
     );
     res.json(logs);
   } catch (err) {
@@ -581,7 +450,7 @@ app.get("/inventory", authenticateToken, authorizeRoles(["admin", "manager"]), a
 });
 
 app.post("/inventory/import", authenticateToken, authorizeRoles(["admin", "manager"]), async (req, res) => {
-  const { product_id, branch_id, quantity } = req.body;
+  const { product_id, quantity } = req.body;
   if (!product_id || !quantity || quantity <= 0) {
     return res.status(400).send("Dữ liệu không hợp lệ.");
   }
@@ -591,14 +460,8 @@ app.post("/inventory/import", authenticateToken, authorizeRoles(["admin", "manag
       return res.status(404).send("Sản phẩm không tồn tại.");
     }
     await query("UPDATE products SET stock = stock + ? WHERE id = ?", [quantity, product_id]);
-    if (branch_id) {
-      await query(
-        "INSERT INTO branch_products (branch_id, product_id, quantity) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?",
-        [branch_id, product_id, quantity, quantity]
-      );
-    }
-    await query("INSERT INTO inventory_logs (product_id, branch_id, quantity_change, reason, created_by) VALUES (?, ?, ?, ?, ?)", 
-      [product_id, branch_id || null, quantity, "import", req.user.id]
+    await query("INSERT INTO inventory_logs (product_id, quantity_change, reason, created_by) VALUES (?, ?, ?, ?)", 
+      [product_id, quantity, "import", req.user.id]
     );
     res.send("Nhập hàng thành công.");
   } catch (err) {
@@ -608,7 +471,7 @@ app.post("/inventory/import", authenticateToken, authorizeRoles(["admin", "manag
 });
 
 app.post("/inventory/export", authenticateToken, authorizeRoles(["admin", "manager"]), async (req, res) => {
-  const { product_id, branch_id, quantity } = req.body;
+  const { product_id, quantity } = req.body;
   if (!product_id || !quantity || quantity <= 0) {
     return res.status(400).send("Dữ liệu không hợp lệ.");
   }
@@ -621,14 +484,8 @@ app.post("/inventory/export", authenticateToken, authorizeRoles(["admin", "manag
       return res.status(400).send("Số lượng tồn kho không đủ.");
     }
     await query("UPDATE products SET stock = stock - ? WHERE id = ?", [quantity, product_id]);
-    if (branch_id) {
-      await query(
-        "UPDATE branch_products SET quantity = GREATEST(0, quantity - ?) WHERE branch_id = ? AND product_id = ?",
-        [quantity, branch_id, product_id]
-      );
-    }
-    await query("INSERT INTO inventory_logs (product_id, branch_id, quantity_change, reason, created_by) VALUES (?, ?, ?, ?, ?)", 
-      [product_id, branch_id || null, -quantity, "export", req.user.id]
+    await query("INSERT INTO inventory_logs (product_id, quantity_change, reason, created_by) VALUES (?, ?, ?, ?)", 
+      [product_id, -quantity, "export", req.user.id]
     );
     res.send("Xuất hàng thành công.");
   } catch (err) {
@@ -698,21 +555,23 @@ app.delete('/categories/:id', authenticateToken, authorizeRoles(['admin']), asyn
 app.get("/products", async (req, res) => {
   try {
     const category = req.query.category;
-    let products;
+    let sql;
+    let params = [];
     if (category && category !== 'all') {
       if (category === 'no-orders') {
-        // Products that have never appeared in orders
-        products = await query("SELECT p.* FROM products p LEFT JOIN orders o ON p.id = o.product_id WHERE o.id IS NULL ORDER BY p.name");
+        sql = "SELECT p.*, s.name AS supplier, p.supplier_id FROM products p LEFT JOIN suppliers s ON p.supplier_id = s.id LEFT JOIN orders o ON p.id = o.product_id WHERE o.id IS NULL ORDER BY p.name";
       } else {
-        products = await query("SELECT * FROM products WHERE category = ? ORDER BY name", [category]);
+        sql = "SELECT p.*, s.name AS supplier, p.supplier_id FROM products p LEFT JOIN suppliers s ON p.supplier_id = s.id WHERE p.category = ? ORDER BY p.name";
+        params = [category];
       }
     } else {
-      products = await query("SELECT * FROM products ORDER BY name");
+      sql = "SELECT p.*, s.name AS supplier, p.supplier_id FROM products p LEFT JOIN suppliers s ON p.supplier_id = s.id ORDER BY p.name";
     }
+    const products = await query(sql, params);
     res.json(products);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message || err });
+    res.status(500).send("Lỗi lấy sản phẩm.");
   }
 });
 
@@ -743,6 +602,189 @@ app.get("/api/categories", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Lỗi lấy danh mục." });
+  }
+});
+
+app.post("/suppliers", authenticateToken, authorizeRoles(["admin", "manager"]), async (req, res) => {
+  const { name, phone, email, address } = req.body;
+  if (!name || !name.trim()) return res.status(400).send('Tên nhà cung cấp là bắt buộc.');
+  try {
+    await query('INSERT INTO suppliers (name, phone, email, address, status) VALUES (?, ?, ?, ?, ?)', [name.trim(), phone || null, email || null, address || null, 'ACTIVE']);
+    res.send('Tạo nhà cung cấp thành công.');
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).send('Nhà cung cấp đã tồn tại.');
+    console.error(err);
+    res.status(500).send('Không thể tạo nhà cung cấp.');
+  }
+});
+
+app.delete('/suppliers/:id', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  const supplierId = Number(req.params.id);
+  if (!supplierId) return res.status(400).send('ID nhà cung cấp không hợp lệ.');
+  try {
+    const suppliers = await query('SELECT id FROM suppliers WHERE id = ? LIMIT 1', [supplierId]);
+    if (suppliers.length === 0) return res.status(404).send('Nhà cung cấp không tồn tại.');
+    const linkedProducts = await query('SELECT COUNT(*) AS count FROM products WHERE supplier_id = ?', [supplierId]);
+    if (linkedProducts[0].count > 0) {
+      return res.status(400).send('Không thể xóa nhà cung cấp đang có sản phẩm liên quan.');
+    }
+    const linkedOrders = await query('SELECT COUNT(*) AS count FROM supplier_orders WHERE supplier_id = ?', [supplierId]);
+    if (linkedOrders[0].count > 0) {
+      return res.status(400).send('Không thể xóa nhà cung cấp đang có đơn đặt hàng liên quan.');
+    }
+    await query('DELETE FROM suppliers WHERE id = ?', [supplierId]);
+    res.json({ success: true, message: 'Nhà cung cấp đã được xóa.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể xóa nhà cung cấp.');
+  }
+});
+
+app.delete('/api/suppliers/:id', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  const supplierId = Number(req.params.id);
+  if (!supplierId) return res.status(400).send('ID nhà cung cấp không hợp lệ.');
+  try {
+    const suppliers = await query('SELECT id FROM suppliers WHERE id = ? LIMIT 1', [supplierId]);
+    if (suppliers.length === 0) return res.status(404).send('Nhà cung cấp không tồn tại.');
+    const linkedProducts = await query('SELECT COUNT(*) AS count FROM products WHERE supplier_id = ?', [supplierId]);
+    if (linkedProducts[0].count > 0) {
+      return res.status(400).send('Không thể xóa nhà cung cấp đang có sản phẩm liên quan.');
+    }
+    const linkedOrders = await query('SELECT COUNT(*) AS count FROM supplier_orders WHERE supplier_id = ?', [supplierId]);
+    if (linkedOrders[0].count > 0) {
+      return res.status(400).send('Không thể xóa nhà cung cấp đang có đơn đặt hàng liên quan.');
+    }
+    await query('DELETE FROM suppliers WHERE id = ?', [supplierId]);
+    res.json({ success: true, message: 'Nhà cung cấp đã được xóa.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể xóa nhà cung cấp.');
+  }
+});
+
+app.get("/supplier-orders", authenticateToken, authorizeRoles(["admin", "manager"]), async (req, res) => {
+  try {
+    const orders = await query(
+      `SELECT so.*, s.name AS supplier_name, u.full_name AS created_by_name
+       FROM supplier_orders so
+       LEFT JOIN suppliers s ON so.supplier_id = s.id
+       LEFT JOIN users u ON so.created_by = u.id
+       ORDER BY so.created_at DESC`
+    );
+    res.json(orders);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Lỗi lấy đơn đặt hàng nhà cung cấp.");
+  }
+});
+
+app.get('/supplier-orders/:id', authenticateToken, authorizeRoles(["admin", "manager"]), async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).send('ID không hợp lệ.');
+  try {
+    const orders = await query(
+      `SELECT so.*, s.name AS supplier_name, u.full_name AS created_by_name
+       FROM supplier_orders so
+       LEFT JOIN suppliers s ON so.supplier_id = s.id
+       LEFT JOIN users u ON so.created_by = u.id
+       WHERE so.id = ? LIMIT 1`,
+      [id]
+    );
+    if (orders.length === 0) return res.status(404).send('Đơn đặt hàng không tồn tại.');
+    const items = await query('SELECT * FROM supplier_order_items WHERE supplier_order_id = ?', [id]);
+    res.json({ ...orders[0], items });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi lấy chi tiết đơn đặt hàng.');
+  }
+});
+
+app.post('/supplier-orders', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  const { supplier_id, note, items } = req.body;
+  if (!supplier_id || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).send('Nhà cung cấp và danh sách sản phẩm là bắt buộc.');
+  }
+
+  try {
+    const suppliers = await query('SELECT id FROM suppliers WHERE id = ? LIMIT 1', [supplier_id]);
+    if (suppliers.length === 0) {
+      return res.status(400).send('Nhà cung cấp không tồn tại.');
+    }
+
+    const orderNumber = `PO-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    const result = await query(
+      'INSERT INTO supplier_orders (order_number, supplier_id, status, note, created_by) VALUES (?, ?, ?, ?, ?)',
+      [orderNumber, supplier_id, 'REQUESTED', note || null, req.user.id]
+    );
+    const supplierOrderId = result.insertId;
+
+    for (const item of items) {
+      const productId = Number(item.product_id) || null;
+      const quantity = Number(item.quantity) || 0;
+      const unitCost = Number(item.unit_cost) || 0;
+      if (!quantity || quantity <= 0) continue;
+      let productName = item.product_name || '';
+      if (productId && !productName) {
+        const products = await query('SELECT name FROM products WHERE id = ? LIMIT 1', [productId]);
+        if (products.length) productName = products[0].name;
+      }
+      if (!productName) productName = item.product_name || 'Sản phẩm không xác định';
+      await query(
+        'INSERT INTO supplier_order_items (supplier_order_id, product_id, product_name, quantity, unit_cost) VALUES (?, ?, ?, ?, ?)',
+        [supplierOrderId, productId, productName, quantity, unitCost]
+      );
+    }
+
+    res.json({ success: true, message: 'Đơn đặt hàng đã được tạo.', data: { id: supplierOrderId, order_number: orderNumber } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể tạo đơn đặt hàng.');
+  }
+});
+
+app.post('/supplier-orders/:id/deliver', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  const id = Number(req.params.id);
+  const { delivery_note } = req.body;
+  if (!id) return res.status(400).send('ID không hợp lệ.');
+
+  try {
+    const orders = await query('SELECT * FROM supplier_orders WHERE id = ? LIMIT 1', [id]);
+    if (orders.length === 0) return res.status(404).send('Đơn đặt hàng không tồn tại.');
+    const order = orders[0];
+    if (order.status !== 'REQUESTED') {
+      return res.status(400).send('Đơn đặt hàng chỉ có thể gửi phiếu giao khi đang ở trạng thái REQUESTED.');
+    }
+    await query('UPDATE supplier_orders SET status = ?, note = COALESCE(note, ?) , updated_at = NOW() WHERE id = ?', ['DELIVERED', delivery_note || order.note || '', id]);
+    res.json({ success: true, message: 'Phiếu giao hàng đã được gửi.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể gửi phiếu giao hàng.');
+  }
+});
+
+app.post('/supplier-orders/:id/confirm', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).send('ID không hợp lệ.');
+
+  try {
+    const orders = await query('SELECT * FROM supplier_orders WHERE id = ? LIMIT 1', [id]);
+    if (orders.length === 0) return res.status(404).send('Đơn đặt hàng không tồn tại.');
+    const order = orders[0];
+    if (order.status !== 'DELIVERED') {
+      return res.status(400).send('Chỉ có thể xác nhận phiếu giao khi trạng thái là DELIVERED.');
+    }
+    const items = await query('SELECT * FROM supplier_order_items WHERE supplier_order_id = ?', [id]);
+    for (const item of items) {
+      if (!item.product_id || item.quantity <= 0) continue;
+      await query('UPDATE products SET stock = stock + ? WHERE id = ?', [item.quantity, item.product_id]);
+      await query('INSERT INTO inventory_logs (product_id, quantity_change, reason, created_by) VALUES (?, ?, ?, ?)',
+        [item.product_id, item.quantity, 'supplier_confirm', req.user.id]);
+    }
+    await query('UPDATE supplier_orders SET status = ?, updated_at = NOW() WHERE id = ?', ['CONFIRMED', id]);
+    res.json({ success: true, message: 'Phiếu giao hàng đã được xác nhận và tồn kho đã được cập nhật.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể xác nhận phiếu giao hàng.');
   }
 });
 
@@ -781,8 +823,7 @@ app.get("/api/suppliers", async (req, res) => {
   }
 });
 
-app.post("/api/products", authenticateToken, authorizeRoles(["admin", "manager"]), async (req, res) => {
-  try {
+app.post("/api/products", authenticateToken, authorizeRoles(["admin", "manager"]), async (req, res) => {  try {
     const productId = await createProductFromPayload(req.body);
     res.json({ success: true, message: "Tạo sản phẩm thành công.", data: { id: productId } });
   } catch (err) {
@@ -793,22 +834,28 @@ app.post("/api/products", authenticateToken, authorizeRoles(["admin", "manager"]
 
 app.put("/products/:id", authenticateToken, authorizeRoles(["admin", "manager"]), async (req, res) => {
   const productId = Number(req.params.id);
-  const { name, description, category, code, price, stock, image } = req.body;
+  const { name, description, category, supplier_id, code, price, stock, image } = req.body;
+  const supplierId = supplier_id || (req.body.supplierId !== undefined ? req.body.supplierId : null);
   if (!productId || !name || !price) {
     return res.status(400).send("Thông tin sản phẩm không hợp lệ.");
   }
 
   try {
-    // If category provided, ensure it exists
     if (category && String(category).trim()) {
       const cats = await query('SELECT id FROM categories WHERE name = ? LIMIT 1', [category]);
       if (cats.length === 0) {
         return res.status(400).send('Danh mục không tồn tại. Vui lòng tạo danh mục trước.');
       }
     }
+    if (supplierId) {
+      const suppliers = await query('SELECT id FROM suppliers WHERE id = ? LIMIT 1', [supplierId]);
+      if (suppliers.length === 0) {
+        return res.status(400).send('Nhà cung cấp không tồn tại.');
+      }
+    }
     await query(
-      "UPDATE products SET name = ?, description = ?, category = ?, code = ?, price = ?, stock = ?, image = ? WHERE id = ?",
-      [name, description || null, category || null, code || null, price, stock || 0, image || null, productId]
+      "UPDATE products SET name = ?, description = ?, category = ?, supplier_id = ?, code = ?, price = ?, stock = ?, image = ? WHERE id = ?",
+      [name, description || null, category || null, supplierId || null, code || null, price, stock || 0, image || null, productId]
     );
     res.send("Cập nhật sản phẩm thành công.");
   } catch (err) {
@@ -838,8 +885,6 @@ app.delete("/products", authenticateToken, authorizeRoles(["admin"]), async (req
     await query("START TRANSACTION");
     // Remove dependent inventory logs first (has FK to products)
     await query("DELETE FROM inventory_logs WHERE product_id IS NOT NULL");
-    // Remove branch product associations (will also be removed by cascade, but remove explicitly)
-    await query("DELETE FROM branch_products WHERE product_id IS NOT NULL");
     // Clear product references in orders to avoid orphaned links
     await query("UPDATE orders SET product_id = NULL WHERE product_id IS NOT NULL");
     // Finally delete products
@@ -862,8 +907,6 @@ app.post('/products/bulk-delete', authenticateToken, authorizeRoles(['admin']), 
     const placeholders = ids.map(() => '?').join(',');
     // Delete related inventory logs
     await query(`DELETE FROM inventory_logs WHERE product_id IN (${placeholders})`, ids);
-    // Delete branch product associations
-    await query(`DELETE FROM branch_products WHERE product_id IN (${placeholders})`, ids);
     // Clear product references in orders
     await query(`UPDATE orders SET product_id = NULL WHERE product_id IN (${placeholders})`, ids);
     // Delete products
@@ -935,6 +978,7 @@ app.post("/orders", authenticateToken, async (req, res) => {
     }
 
     // Insert all items with same order_number
+    let orderId = null;
     for (const item of cart) {
       const productId = Number(item.product_id);
       const quantity = Number(item.quantity || 1);
@@ -945,10 +989,11 @@ app.post("/orders", authenticateToken, async (req, res) => {
         price = Number(product.price) || 0;
       }
 
-      await query(
+      const result = await query(
         "INSERT INTO orders (product_id, product_name, price, quantity, seller_id, seller_name, order_number) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [productId, item.product_name || product.name, price, quantity, req.user.id, req.user.username, orderNumber]
       );
+      orderId = result.insertId || orderId;
       await query("UPDATE products SET stock = stock - ? WHERE id = ?", [quantity, productId]);
       // Log inventory change (non-critical, wrap in try-catch to not break order)
       try {
@@ -960,7 +1005,7 @@ app.post("/orders", authenticateToken, async (req, res) => {
       }
     }
 
-    res.json({ message: "Đơn hàng đã được ghi nhận.", orderNumber });
+    res.json({ message: "Đơn hàng đã được ghi nhận.", orderNumber, orderId });
   } catch (err) {
     console.error("Insert error:", err);
     res.status(500).send("Không thể lưu đơn hàng.");
@@ -971,22 +1016,24 @@ app.get("/orders", authenticateToken, async (req, res) => {
   try {
     // Group orders by order_number to show one summary row per order
     let sql = `SELECT 
-      MAX(o.id) as id,
+      MAX(o.id) AS id,
       o.order_number,
       o.seller_id,
       o.seller_name,
       u.full_name AS seller_full_name,
-      MAX(o.created_at) as created_at,
-      COUNT(*) as item_count,
-      IFNULL(SUM(o.price * o.quantity), 0) as total_amount
+      MAX(o.created_at) AS created_at,
+      SUM(o.quantity) AS item_count,
+      IFNULL(SUM(o.price * o.quantity), 0) AS total_amount
     FROM orders o 
     LEFT JOIN users u ON o.seller_id = u.id`;
     const params = [];
+    const conditions = ['o.order_number IS NOT NULL'];
     if (req.user.role === "seller") {
-      sql += " WHERE o.seller_id = ?";
+      conditions.push('o.seller_id = ?');
       params.push(req.user.id);
     }
-    sql += " GROUP BY o.order_number ORDER BY MAX(o.created_at) DESC";
+    sql += ' WHERE ' + conditions.join(' AND ');
+    sql += " GROUP BY o.order_number, o.seller_id, o.seller_name, u.full_name ORDER BY MAX(o.created_at) DESC";
     const orders = await query(sql, params);
     res.json(orders);
   } catch (err) {

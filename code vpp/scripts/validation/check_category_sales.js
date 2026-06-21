@@ -1,4 +1,4 @@
-const db = require('./database');
+const db = require('../../src/database');
 function query(sql, params=[]) { return new Promise((resolve,reject)=> db.query(sql, params, (err,res)=> err? reject(err): resolve(res))); }
 (async ()=>{
   try{

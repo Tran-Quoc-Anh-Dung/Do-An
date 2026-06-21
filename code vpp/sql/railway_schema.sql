@@ -1,8 +1,7 @@
-CREATE DATABASE pos_vpp;
-USE pos_vpp;
+-- Railway schema for current connected database (DB_NAME=railway)
 
 -- USERS
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
@@ -11,14 +10,14 @@ CREATE TABLE users (
 );
 
 -- CATEGORIES
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     description TEXT
 );
 
 -- PRODUCTS
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
     category_id INT,
@@ -31,7 +30,7 @@ CREATE TABLE products (
 );
 
 -- CUSTOMERS
-CREATE TABLE customers (
+CREATE TABLE IF NOT EXISTS customers (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
     phone VARCHAR(20),
@@ -40,7 +39,7 @@ CREATE TABLE customers (
 );
 
 -- ORDERS
-CREATE TABLE orders (
+CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT,
     user_id INT,
@@ -54,7 +53,7 @@ CREATE TABLE orders (
 );
 
 -- ORDER DETAILS
-CREATE TABLE order_details (
+CREATE TABLE IF NOT EXISTS order_details (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT NOT NULL,
     product_id INT,
@@ -67,7 +66,7 @@ CREATE TABLE order_details (
 );
 
 -- SUPPLIERS
-CREATE TABLE suppliers (
+CREATE TABLE IF NOT EXISTS suppliers (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
     phone VARCHAR(20),
@@ -75,7 +74,7 @@ CREATE TABLE suppliers (
 );
 
 -- IMPORTS
-CREATE TABLE imports (
+CREATE TABLE IF NOT EXISTS imports (
     id INT AUTO_INCREMENT PRIMARY KEY,
     supplier_id INT,
     total_amount DECIMAL(12,2) DEFAULT 0,
@@ -85,7 +84,7 @@ CREATE TABLE imports (
 );
 
 -- IMPORT DETAILS
-CREATE TABLE import_details (
+CREATE TABLE IF NOT EXISTS import_details (
     id INT AUTO_INCREMENT PRIMARY KEY,
     import_id INT NOT NULL,
     product_id INT,
@@ -98,7 +97,7 @@ CREATE TABLE import_details (
 );
 
 -- PROMOTIONS
-CREATE TABLE promotions (
+CREATE TABLE IF NOT EXISTS promotions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150),
     discount_percent INT,
@@ -107,7 +106,7 @@ CREATE TABLE promotions (
 );
 
 -- INVENTORY LOGS (OPTIONAL - NÂNG CAO)
-CREATE TABLE inventory_logs (
+CREATE TABLE IF NOT EXISTS inventory_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     product_id INT,
     change_quantity INT,

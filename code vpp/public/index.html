@@ -256,7 +256,34 @@
       </div>
 
       <div id="customersSection" class="section hidden">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Khách hàng & Tích điểm</h2><button class="button-outline" onclick="loadCustomers()">Tải lại</button></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Tích điểm & Khách hàng</h2><button class="button-outline" onclick="loadCustomers()">Tải lại</button></div>
+        
+        <div class="card" style="margin-bottom:20px;">
+          <h3>Mốc xếp hạng</h3>
+          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
+            <div style="padding: 16px; background: #f0f9ff; border-radius: 12px; border-left: 4px solid #3b82f6;">
+              <div style="font-weight: 600; color: #1e40af;">Thành viên</div>
+              <div style="font-size: 14px; color: #6b7280;">0 - 999 điểm</div>
+            </div>
+            <div style="padding: 16px; background: #f0fdf4; border-radius: 12px; border-left: 4px solid #10b981;">
+              <div style="font-weight: 600; color: #065f46;">⭐ Bạc</div>
+              <div style="font-size: 14px; color: #6b7280;">1.000 - 4.999 điểm</div>
+            </div>
+            <div style="padding: 16px; background: #fef3c7; border-radius: 12px; border-left: 4px solid #f59e0b;">
+              <div style="font-weight: 600; color: #92400e;">⭐⭐ Vàng</div>
+              <div style="font-size: 14px; color: #6b7280;">5.000 - 9.999 điểm</div>
+            </div>
+            <div style="padding: 16px; background: #fce7f3; border-radius: 12px; border-left: 4px solid #ec4899;">
+              <div style="font-weight: 600; color: #831843;">⭐⭐⭐ Bạch kim</div>
+              <div style="font-size: 14px; color: #6b7280;">10.000 - 14.999 điểm</div>
+            </div>
+            <div style="padding: 16px; background: #f5e6ff; border-radius: 12px; border-left: 4px solid #a855f7;">
+              <div style="font-weight: 600; color: #581c87;">⭐⭐⭐⭐ VIP</div>
+              <div style="font-size: 14px; color: #6b7280;">15.000+ điểm</div>
+            </div>
+          </div>
+        </div>
+        
         <div class="card" style="margin-bottom:20px;">
           <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
             <div class="form-control"><label for="customerSearch">Tìm kiếm theo tên hoặc số điện thoại</label><input id="customerSearch" type="text" placeholder="Nhập tên hoặc số điện thoại"></div>
@@ -443,7 +470,7 @@
       { id:'inventory', label:'Tồn kho', role: ['admin', 'manager'] },
       { id:'orders', label:'Đơn hàng' },
       { id:'reports', label:'Báo cáo', role: ['admin', 'manager'] },
-      { id:'customers', label:'Khách hàng' }
+      { id:'customers', label:'Tích điểm' }
     ];
     if (state.user.role === 'admin') tabs.push({ id:'users', label:'Nhân sự' });
     

@@ -113,6 +113,67 @@ async function createProductFromPayload(payload) {
   return result.insertId;
 }
 
+async function updateProductFromPayload(productId, payload) {
+  const existing = await query('SELECT * FROM products WHERE id = ? LIMIT 1', [productId]);
+  if (existing.length === 0) {
+    const error = new Error('Sản phẩm không tồn tại.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const base = existing[0];
+  const name = String(payload.name ?? base.name).trim();
+  const description = payload.description != null ? String(payload.description).trim() : base.description;
+  const categoryId = payload.categoryId ?? payload.category_id ?? base.category_id;
+  const supplierId = payload.supplierId ?? payload.supplier_id ?? base.supplier_id;
+  let category = payload.category != null ? String(payload.category).trim() : base.category;
+  const codeValue = String(payload.sku ?? payload.code ?? payload.barcode ?? base.code ?? '').trim() || null;
+  const barcodeValue = String(payload.barcode ?? payload.sku ?? payload.code ?? base.barcode ?? '').trim() || null;
+  const costPrice = Number(payload.costPrice ?? payload.cost_price ?? base.cost_price ?? 0) || 0;
+  const price = Number(payload.salePrice ?? payload.price ?? base.price ?? 0) || 0;
+  const stock = Number(payload.stockQuantity ?? payload.stock_quantity ?? payload.stock ?? base.stock ?? 0) || 0;
+  const minStock = Number(payload.minStock ?? payload.min_stock ?? base.min_stock ?? 0) || 0;
+  const warrantyMonths = Number(payload.warrantyMonths ?? payload.warranty_months ?? base.warranty_months ?? 0) || 0;
+  const image = String(payload.imageUrl ?? payload.image ?? base.image ?? '').trim() || null;
+
+  if (!name || !price) {
+    const error = new Error('Tên và giá sản phẩm là bắt buộc.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!category && categoryId) {
+    category = await getCategoryNameById(categoryId);
+  }
+
+  if (category && String(category).trim()) {
+    const cats = await query('SELECT id FROM categories WHERE name = ? LIMIT 1', [category]);
+    if (cats.length === 0) {
+      const error = new Error('Danh mục không tồn tại. Vui lòng tạo danh mục trước.');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  if (supplierId) {
+    const suppliers = await query('SELECT id FROM suppliers WHERE id = ? LIMIT 1', [supplierId]);
+    if (suppliers.length === 0) {
+      const error = new Error('Nhà cung cấp không tồn tại.');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  await query(
+    `UPDATE products SET
+       name = ?, description = ?, category = ?, category_id = ?, supplier_id = ?, code = ?, barcode = ?, cost_price = ?, price = ?, stock = ?, stock_quantity = ?, min_stock = ?, warranty_months = ?, image = ?
+     WHERE id = ?`,
+    [name, description, category || null, categoryId || null, supplierId || null, codeValue, barcodeValue, costPrice, price, stock, stock, minStock, warrantyMonths, image, productId]
+  );
+
+  return productId;
+}
+
 async function ensureDatabase() {
   await query(`CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -167,6 +228,10 @@ async function ensureDatabase() {
   await ensureColumn("orders", "quantity", "quantity INT NOT NULL DEFAULT 1");
   await ensureColumn("orders", "seller_id", "seller_id INT DEFAULT NULL");
   await ensureColumn("orders", "seller_name", "seller_name VARCHAR(120) DEFAULT NULL");
+  await ensureColumn("orders", "payment_method", "payment_method VARCHAR(40) DEFAULT NULL");
+  await ensureColumn("orders", "customer_id", "customer_id INT DEFAULT NULL");
+  await ensureColumn("orders", "customer_name", "customer_name VARCHAR(150) DEFAULT NULL");
+  await ensureColumn("orders", "customer_phone", "customer_phone VARCHAR(40) DEFAULT NULL");
   await ensureColumn("orders", "created_at", "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
   await ensureColumn("orders", "order_number", "order_number VARCHAR(50) DEFAULT NULL");
 
@@ -180,32 +245,29 @@ async function ensureDatabase() {
     console.log("Tạo tài khoản admin mặc định: admin / admin123");
   }
 
-  const products = await query("SELECT COUNT(*) AS total FROM products");
-  if (products[0].total === 0) {
-    await query(
-      "INSERT INTO products (name, description, category, code, price, stock, image) VALUES ?",
-      [[
-        ["Bút bi cao cấp", "Bút bi mực êm, thiết kế thời trang.", "Bút viết", "BT001", 8500.00, 120, "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=600&q=80"],
-        ["Sổ tay B5", "Sổ tay lót kẻ ô tiện dụng.", "Sổ tay", "ST001", 29000.00, 80, "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=600&q=80"],
-        ["Hồ dán 50g", "Keo dán đa năng dùng cho giấy và vải.", "Keo dán", "KG001", 18000.00, 150, "https://images.unsplash.com/photo-1589561084283-930aa7b1f76d?auto=format&fit=crop&w=600&q=80"],
-        ["Bìa kẹp hồ sơ", "Bìa kẹp nhiều màu sắc, chắc chắn.", "Văn phòng phẩm", "BK001", 12000.00, 200, "https://images.unsplash.com/photo-1557682250-4fbc0ba0eb36?auto=format&fit=crop&w=600&q=80"],
-        ["Giấy in A4", "Giấy in chất lượng cao, 70gsm.", "Giấy in", "GA4-70", 95000.00, 60, "https://images.unsplash.com/photo-1511006913847-e60e7a4e2f65?auto=format&fit=crop&w=600&q=80"],
-        ["Bấm kim số 10", "Máy bấm kim cầm tay tiện lợi.", "Dụng cụ", "BM001", 22000.00, 90, "https://images.unsplash.com/photo-1493119508027-2b584f234d6c?auto=format&fit=crop&w=600&q=80"]
-      ]]
-    );
-    console.log("Đã tạo dữ liệu sản phẩm mẫu.");
-  }
-
   // Create categories table for canonical category management
   await query(`CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL UNIQUE,
     slug VARCHAR(180) DEFAULT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
 
   await ensureColumn("categories", "slug", "slug VARCHAR(180) DEFAULT NULL");
   await ensureColumn("categories", "status", "status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE'");
+
+  const existingCategoryRows = await query('SELECT COUNT(*) AS total FROM categories');
+  if (existingCategoryRows.length > 0 && existingCategoryRows[0].total === 0) {
+    const productCategories = await query(
+      'SELECT DISTINCT category AS name FROM products WHERE category IS NOT NULL AND category != ""'
+    );
+    for (const row of productCategories) {
+      const name = String(row.name || '').trim();
+      if (!name) continue;
+      await query('INSERT IGNORE INTO categories (name, slug) VALUES (?, ?)', [name, slugify(name)]);
+    }
+  }
 
   await query(`CREATE TABLE IF NOT EXISTS suppliers (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -341,20 +403,40 @@ function authorizeRoles(roles = []) {
   };
 }
 
-app.post("/auth/register", authenticateToken, authorizeRoles(["admin"]), async (req, res) => {
+app.post("/auth/register", async (req, res) => {
   const { username, password, full_name, role } = req.body;
   if (!username || !password) {
     return res.status(400).send("Username and password are required.");
   }
-  if (role && !ALLOWED_ROLES.includes(role)) {
-    return res.status(400).send("Vai trò không hợp lệ.");
+
+  let effectiveRole = "seller";
+  if (role) {
+    if (!ALLOWED_ROLES.includes(role)) {
+      return res.status(400).send("Vai trò không hợp lệ.");
+    }
+    if (role !== "seller") {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).send("Unauthorized");
+      }
+      const token = authHeader.split(" ")[1];
+      try {
+        const payload = jwt.verify(token, AUTH_SECRET);
+        if (payload.role !== "admin") {
+          return res.status(403).send("Forbidden");
+        }
+        effectiveRole = role;
+      } catch (err) {
+        return res.status(401).send("Invalid token");
+      }
+    }
   }
 
   try {
     const passwordHash = await bcrypt.hash(password, 10);
     await query(
       "INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)",
-      [username, passwordHash, full_name || null, role || "seller"]
+      [username, passwordHash, full_name || null, effectiveRole]
     );
     res.send("Tạo tài khoản thành công.");
   } catch (err) {
@@ -410,6 +492,491 @@ app.get("/auth/me", authenticateToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send("Lỗi lấy thông tin người dùng.");
+  }
+});
+
+app.get('/users', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
+  try {
+    const users = await query('SELECT id, username, role, full_name, created_at FROM users ORDER BY created_at DESC');
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải danh sách nhân viên.');
+  }
+});
+
+app.put('/auth/change-password', authenticateToken, async (req, res) => {
+  const { oldPassword, newPassword, confirmPassword } = req.body;
+  if (!oldPassword || !newPassword || !confirmPassword) {
+    return res.status(400).send('Vui lòng điền đầy đủ thông tin.');
+  }
+  if (newPassword !== confirmPassword) {
+    return res.status(400).send('Mật khẩu mới không trùng khớp.');
+  }
+  try {
+    const users = await query('SELECT password FROM users WHERE id = ? LIMIT 1', [req.user.id]);
+    if (users.length === 0) {
+      return res.status(404).send('Người dùng không tồn tại.');
+    }
+    const passwordMatch = await bcrypt.compare(oldPassword, users[0].password);
+    if (!passwordMatch) {
+      return res.status(401).send('Mật khẩu cũ không đúng.');
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await query('UPDATE users SET password = ? WHERE id = ?', [passwordHash, req.user.id]);
+    res.send('Đổi mật khẩu thành công.');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể đổi mật khẩu.');
+  }
+});
+
+app.get('/reports/sales', authenticateToken, authorizeRoles(['admin', 'manager', 'seller']), async (req, res) => {
+  try {
+    const daily = await query(
+      `SELECT DATE(created_at) AS date, COUNT(*) AS orders, COALESCE(SUM(price * quantity), 0) AS total_sales
+       FROM orders
+       WHERE created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+       GROUP BY DATE(created_at)
+       ORDER BY DATE(created_at) ASC`
+    );
+
+    const weekly = await query(
+      `SELECT YEARWEEK(created_at, 1) AS week, COUNT(*) AS orders, COALESCE(SUM(price * quantity), 0) AS total_sales
+       FROM orders
+       WHERE created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 8 WEEK)
+       GROUP BY YEARWEEK(created_at, 1)
+       ORDER BY YEARWEEK(created_at, 1) ASC`
+    );
+
+    const weeklyFormatted = weekly.map(row => ({
+      week: String(row.week),
+      orders: row.orders,
+      total_sales: row.total_sales
+    }));
+
+    res.json({ daily, weekly: weeklyFormatted });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải báo cáo doanh thu.');
+  }
+});
+
+app.get('/inventory', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const logs = await query(
+      `SELECT l.id, l.product_id, p.name AS product_name, l.quantity_change, l.reason, l.created_at, u.full_name AS created_by_user
+       FROM inventory_logs l
+       LEFT JOIN products p ON l.product_id = p.id
+       LEFT JOIN users u ON l.created_by = u.id
+       ORDER BY l.created_at DESC LIMIT 200`
+    );
+    res.json(logs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải tồn kho.');
+  }
+});
+
+app.post('/inventory/import', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  const { product_id, quantity } = req.body;
+  const qty = Number(quantity || 0);
+  if (!product_id || qty <= 0) {
+    return res.status(400).send('Sản phẩm hoặc số lượng không hợp lệ.');
+  }
+  try {
+    const product = await query('SELECT id FROM products WHERE id = ? LIMIT 1', [product_id]);
+    if (product.length === 0) {
+      return res.status(404).send('Sản phẩm không tồn tại.');
+    }
+    await query(
+      'INSERT INTO inventory_logs (product_id, quantity_change, reason, created_by) VALUES (?, ?, ?, ?)',
+      [product_id, qty, 'Nhập kho', req.user.id]
+    );
+    await query('UPDATE products SET stock = stock + ? WHERE id = ?', [qty, product_id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi nhập kho.');
+  }
+});
+
+app.post('/inventory/export', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  const { product_id, quantity } = req.body;
+  const qty = Number(quantity || 0);
+  if (!product_id || qty <= 0) {
+    return res.status(400).send('Sản phẩm hoặc số lượng không hợp lệ.');
+  }
+  try {
+    const products = await query('SELECT id, stock FROM products WHERE id = ? LIMIT 1', [product_id]);
+    if (products.length === 0) {
+      return res.status(404).send('Sản phẩm không tồn tại.');
+    }
+    const currentStock = Number(products[0].stock || 0);
+    if (qty > currentStock) {
+      return res.status(400).send('Số lượng xuất lớn hơn tồn kho.');
+    }
+    await query(
+      'INSERT INTO inventory_logs (product_id, quantity_change, reason, created_by) VALUES (?, ?, ?, ?)',
+      [product_id, -qty, 'Xuất kho', req.user.id]
+    );
+    await query('UPDATE products SET stock = GREATEST(stock - ?, 0) WHERE id = ?', [qty, product_id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi xuất kho.');
+  }
+});
+
+// Branch API removed as branch management was disabled.
+
+
+app.get('/api/categories', async (req, res) => {
+  try {
+    const categories = await query('SELECT id, name FROM categories WHERE status = ? ORDER BY name ASC', [req.query.status || 'ACTIVE']);
+    res.json(categories);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải danh mục.');
+  }
+});
+
+app.get('/api/products', async (req, res) => {
+  try {
+    const products = await query(
+      `SELECT id, name, description, category, price, stock, image, code, barcode FROM products ORDER BY name ASC`
+    );
+    res.json(products);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải sản phẩm.');
+  }
+});
+
+app.get('/api/suppliers', async (req, res) => {
+  try {
+    const status = req.query.status || 'ACTIVE';
+    const limit = Number(req.query.limit) || 100;
+    const suppliers = await query('SELECT id, name, phone, email, address, status FROM suppliers WHERE status = ? ORDER BY name ASC LIMIT ?', [status, limit]);
+    res.json(suppliers);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải nhà cung cấp.');
+  }
+});
+
+app.delete('/users/:id', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
+  const userId = Number(req.params.id);
+  if (!userId) {
+    return res.status(400).send('ID người dùng không hợp lệ.');
+  }
+  try {
+    const user = await query('SELECT id FROM users WHERE id = ? LIMIT 1', [userId]);
+    if (user.length === 0) {
+      return res.status(404).send('Người dùng không tồn tại.');
+    }
+    await query('DELETE FROM users WHERE id = ?', [userId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể xóa tài khoản.');
+  }
+});
+
+app.get('/products', async (req, res) => {
+  try {
+    const categoryFilter = req.query.category ? String(req.query.category).trim() : '';
+    let sql = `SELECT id, name, description, category, price, stock, image, code, barcode FROM products`;
+    const params = [];
+    if (categoryFilter) {
+      sql += ' WHERE category = ?';
+      params.push(categoryFilter);
+    }
+    sql += ' ORDER BY name ASC';
+    const products = await query(sql, params);
+    res.json(products);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải sản phẩm.');
+  }
+});
+
+app.post('/api/products', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const productId = await createProductFromPayload(req.body);
+    res.status(201).json({ id: productId });
+  } catch (err) {
+    console.error(err);
+    res.status(err.statusCode || 500).send(err.message || 'Không thể tạo sản phẩm.');
+  }
+});
+
+app.get('/categories', async (req, res) => {
+  try {
+    const categories = await query('SELECT id, name FROM categories ORDER BY name ASC');
+    if (categories.length > 0) {
+      return res.json(categories);
+    }
+
+    const productCategories = await query(
+      'SELECT DISTINCT NULL AS id, category AS name FROM products WHERE category IS NOT NULL AND category != "" ORDER BY category ASC'
+    );
+    res.json(productCategories);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải danh mục.');
+  }
+});
+
+app.post('/products', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const productId = await createProductFromPayload(req.body);
+    res.status(201).json({ id: productId });
+  } catch (err) {
+    console.error(err);
+    res.status(err.statusCode || 500).send(err.message || 'Không thể tạo sản phẩm.');
+  }
+});
+
+app.put('/products/:id', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const productId = Number(req.params.id);
+    if (Number.isNaN(productId) || productId <= 0) {
+      return res.status(400).send('ID sản phẩm không hợp lệ.');
+    }
+    await updateProductFromPayload(productId, req.body);
+    res.send('Sản phẩm đã được cập nhật.');
+  } catch (err) {
+    console.error(err);
+    res.status(err.statusCode || 500).send(err.message || 'Không thể cập nhật sản phẩm.');
+  }
+});
+
+app.delete('/products/:id', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const productId = Number(req.params.id);
+    if (Number.isNaN(productId) || productId <= 0) {
+      return res.status(400).send('ID sản phẩm không hợp lệ.');
+    }
+    await query('DELETE FROM products WHERE id = ?', [productId]);
+    res.send('Sản phẩm đã được xóa.');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể xóa sản phẩm.');
+  }
+});
+
+app.post('/categories', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim();
+    if (!name) return res.status(400).send('Tên danh mục là bắt buộc.');
+    const slug = slugify(name);
+    const result = await query('INSERT INTO categories (name, slug) VALUES (?, ?)', [name, slug]);
+    res.status(201).json({ id: result.insertId, name });
+  } catch (err) {
+    console.error(err);
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).send('Danh mục đã tồn tại.');
+    res.status(500).send('Không thể tạo danh mục.');
+  }
+});
+
+app.put('/categories/:id', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const categoryId = Number(req.params.id);
+    if (Number.isNaN(categoryId) || categoryId <= 0) {
+      return res.status(400).send('ID danh mục không hợp lệ.');
+    }
+    const name = String(req.body.name || '').trim();
+    if (!name) return res.status(400).send('Tên danh mục là bắt buộc.');
+    const slug = slugify(name);
+    await query('UPDATE categories SET name = ?, slug = ? WHERE id = ?', [name, slug, categoryId]);
+    res.send('Danh mục đã được cập nhật.');
+  } catch (err) {
+    console.error(err);
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).send('Danh mục đã tồn tại.');
+    res.status(500).send('Không thể cập nhật danh mục.');
+  }
+});
+
+app.delete('/categories/:id', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const categoryId = Number(req.params.id);
+    if (Number.isNaN(categoryId) || categoryId <= 0) {
+      return res.status(400).send('ID danh mục không hợp lệ.');
+    }
+    await query('DELETE FROM categories WHERE id = ?', [categoryId]);
+    res.send('Danh mục đã được xóa.');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể xóa danh mục.');
+  }
+});
+
+app.get('/orders', async (req, res) => {
+  try {
+    const orders = await query(
+      `SELECT id, product_id, product_name, price, quantity, seller_id, seller_name, payment_method, customer_id, customer_name, customer_phone, order_number, created_at
+       FROM orders ORDER BY created_at DESC LIMIT 200`
+    );
+    res.json(orders);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải đơn hàng.');
+  }
+});
+
+app.get('/customers', authenticateToken, async (req, res) => {
+  try {
+    const search = String(req.query.search || '').trim();
+    let sql = 'SELECT id, name, phone, points, tier, created_at FROM customers';
+    const params = [];
+    if (search) {
+      sql += ' WHERE name LIKE ? OR phone LIKE ?';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+    sql += ' ORDER BY created_at DESC LIMIT 200';
+    const customers = await query(sql, params);
+    res.json(customers);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải khách hàng.');
+  }
+});
+
+app.get('/customers/:id/history', authenticateToken, async (req, res) => {
+  const customerId = Number(req.params.id);
+  if (Number.isNaN(customerId) || customerId <= 0) {
+    return res.status(400).send('ID khách hàng không hợp lệ.');
+  }
+  try {
+    const customers = await query('SELECT id, name, phone, points, tier, created_at FROM customers WHERE id = ? LIMIT 1', [customerId]);
+    if (customers.length === 0) {
+      return res.status(404).send('Khách hàng không tồn tại.');
+    }
+    const customer = customers[0];
+    const history = await query(
+      `SELECT
+         order_number,
+         SUM(price * quantity) AS total_amount,
+         SUM(quantity) AS total_items,
+         seller_name,
+         payment_method,
+         MIN(created_at) AS created_at
+       FROM orders
+       WHERE customer_id = ?
+       GROUP BY order_number, seller_name, payment_method
+       ORDER BY created_at DESC
+       LIMIT 200`,
+      [customerId]
+    );
+    const historyWithPoints = history.map(row => ({
+      order_number: row.order_number,
+      total_amount: Number(row.total_amount || 0),
+      points_earned: Math.floor(Number(row.total_amount || 0) / 10000),
+      payment_method: row.payment_method,
+      seller_name: row.seller_name,
+      created_at: row.created_at
+    }));
+    res.json({ customer, history: historyWithPoints });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải lịch sử khách hàng.');
+  }
+});
+
+app.post('/orders', authenticateToken, async (req, res) => {
+  const { cart, customer = {}, paymentMethod } = req.body;
+  if (!Array.isArray(cart) || cart.length === 0) {
+    return res.status(400).send('Giỏ hàng không hợp lệ.');
+  }
+
+  const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`;
+  const sellerName = req.user.username;
+  const sellerId = req.user.id;
+  const method = paymentMethod === 'transfer' ? 'Chuyển khoản' : 'Tiền mặt';
+
+  const totalAmount = cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
+  const earnedPoints = Math.floor(totalAmount / 10000);
+  const phone = customer.phone ? String(customer.phone).trim() : null;
+  const name = customer.name ? String(customer.name).trim() : null;
+  let customerId = null;
+  let currentPoints = null;
+
+  try {
+    if (phone || name) {
+      if (phone) {
+        const existing = await query('SELECT id, points FROM customers WHERE phone = ? LIMIT 1', [phone]);
+        if (existing.length > 0) {
+          customerId = existing[0].id;
+          currentPoints = Number(existing[0].points || 0) + earnedPoints;
+          await query("UPDATE customers SET name = COALESCE(NULLIF(?, ''), name), points = points + ? WHERE id = ?", [name || existing[0].name || null, earnedPoints, customerId]);
+        } else {
+          const result = await query('INSERT INTO customers (name, phone, points) VALUES (?, ?, ?)', [name || null, phone, earnedPoints]);
+          customerId = result.insertId;
+          currentPoints = earnedPoints;
+        }
+      } else {
+        const result = await query('INSERT INTO customers (name, phone, points) VALUES (?, ?, ?)', [name, null, earnedPoints]);
+        customerId = result.insertId;
+        currentPoints = earnedPoints;
+      }
+    }
+
+    const orderRecords = cart.map(item => [
+      item.product_id || null,
+      item.product_name || null,
+      item.price || 0,
+      item.quantity || 1,
+      sellerId,
+      sellerName,
+      orderNumber,
+      method,
+      customerId,
+      name || null,
+      phone || null
+    ]);
+
+    await query(
+      `INSERT INTO orders (product_id, product_name, price, quantity, seller_id, seller_name, order_number, payment_method, customer_id, customer_name, customer_phone)
+       VALUES ?`,
+      [orderRecords]
+    );
+
+    for (const item of cart) {
+      if (!item.product_id || !item.quantity) continue;
+      await query('UPDATE products SET stock = GREATEST(stock - ?, 0) WHERE id = ?', [item.quantity, item.product_id]);
+    }
+
+    res.json({ success: true, orderNumber, pointsEarned: currentPoints != null ? earnedPoints : 0, currentPoints });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi xử lý đơn hàng.');
+  }
+});
+
+// Dashboard route: minimal client to verify UI
+app.get('/dashboard', async (req, res) => {
+  try {
+    const [productCountRow] = await query('SELECT COUNT(*) AS productCount FROM products');
+    const [orderCountRow] = await query('SELECT COUNT(*) AS orderCount FROM orders');
+    const [salesTotalRow] = await query('SELECT COALESCE(SUM(price * quantity), 0) AS salesTotal FROM orders');
+    const [todayTotalRow] = await query(
+      `SELECT COALESCE(SUM(price * quantity), 0) AS todayTotal
+       FROM orders
+       WHERE DATE(created_at) = CURRENT_DATE()`
+    );
+    const [categoryCountRow] = await query('SELECT COUNT(DISTINCT category) AS categoryCount FROM products');
+
+    res.json({
+      productCount: Number(productCountRow.productCount || 0),
+      orderCount: Number(orderCountRow.orderCount || 0),
+      salesTotal: Number(salesTotalRow.salesTotal || 0),
+      todayTotal: Number(todayTotalRow.todayTotal || 0),
+      categoryCount: Number(categoryCountRow.categoryCount || 0)
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải dashboard.');
   }
 });
 

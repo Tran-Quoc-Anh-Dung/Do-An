@@ -1,6 +1,9 @@
 
 require("dotenv").config();
 
+// Ensure Node uses Vietnam timezone for logs and default date handling where possible
+process.env.TZ = process.env.TZ || 'Asia/Ho_Chi_Minh';
+
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
@@ -15,6 +18,72 @@ const ALLOWED_ROLES = ["admin", "manager", "seller"];
 
 app.use(cors());
 app.use(express.json());
+
+// Middleware: format timestamp fields to Vietnam time before sending JSON
+app.use((req, res, next) => {
+  const originalJson = res.json.bind(res);
+  function formatValueToVN(d) {
+    try {
+      return d.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+    } catch (e) {
+      return d.toString();
+    }
+  }
+
+  function transform(obj) {
+    if (Array.isArray(obj)) return obj.map(transform);
+    if (obj && typeof obj === 'object') {
+      const out = {};
+      for (const k of Object.keys(obj)) {
+        const v = obj[k];
+        if (k.endsWith('_at') || k === 'opened_at' || k === 'closed_at') {
+          if (v == null) {
+            out[k] = v;
+            out[`${k}_vn`] = v;
+            out[`${k}_ts`] = null;
+          } else {
+            let dateValue = v;
+            if (typeof dateValue === 'string') {
+              dateValue = dateValue.trim().replace(' ', 'T');
+            }
+            const d = new Date(dateValue);
+            if (!isNaN(d.getTime())) {
+              out[k] = d.toISOString();
+              out[`${k}_vn`] = formatValueToVN(d);
+              out[`${k}_ts`] = d.getTime();
+            } else {
+              out[k] = v;
+              out[`${k}_vn`] = v;
+              out[`${k}_ts`] = null;
+            }
+          }
+        } else {
+          out[k] = transform(v);
+        }
+      }
+      return out;
+    }
+    return obj;
+  }
+
+  res.json = (body) => {
+    try {
+      const transformed = transform(body);
+      return originalJson(transformed);
+    } catch (e) {
+      return originalJson(body);
+    }
+  };
+  next();
+});
+
+// Simple request logger to help debug missing routes
+app.use((req, res, next) => {
+  try {
+    console.log('[REQ]', new Date().toISOString(), req.method, req.originalUrl);
+  } catch (e) {}
+  next();
+});
 
 // Diagnostic: quick handler to verify POST reachability (temporary)
 app.post('/_diag_products_bulk_delete', (req, res) => {
@@ -195,6 +264,16 @@ async function ensureDatabase() {
     stock INT NOT NULL DEFAULT 0,
     image VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+
+  await query(`CREATE TABLE IF NOT EXISTS shifts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    status ENUM('OPEN','CLOSED') NOT NULL DEFAULT 'OPEN',
+    opened_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
 
   await query(`CREATE TABLE IF NOT EXISTS orders (
@@ -829,6 +908,101 @@ app.get('/orders', async (req, res) => {
   }
 });
 
+app.get('/shifts/current', authenticateToken, async (req, res) => {
+  try {
+    const shifts = await query(
+      `SELECT id, user_id, status, opened_at, closed_at, created_at
+       FROM shifts
+       WHERE user_id = ? AND status = 'OPEN'
+       ORDER BY opened_at DESC
+       LIMIT 1`,
+      [req.user.id]
+    );
+    res.json(shifts.length > 0 ? shifts[0] : null);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải ca hiện tại.');
+  }
+});
+
+app.get('/shifts', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
+  try {
+    const status = String(req.query.status || '').trim().toUpperCase();
+    let sql = `SELECT id, user_id, status, opened_at, closed_at, created_at FROM shifts`;
+    const params = [];
+    if (status) {
+      sql += ' WHERE status = ?';
+      params.push(status);
+    }
+    sql += ' ORDER BY opened_at DESC';
+    const shifts = await query(sql, params);
+    res.json(shifts);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải danh sách ca.');
+  }
+});
+
+app.post('/shifts/open', authenticateToken, authorizeRoles(['seller','manager','admin']), async (req, res) => {
+  try {
+    let targetUserId = req.user.id;
+    if (req.body && req.body.userId) {
+      if (req.user.role !== 'admin') {
+        return res.status(403).send('Không có quyền mở ca cho người khác.');
+      }
+      targetUserId = Number(req.body.userId);
+      if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
+        return res.status(400).send('ID người dùng không hợp lệ.');
+      }
+    }
+
+    const activeShift = await query(
+      'SELECT id FROM shifts WHERE user_id = ? AND status = ? LIMIT 1',
+      [targetUserId, 'OPEN']
+    );
+    if (activeShift.length > 0) {
+      return res.status(400).send('Nhân viên đã có ca đang mở.');
+    }
+    const result = await query(
+      'INSERT INTO shifts (user_id, status, opened_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+      [targetUserId, 'OPEN']
+    );
+    const [shift] = await query('SELECT id, user_id, status, opened_at, closed_at, created_at FROM shifts WHERE id = ? LIMIT 1', [result.insertId]);
+    res.json(shift);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể mở ca.');
+  }
+});
+
+app.post('/shifts/close', authenticateToken, authorizeRoles(['seller','manager','admin']), async (req, res) => {
+  try {
+    let targetUserId = req.user.id;
+    if (req.body && req.body.userId) {
+      if (req.user.role !== 'admin') {
+        return res.status(403).send('Không có quyền đóng ca cho người khác.');
+      }
+      targetUserId = Number(req.body.userId);
+      if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
+        return res.status(400).send('ID người dùng không hợp lệ.');
+      }
+    }
+
+    const shifts = await query(
+      'SELECT id FROM shifts WHERE user_id = ? AND status = ? LIMIT 1',
+      [targetUserId, 'OPEN']
+    );
+    if (shifts.length === 0) {
+      return res.status(400).send('Không có ca đang mở để đóng.');
+    }
+    await query('UPDATE shifts SET status = ?, closed_at = CURRENT_TIMESTAMP WHERE id = ?', ['CLOSED', shifts[0].id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể đóng ca.');
+  }
+});
+
 app.get('/customers', authenticateToken, async (req, res) => {
   try {
     const search = String(req.query.search || '').trim();
@@ -996,6 +1170,11 @@ app.get('/dashboard', async (req, res) => {
 // Finalize DB then serve static `public/` and start listener
 ensureDatabase()
   .then(() => {
+    // Debug: show router stack info before attaching static and listening
+    try {
+      console.log('DEBUG: app._router present =', !!app._router);
+      console.log('DEBUG: app._router.stack length =', app._router && app._router.stack ? app._router.stack.length : 0);
+    } catch (e) { console.log('DEBUG: router inspect error', e); }
     // Serve static files from the project's public directory
     app.use(express.static(path.join(__dirname, '..', 'public')));
 

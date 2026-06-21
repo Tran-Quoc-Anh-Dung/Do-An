@@ -93,6 +93,7 @@
     .sidebar-item { padding: 8px 12px; color: rgba(255,255,255,0.95); cursor: pointer; transition: background 160ms ease, transform 160ms ease; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-right: none; border-bottom: 3px solid transparent; border-radius: 8px; }
     .sidebar-item:hover { background: rgba(255,255,255,0.06); color: white; }
     .sidebar-item.active { background: rgba(255,255,255,0.12); color: white; border-bottom-color: white; font-weight: 600; }
+    .sidebar-item.disabled-tab { opacity: 0.55; }
     .sidebar-item.section-divider { padding: 8px 12px; font-size: 12px; text-transform: uppercase; color: rgba(255,255,255,0.6); font-weight: 600; margin-left: 8px; }
     .main-content { margin-left: 0; padding-top: var(--nav-height); }
 
@@ -107,6 +108,7 @@
   <h1>POS Văn Phòng Phẩm</h1>
   <div class="meta">
     <span id="userStatus">Chưa đăng nhập</span>
+    <span id="shiftStatus" class="status-chip hidden">Chưa có ca mở</span>
     <button class="button-outline hidden" id="profileButton" onclick="openSection('profile')">Hồ sơ</button>
     <button class="button-outline hidden" id="logoutButton" onclick="logout()">Đăng xuất</button>
   </div>
@@ -148,7 +150,7 @@
       <main class="main-content">
         <div class="page page-with-sidebar">
         <div id="dashboardSection" class="section">
-          <h2>Bảng điều khiển</h2>
+          <h2>Tổng quan</h2>
           <div class="grid-3">
             <div class="small-card"><span>Sản phẩm</span><strong id="metricProducts">0</strong><span>Tổng số sản phẩm đang quản lý</span></div>
             <div class="small-card"><span>Đơn hàng</span><strong id="metricOrders">0</strong><span>Tổng đơn hàng đã bán</span></div>
@@ -228,7 +230,8 @@
         </div>
       </div>
       <div id="productsSection" class="section hidden">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Quản lý sản phẩm</h2><div style="display:flex; gap:8px; flex-wrap:wrap;"><button id="sampleImportButton" class="button-outline" onclick="importSampleProducts()">Nhập dữ liệu mẫu</button><button class="button" onclick="showProductEditor()">Thêm sản phẩm</button><button class="button-outline" onclick="toggleCategoriesEditor()">Quản lý danh mục</button></div></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Quản lý sản phẩm</h2><div style="display:flex; gap:8px; flex-wrap:wrap;"><button class="button" onclick="showProductEditor()">Thêm sản phẩm</button><button class="button-outline" onclick="toggleCategoriesEditor()">Quản lý danh mục</button></div></div>
+        <div id="lowStockAlert" style="margin-top:8px; color:#b91c1c; font-weight:700; display:none;"></div>
         <div id="productEditor" class="card hidden" style="margin-bottom:20px;">
           <h3 id="productEditorTitle">Thêm sản phẩm mới</h3>
           <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
@@ -280,7 +283,7 @@
           <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="createUser()">Tạo tài khoản</button><button class="button-outline" onclick="toggleCreateUser()">Đóng</button></div>
           <div id="userEditorMessage" class="notification hidden"></div>
         </div>
-        <div class="card"><table class="table"><thead><tr><th>Họ tên</th><th>Tên đăng nhập</th><th>Vai trò</th><th>Ngày tạo</th><th>Hành động</th></tr></thead><tbody id="userTable"></tbody></table></div>
+        <div class="card"><table class="table"><thead><tr><th>Họ tên</th><th>Tên đăng nhập</th><th>Vai trò</th><th>Ngày tạo</th><th>Ca</th><th>Hành động</th></tr></thead><tbody id="userTable"></tbody></table></div>
       </div>
 
       <div id="reportsSection" class="section hidden">
@@ -299,22 +302,27 @@
             <div style="padding: 16px; background: #f0f9ff; border-radius: 12px; border-left: 4px solid #3b82f6;">
               <div style="font-weight: 600; color: #1e40af;">Thành viên</div>
               <div style="font-size: 14px; color: #6b7280;">0 - 999 điểm</div>
+              <div style="margin-top:8px; font-size:13px; color:#374151;">Ưu đãi: -1% trên tổng hóa đơn</div>
             </div>
             <div style="padding: 16px; background: #f0fdf4; border-radius: 12px; border-left: 4px solid #10b981;">
               <div style="font-weight: 600; color: #065f46;">⭐ Bạc</div>
               <div style="font-size: 14px; color: #6b7280;">1.000 - 4.999 điểm</div>
+              <div style="margin-top:8px; font-size:13px; color:#374151;">Ưu đãi: -2% trên tổng hóa đơn</div>
             </div>
             <div style="padding: 16px; background: #fef3c7; border-radius: 12px; border-left: 4px solid #f59e0b;">
               <div style="font-weight: 600; color: #92400e;">⭐⭐ Vàng</div>
               <div style="font-size: 14px; color: #6b7280;">5.000 - 9.999 điểm</div>
+              <div style="margin-top:8px; font-size:13px; color:#374151;">Ưu đãi: -3% trên tổng hóa đơn</div>
             </div>
             <div style="padding: 16px; background: #fce7f3; border-radius: 12px; border-left: 4px solid #ec4899;">
               <div style="font-weight: 600; color: #831843;">⭐⭐⭐ Bạch kim</div>
               <div style="font-size: 14px; color: #6b7280;">10.000 - 14.999 điểm</div>
+              <div style="margin-top:8px; font-size:13px; color:#374151;">Ưu đãi: -4% trên tổng hóa đơn</div>
             </div>
             <div style="padding: 16px; background: #f5e6ff; border-radius: 12px; border-left: 4px solid #a855f7;">
               <div style="font-weight: 600; color: #581c87;">⭐⭐⭐⭐ VIP</div>
               <div style="font-size: 14px; color: #6b7280;">15.000+ điểm</div>
+              <div style="margin-top:8px; font-size:13px; color:#374151;">Ưu đãi: -5% trên tổng hóa đơn</div>
             </div>
           </div>
         </div>
@@ -427,18 +435,47 @@
 
 <style>
   @media print {
-    body > * { display: none; }
+    * { margin: 0; padding: 0; }
+    body { margin: 0; padding: 0; background: white; }
+    body > *:not(#invoiceModal) { display: none !important; }
     #invoiceModal { 
-      display: flex !important; 
+      display: block !important; 
       position: static !important;
+      visibility: visible !important;
       background: white !important;
+      top: auto !important;
+      left: auto !important;
+      right: auto !important;
+      bottom: auto !important;
+      width: 100% !important;
+      height: auto !important;
+      z-index: auto !important;
+      align-items: auto !important;
+      justify-content: auto !important;
+      overflow: visible !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      border: none !important;
     }
+    #invoiceModal, #invoiceModal * { visibility: visible !important; }
+    #invoiceModal > div {
+      background: white !important;
+      border-radius: 0 !important;
+      padding: 20px !important;
+      max-width: 100% !important;
+      width: 100% !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+    }
+    #invoiceContent { display: block !important; }
     .print-hidden { display: none !important; }
+    button { display: none !important; }
   }
 </style>
 
 <script>
-  const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, reportData: [], customerDiscount: 0, customerTier: null };
+  const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, reportData: [], customerDiscount: 0, customerTier: null, currentShift: null, shifts: [] };
 
   // Determine discount percent by customer tier
   function getTierDiscount(tier) {
@@ -538,6 +575,7 @@
     document.getElementById('appSection').classList.remove('hidden');
     document.getElementById('logoutButton').classList.remove('hidden');
     document.getElementById('profileButton').classList.remove('hidden');
+    document.getElementById('shiftStatus').classList.remove('hidden');
     setStatus(`${state.user.full_name || state.user.username} • ${roleLabel(state.user.role)}`);
     renderMenu();
     openSection('dashboard');
@@ -549,11 +587,54 @@
     document.getElementById('appSection').classList.add('hidden');
     document.getElementById('logoutButton').classList.add('hidden');
     document.getElementById('profileButton').classList.add('hidden');
+    document.getElementById('shiftStatus').classList.add('hidden');
     setStatus('Chưa đăng nhập');
   }
 
   function roleLabel(role) {
     return { admin: 'Quản trị viên', manager: 'Quản lý cửa hàng', seller: 'Nhân viên bán hàng' }[role] || role;
+  }
+
+  function formatShiftLabel(shift) {
+    if (!shift) return 'Chưa có ca mở';
+    const opened = formatDateTime(shift.opened_at_ts || shift.opened_at_vn || shift.opened_at);
+    return `${shift.status === 'OPEN' ? 'Đã mở ca từ' : 'Ca đã đóng từ'} ${opened}`;
+  }
+
+  async function loadCurrentShift() {
+    if (!state.user) return;
+    try {
+      const res = await apiFetch('/shifts/current', { method: 'GET' });
+      state.currentShift = await res.json();
+      const shiftStatus = document.getElementById('shiftStatus');
+      if (shiftStatus) shiftStatus.textContent = formatShiftLabel(state.currentShift);
+      renderMenu();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function openShift() {
+    try {
+      await apiFetch('/shifts/open', { method: 'POST' });
+      await loadCurrentShift();
+      alert('Mở ca thành công. Bạn có thể bắt đầu bán hàng.');
+      renderMenu();
+    } catch (err) {
+      alert(err.message || 'Không thể mở ca.');
+    }
+  }
+
+  async function closeShift() {
+    try {
+      await apiFetch('/shifts/close', { method: 'POST' });
+      state.currentShift = null;
+      await loadCurrentShift();
+      alert('Đã đóng ca.');
+      renderMenu();
+    } catch (err) {
+      alert(err.message || 'Không thể đóng ca.');
+    }
   }
 
   function logout() {
@@ -601,10 +682,18 @@
     
     const visibleTabs = tabs.filter(tab => !tab.role || tab.role.includes(state.user.role));
     const container = document.getElementById('menuTabs');
-    container.innerHTML = visibleTabs.map(tab => `<div class="sidebar-item" id="tab-${tab.id}" onclick="openSection('${tab.id}')">${tab.label}</div>`).join('');
+    container.innerHTML = visibleTabs.map(tab => {
+      const disabled = tab.id === 'pos' && !canOpenPos();
+      const label = disabled ? `${tab.label} (mở ca trước)` : tab.label;
+      const onclick = disabled ? `alert('Vui lòng mở ca trước khi vào POS.')` : `openSection('${tab.id}')`;
+      return `<div class="sidebar-item${disabled ? ' disabled-tab' : ''}" id="tab-${tab.id}" onclick="${onclick}">${label}</div>`;
+    }).join('');
   }
 
   function openSection(section) {
+    if (section === 'pos' && !canOpenPos()) {
+      return alert('Vui lòng mở ca trước khi vào POS.');
+    }
     const sections = ['dashboard','pos','products','orders','users','reports','customers','profile','inventory'];
     sections.forEach(id => document.getElementById(id + 'Section').classList.toggle('hidden', id !== section));
     sections.forEach(id => document.getElementById('tab-' + id) && document.getElementById('tab-' + id).classList.toggle('active', id === section));
@@ -619,11 +708,18 @@
     if (section === 'inventory') loadInventory();
   }
 
+  function canOpenPos() {
+    if (!state.user) return false;
+    if (state.user.role === 'admin') return true;
+    return !!state.currentShift && ['seller', 'manager'].includes(state.user.role);
+  }
+
   async function refreshData() {
     // Load products first so we can derive categories locally (and include special options)
     await loadProductList().catch(() => {});
     await Promise.all([loadCategories(), loadDashboard(), loadOrders(), loadReport()]).catch(() => {});
     if (state.user.role === 'admin') loadUsers();
+    await loadCurrentShift();
   }
 
   async function loadDashboard() {
@@ -764,6 +860,20 @@
       state.products = products.map(product => ({ ...product, image: resolveProductImage(product) }));
       renderPOSProducts();
       renderProductTable();
+      // Low stock alert
+      try {
+        const low = state.products.filter(p => Number(p.stock || 0) < 5);
+        const alertEl = document.getElementById('lowStockAlert');
+        if (alertEl) {
+          if (low.length > 0) {
+            alertEl.style.display = 'block';
+            alertEl.textContent = `Cảnh báo: có ${low.length} sản phẩm còn dưới 5 đơn vị (sắp hết hàng).`;
+          } else {
+            alertEl.style.display = 'none';
+            alertEl.textContent = '';
+          }
+        }
+      } catch (e) { console.error(e); }
       renderInventorySummary();
       if (state.user.role === 'admin' || state.user.role === 'manager') {
         loadInventoryLogs();
@@ -797,7 +907,7 @@
         <img src="${product.image || '/assets/real-products/fallback.jpg'}" alt="${product.name}" onerror="this.onerror=null;this.src='/assets/real-products/fallback.jpg'">
         <div>
           <h3>${product.name}</h3>
-          <div class="meta"><span>${product.category || 'Chưa phân loại'}</span><span>Kho: ${product.stock}</span></div>
+          <div class="meta"><span>${product.category || 'Chưa phân loại'}</span><span>Kho: ${product.stock} ${Number(product.stock||0) < 5 ? '<span style="color:#b91c1c; font-weight:700; margin-left:8px;">⚠️ Tồn kho thấp</span>' : ''}</span></div>
           <p>${product.description || 'Văn phòng phẩm chất lượng.'}</p>
         </div>
         <div class="product-footer">
@@ -841,8 +951,8 @@
           <td>${product.code || '-'}</td>
           <td>${product.category || 'Chưa phân loại'}</td>
           <td>${formatCurrency(product.price)}</td>
-          <td>${product.stock}</td>
-          <td>${product.created_at ? new Date(product.created_at).toLocaleDateString() : '-'}</td>
+          <td>${product.stock} ${Number(product.stock||0) < 5 ? '<span style="color:#b91c1c; font-weight:700; margin-left:8px;">⚠️ Tồn kho thấp</span>' : ''}</td>
+          <td>${formatDateTime(product.created_at, { dateOnly: true })}</td>
           <td style="white-space:nowrap; display:flex; gap:8px;">
             <button class="button-outline" onclick="editProduct(${product.id})">Sửa</button>
             ${state.user.role === 'admin' ? `<button class="button-danger" onclick="deleteProduct(${product.id})">Xóa</button>` : ''}
@@ -884,7 +994,7 @@
       const logs = await res.json();
       document.getElementById('inventoryTable').innerHTML = logs.map(log => `
         <tr>
-          <td>${new Date(log.created_at).toLocaleString()}</td>
+          <td>${formatDateTime(log.created_at)}</td>
           <td>${log.product_name || '-'}</td>
           <td>-</td>
           <td>${log.quantity_change}</td>
@@ -1028,7 +1138,9 @@
     const discountPercent = Number(state.customerDiscount || 0);
     const discountAmount = +(total * (discountPercent / 100));
     const discountedTotal = +(total - discountAmount);
-    document.getElementById('cartTotal').textContent = formatCurrency(discountedTotal);
+    // Apply rounding rules to payable amount
+    const roundedTotal = roundPaymentAmount(discountedTotal);
+    document.getElementById('cartTotal').textContent = formatCurrency(roundedTotal);
     const discountEl = document.getElementById('cartDiscountInfo');
     if (discountPercent > 0) {
       discountEl.style.display = 'block';
@@ -1043,7 +1155,8 @@
   function updateCashChange() {
     const totalAmountRaw = state.cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
     const discountPercent = Number(state.customerDiscount || 0);
-    const totalAmount = +(totalAmountRaw - (totalAmountRaw * (discountPercent / 100)));
+    const discounted = +(totalAmountRaw - (totalAmountRaw * (discountPercent / 100)));
+    const totalAmount = roundPaymentAmount(discounted);
     const cashReceived = Number(document.getElementById('cashReceived').value || 0);
     const cashChange = cashReceived - totalAmount;
     document.getElementById('cashChange').textContent = formatCurrency(Math.max(cashChange, 0));
@@ -1086,11 +1199,13 @@
       return;
     }
 
-    const cashReceived = Number(document.getElementById('cashReceived').value || 0);
-    if (cashReceived < totalAmount) return alert('Tiền khách đưa phải lớn hơn hoặc bằng tổng tiền.');
-    const cashChange = cashReceived - totalAmount;
+    const roundedTotal = roundPaymentAmount(totalAmount);
 
-    await processOrder(paymentMethod, customerName, customerPhone, totalAmount, cashReceived, cashChange, discountPercent);
+    const cashReceived = Number(document.getElementById('cashReceived').value || 0);
+    if (cashReceived < roundedTotal) return alert('Tiền khách đưa phải lớn hơn hoặc bằng tổng tiền.');
+    const cashChange = cashReceived - roundedTotal;
+
+    await processOrder(paymentMethod, customerName, customerPhone, roundedTotal, cashReceived, cashChange, discountPercent);
   }
 
   function showTransferModal(totalAmount) {
@@ -1155,7 +1270,7 @@
         cashChange: cashChange,
         pointsEarned: result.pointsEarned || 0,
         currentPoints: result.currentPoints || 0,
-        createdAt: new Date().toLocaleString('vi-VN')
+        createdAt: formatDateTime(new Date())
       });
 
       if (result.pointsEarned != null && result.currentPoints != null) {
@@ -1276,7 +1391,47 @@
   }
 
   function printInvoice() {
-    window.print();
+    const invoiceContent = document.getElementById('invoiceContent');
+    if (!invoiceContent) return alert('Không tìm thấy nội dung hóa đơn.');
+    const html = `
+      <!DOCTYPE html>
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { margin: 0; padding: 20px; font-family: Arial, sans-serif; color: #1f2937; background: white; }
+          h1, h2, h3, h4, h5, h6, p, div, span, table { margin: 0; padding: 0; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { padding: 10px 8px; border-bottom: 1px solid #e5e7eb; }
+          th { text-align: left; font-weight: 700; background: #f8fafc; }
+          .invoice-wrapper { width: 100%; max-width: 800px; margin: 0 auto; }
+          .invoice-card { padding: 20px; background: white; border-radius: 16px; }
+          .invoice-summary { margin-top: 20px; width: 100%; }
+          .invoice-summary div { display: flex; justify-content: space-between; margin-top: 10px; }
+          .invoice-footer { margin-top: 20px; text-align: center; font-size: 13px; color: #6b7280; }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-wrapper">
+          <div class="invoice-card">
+            ${invoiceContent.innerHTML}
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank', 'width=900,height=800');
+    if (!printWindow) {
+      return alert('Không thể mở cửa sổ in. Vui lòng cho phép popup và thử lại.');
+    }
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.onload = () => {
+      printWindow.print();
+    };
   }
 
   function escapeHtml(text) {
@@ -1305,7 +1460,7 @@
 
       showInvoice({
         orderNumber: order.order_number || `#${order.id}`,
-        createdAt: new Date(order.created_at).toLocaleString('vi-VN'),
+        createdAt: formatDateTime(order.created_at),
         sellerName: order.seller_full_name || order.seller_name || '-',
         customerName: order.customer_name || 'Khách lẻ',
         customerPhone: order.customer_phone || '-',
@@ -1336,7 +1491,7 @@
       state.orders = orders;
       document.getElementById('orderTable').innerHTML = orders.map(order => `
         <tr>
-          <td>${new Date(order.created_at).toLocaleString()}</td>
+          <td>${formatDateTime(order.created_at)}</td>
           <td>${order.product_name}</td>
           <td>${order.quantity}</td>
           <td>${formatCurrency(order.price)}</td>
@@ -1375,18 +1530,59 @@
     try {
       const res = await apiFetch('/users', { method: 'GET' });
       const users = await res.json();
-      document.getElementById('userTable').innerHTML = users.map(user => `
-        <tr>
-          <td>${user.full_name || '-'}</td>
-          <td>${user.username}</td>
-          <td>${roleLabel(user.role)}</td>
-          <td>${new Date(user.created_at).toLocaleDateString()}</td>
-          <td><button class="button-danger" onclick="deleteUser(${user.id})">Xóa</button></td>
-        </tr>
-      `).join('');
+      let openShifts = [];
+      try {
+        if (state.user.role === 'admin') {
+          const shiftRes = await apiFetch('/shifts?status=OPEN', { method: 'GET' });
+          openShifts = await shiftRes.json();
+        }
+      } catch (shiftErr) {
+        console.warn('Lỗi tải danh sách ca:', shiftErr);
+        openShifts = [];
+      }
+      const shiftMap = Object.fromEntries((openShifts || []).map(shift => [shift.user_id, shift]));
+      document.getElementById('userTable').innerHTML = users.map(user => {
+        const shift = shiftMap[user.id];
+        const shiftLabel = shift ? `Đang mở từ ${formatDateTime(shift.opened_at_ts || shift.opened_at_vn || shift.opened_at)}` : 'Chưa mở';
+        const actionButton = user.role !== 'admin'
+          ? shift
+            ? `<button class="button-danger" onclick="closeShiftForUser(${user.id})">Đóng ca</button>`
+            : `<button class="button" onclick="openShiftForUser(${user.id})">Mở ca</button>`
+          : '-';
+        return `
+          <tr>
+            <td>${user.full_name || '-'}</td>
+            <td>${user.username}</td>
+            <td>${roleLabel(user.role)}</td>
+            <td>${formatDateTime(user.created_at, { dateOnly: true })}</td>
+            <td>${shiftLabel}</td>
+            <td>${actionButton} <button class="button-danger" onclick="deleteUser(${user.id})">Xóa</button></td>
+          </tr>
+        `;
+      }).join('');
     } catch (err) {
-      console.error(err);
-      document.getElementById('userTable').innerHTML = '<tr><td colspan="5">Không thể tải danh sách nhân viên.</td></tr>';
+      console.error('Lỗi loadUsers:', err);
+      document.getElementById('userTable').innerHTML = '<tr><td colspan="6">Không thể tải danh sách nhân viên.</td></tr>';
+    }
+  }
+
+  async function openShiftForUser(userId) {
+    try {
+      await apiFetch('/shifts/open', { method: 'POST', body: JSON.stringify({ userId }) });
+      alert('Mở ca cho nhân viên thành công.');
+      loadUsers();
+    } catch (err) {
+      alert(err.message || 'Không thể mở ca cho nhân viên.');
+    }
+  }
+
+  async function closeShiftForUser(userId) {
+    try {
+      await apiFetch('/shifts/close', { method: 'POST', body: JSON.stringify({ userId }) });
+      alert('Đã đóng ca cho nhân viên.');
+      loadUsers();
+    } catch (err) {
+      alert(err.message || 'Không thể đóng ca cho nhân viên.');
     }
   }
 
@@ -1411,7 +1607,7 @@
           <td>${customer.phone || '-'}</td>
           <td>${customer.points || 0}</td>
           <td>${customer.tier || '-'}</td>
-          <td>${customer.created_at ? new Date(customer.created_at).toLocaleDateString() : '-'}</td>
+          <td>${formatDateTime(customer.created_at, { dateOnly: true })}</td>
           <td><button class="button-outline" onclick="loadCustomerHistory(${customer.id})">Lịch sử</button></td>
         </tr>
       `).join('');
@@ -1436,7 +1632,7 @@
       document.getElementById('customerHistorySubtitle').textContent = `Điện thoại: ${customer.phone || '-'} · Điểm hiện tại: ${customer.points || 0}`;
       document.getElementById('customerHistoryTable').innerHTML = history.length > 0 ? history.map(order => `
         <tr>
-          <td>${order.created_at ? new Date(order.created_at).toLocaleString() : '-'}</td>
+          <td>${formatDateTime(order.created_at)}</td>
           <td>${order.order_number || '-'}</td>
           <td>${formatCurrency(order.total_amount || 0)}</td>
           <td>${order.points_earned || 0}</td>
@@ -1459,7 +1655,7 @@
       const weekly = data.weekly || [];
       document.getElementById('reportDailyTable').innerHTML = daily.map(row => `
         <tr>
-          <td>${new Date(row.date).toLocaleDateString()}</td>
+          <td>${formatDateTime(row.date, { dateOnly: true })}</td>
           <td>${row.orders}</td>
           <td>${formatCurrency(row.total_sales)}</td>
         </tr>
@@ -1482,8 +1678,46 @@
     }
   }
 
+  function formatDateTime(value, options = {}) {
+    const { dateOnly = false } = options;
+    if (value == null || value === '') return '-';
+    let date;
+    if (value instanceof Date) {
+      date = value;
+    } else if (typeof value === 'number' || /^[0-9]+$/.test(String(value))) {
+      date = new Date(Number(value));
+    } else {
+      const str = String(value).trim();
+      const localNoTZ = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
+      const normalized = localNoTZ.test(str) ? str.replace(' ', 'T') : str;
+      date = new Date(normalized);
+    }
+
+    if (!date || isNaN(date.getTime())) return String(value);
+    return dateOnly
+      ? date.toLocaleDateString('vi-VN')
+      : date.toLocaleString('vi-VN');
+  }
+
   function formatCurrency(value) {
     return Number(value).toLocaleString('vi-VN') + ' đ';
+  }
+
+  // Round payable amount according to rule:
+  // remainder = amount % 1000
+  // if remainder between 100 and 400 (inclusive) -> round down (subtract remainder)
+  // if remainder >= 500 -> round up to next 1000
+  // otherwise (remainder < 100 or 401-499) -> keep original
+  function roundPaymentAmount(amount) {
+    const n = Math.round(Number(amount) || 0);
+    const rem = n % 1000;
+    if (rem >= 100 && rem <= 400) {
+      return n - rem;
+    }
+    if (rem >= 500) {
+      return n + (1000 - rem);
+    }
+    return n;
   }
 
   // Profile functions
@@ -1494,7 +1728,7 @@
       document.getElementById('profileUsername').value = user.username;
       document.getElementById('profileFullname').value = user.full_name || '-';
       document.getElementById('profileRole').value = roleLabel(user.role);
-      document.getElementById('profileCreatedAt').value = new Date(user.created_at).toLocaleDateString();
+      document.getElementById('profileCreatedAt').value = formatDateTime(user.created_at, { dateOnly: true });
       document.getElementById('changePasswordMessage').classList.add('hidden');
       document.getElementById('oldPassword').value = '';
       document.getElementById('newPassword').value = '';
@@ -1550,7 +1784,7 @@
       // Load inventory logs
       document.getElementById('inventoryTable').innerHTML = logs.map(log => `
         <tr>
-          <td>${new Date(log.created_at).toLocaleString()}</td>
+          <td>${formatDateTime(log.created_at)}</td>
           <td>${log.product_name || '-'}</td>
           <td>${log.quantity_change}</td>
           <td>${log.reason || '-'}</td>

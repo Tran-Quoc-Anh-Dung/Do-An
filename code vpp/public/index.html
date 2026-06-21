@@ -73,6 +73,31 @@
     .status-chip { background: rgba(255,255,255,0.18); border-radius: 999px; padding: 10px 16px; }
     .notification { margin-top: 12px; color: var(--danger); font-size: 14px; }
 
+    .app-container { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 0; min-height: calc(100vh - 76px); }
+    .sidebar { background: linear-gradient(180deg, #2563eb 0%, #1e40af 100%); color: white; padding: 24px 0; overflow-y: auto; position: sticky; top: 76px; height: calc(100vh - 76px); box-shadow: 2px 0 8px rgba(0,0,0,0.1); }
+    .sidebar-header { padding: 0 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 12px; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
+    .sidebar-menu { display: flex; flex-direction: column; gap: 0; }
+    .sidebar-item { padding: 14px 20px; color: rgba(255,255,255,0.7); cursor: pointer; transition: all 0.2s ease; border-left: 3px solid transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar-item:hover { background: rgba(255,255,255,0.1); color: white; }
+    .sidebar-item.active { background: rgba(255,255,255,0.15); color: white; border-left-color: white; font-weight: 600; }
+    .sidebar-item.section-divider { padding: 12px 20px 8px; font-size: 12px; text-transform: uppercase; color: rgba(255,255,255,0.5); font-weight: 600; margin-top: 8px; }
+    .main-content { overflow-y: auto; padding: 24px; }
+    .page-with-sidebar { max-width: none; margin: 0; padding: 0; }
+
+    @media (max-width: 1000px) {
+      .app-container { grid-template-columns: 1fr; }
+      .sidebar { position: fixed; left: 0; top: 76px; bottom: 0; width: 260px; z-index: 8; }
+      .main-content { margin-left: 260px; }
+    }
+    @media (max-width: 768px) {
+      .app-container { grid-template-columns: 1fr; }
+      .sidebar { width: 100%; position: relative; height: auto; top: auto; max-height: 300px; border-bottom: 1px solid var(--border); box-shadow: none; }
+      .main-content { margin-left: 0; }
+      .sidebar-menu { flex-direction: row; flex-wrap: wrap; }
+      .sidebar-item { border-left: none; border-bottom: 3px solid transparent; }
+      .sidebar-item.active { border-left: none; border-bottom-color: white; }
+    }
+
     @media (max-width: 1100px) { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
     @media (max-width: 720px) { body, .page { padding: 0 16px; } header { flex-direction: column; align-items: stretch; } }
   </style>
@@ -115,20 +140,25 @@
     </div>
   </section>
   <section id="appSection" class="hidden">
-    <div class="card">
-      <div class="tabs" id="menuTabs"></div>
-      <div id="dashboardSection" class="section">
-        <h2>Bảng điều khiển</h2>
-        <div class="grid-3">
-          <div class="small-card"><span>Sản phẩm</span><strong id="metricProducts">0</strong><span>Tổng số sản phẩm đang quản lý</span></div>
-          <div class="small-card"><span>Đơn hàng</span><strong id="metricOrders">0</strong><span>Tổng đơn hàng đã bán</span></div>
-          <div class="small-card"><span>Doanh thu</span><strong id="metricRevenue">0đ</strong><span>Tổng doanh thu từ bán hàng</span></div>
+    <div class="app-container">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">Menu</div>
+        <div class="sidebar-menu" id="menuTabs"></div>
+      </aside>
+      <main class="main-content">
+        <div class="page page-with-sidebar">
+        <div id="dashboardSection" class="section">
+          <h2>Bảng điều khiển</h2>
+          <div class="grid-3">
+            <div class="small-card"><span>Sản phẩm</span><strong id="metricProducts">0</strong><span>Tổng số sản phẩm đang quản lý</span></div>
+            <div class="small-card"><span>Đơn hàng</span><strong id="metricOrders">0</strong><span>Tổng đơn hàng đã bán</span></div>
+            <div class="small-card"><span>Doanh thu</span><strong id="metricRevenue">0đ</strong><span>Tổng doanh thu từ bán hàng</span></div>
+          </div>
+          <div class="grid-2" style="margin-top:20px;">
+            <div class="small-card"><span>Doanh thu hôm nay</span><strong id="metricToday">0đ</strong></div>
+            <div class="small-card"><span>Vai trò</span><strong id="metricRole">Khách</strong></div>
+          </div>
         </div>
-        <div class="grid-2" style="margin-top:20px;">
-          <div class="small-card"><span>Doanh thu hôm nay</span><strong id="metricToday">0đ</strong></div>
-          <div class="small-card"><span>Vai trò</span><strong id="metricRole">Khách</strong></div>
-        </div>
-      </div>
       <div id="posSection" class="section hidden">
         <h2>POS - Bán hàng</h2>
         <div class="form-grid" style="grid-template-columns: 1fr 200px; align-items: end; margin-bottom:20px; gap:16px;">
@@ -293,9 +323,10 @@
           <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Số lượng thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
         </div>
       </div>
+        </div>
+      </main>
     </div>
   </section>
-</div>
 
 <script>
   const state = { token: null, user: null, products: [], categories: [], cart: [], editProductId: null, reportData: [] };
@@ -418,7 +449,7 @@
     
     const visibleTabs = tabs.filter(tab => !tab.role || tab.role.includes(state.user.role));
     const container = document.getElementById('menuTabs');
-    container.innerHTML = visibleTabs.map(tab => `<button class="tab-button" id="tab-${tab.id}" onclick="openSection('${tab.id}')">${tab.label}</button>`).join('');
+    container.innerHTML = visibleTabs.map(tab => `<div class="sidebar-item" id="tab-${tab.id}" onclick="openSection('${tab.id}')">${tab.label}</div>`).join('');
   }
 
   function openSection(section) {

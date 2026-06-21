@@ -228,6 +228,10 @@ async function ensureDatabase() {
   await ensureColumn("orders", "quantity", "quantity INT NOT NULL DEFAULT 1");
   await ensureColumn("orders", "seller_id", "seller_id INT DEFAULT NULL");
   await ensureColumn("orders", "seller_name", "seller_name VARCHAR(120) DEFAULT NULL");
+  await ensureColumn("orders", "payment_cash_received", "payment_cash_received DECIMAL(10,2) DEFAULT NULL");
+  await ensureColumn("orders", "payment_cash_change", "payment_cash_change DECIMAL(10,2) DEFAULT NULL");
+  await ensureColumn("orders", "discount_percent", "discount_percent DECIMAL(5,2) DEFAULT NULL");
+  await ensureColumn("orders", "total_after_discount", "total_after_discount DECIMAL(10,2) DEFAULT NULL");
   await ensureColumn("orders", "payment_method", "payment_method VARCHAR(40) DEFAULT NULL");
   await ensureColumn("orders", "customer_id", "customer_id INT DEFAULT NULL");
   await ensureColumn("orders", "customer_name", "customer_name VARCHAR(150) DEFAULT NULL");
@@ -815,7 +819,7 @@ app.delete('/categories/:id', authenticateToken, authorizeRoles(['admin', 'manag
 app.get('/orders', async (req, res) => {
   try {
     const orders = await query(
-      `SELECT id, product_id, product_name, price, quantity, seller_id, seller_name, payment_method, customer_id, customer_name, customer_phone, order_number, created_at
+      `SELECT id, product_id, product_name, price, quantity, seller_id, seller_name, payment_method, payment_cash_received, payment_cash_change, discount_percent, total_after_discount, customer_id, customer_name, customer_phone, order_number, created_at
        FROM orders ORDER BY created_at DESC LIMIT 200`
     );
     res.json(orders);
@@ -885,7 +889,10 @@ app.get('/customers/:id/history', authenticateToken, async (req, res) => {
 });
 
 app.post('/orders', authenticateToken, async (req, res) => {
-  const { cart, customer = {}, paymentMethod } = req.body;
+  const { cart, customer = {}, paymentMethod, payment = {}, discountPercent = 0, totalAfterDiscount = null } = req.body;
+  const paymentCashReceived = payment && payment.cashReceived != null ? Number(payment.cashReceived) : null;
+  const paymentCashChange = payment && payment.cashChange != null ? Number(payment.cashChange) : null;
+  const discountPct = discountPercent != null ? Number(discountPercent) : 0;
   if (!Array.isArray(cart) || cart.length === 0) {
     return res.status(400).send('Giỏ hàng không hợp lệ.');
   }
@@ -896,7 +903,8 @@ app.post('/orders', authenticateToken, async (req, res) => {
   const method = paymentMethod === 'transfer' ? 'Chuyển khoản' : 'Tiền mặt';
 
   const totalAmount = cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
-  const earnedPoints = Math.floor(totalAmount / 10000);
+  const computedTotalAfter = totalAfterDiscount != null ? Number(totalAfterDiscount) : +(totalAmount * (1 - discountPct / 100)).toFixed(2);
+  const earnedPoints = Math.floor(computedTotalAfter / 10000);
   const phone = customer.phone ? String(customer.phone).trim() : null;
   const name = customer.name ? String(customer.name).trim() : null;
   let customerId = null;
@@ -931,13 +939,18 @@ app.post('/orders', authenticateToken, async (req, res) => {
       sellerName,
       orderNumber,
       method,
+      paymentCashReceived,
+      paymentCashChange,
+      discountPct,
+      computedTotalAfter,
       customerId,
       name || null,
       phone || null
     ]);
 
+    // Insert orders including payment cash fields if available
     await query(
-      `INSERT INTO orders (product_id, product_name, price, quantity, seller_id, seller_name, order_number, payment_method, customer_id, customer_name, customer_phone)
+      `INSERT INTO orders (product_id, product_name, price, quantity, seller_id, seller_name, order_number, payment_method, payment_cash_received, payment_cash_change, discount_percent, total_after_discount, customer_id, customer_name, customer_phone)
        VALUES ?`,
       [orderRecords]
     );

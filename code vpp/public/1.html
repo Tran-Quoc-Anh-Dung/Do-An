@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>POS Admin</title>
+  <title>POS Văn Phòng Phẩm - Quản lý cửa hàng</title>
   <style>
     :root {
       --bg: #f3f6fb;
@@ -15,13 +15,11 @@
       --secondary: #10b981;
       --danger: #ef4444;
       --border: #d1d5db;
-      --header-height: 76px;
-      --nav-height: 56px;
       --shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
     }
 
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%); color: var(--text); scroll-padding-top: calc(var(--header-height) + var(--nav-height)); }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%); color: var(--text); }
     button, input, select, textarea { font: inherit; }
     button { cursor: pointer; }
 
@@ -30,7 +28,7 @@
     header .meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
     header .meta span, header .meta button { background: rgba(255,255,255,0.16); border-radius: 999px; padding: 10px 16px; color: white; border: none; }
 
-    .page { max-width: 1400px; margin: 0 auto; padding: 0 24px 24px; display: grid; gap: 24px; }
+    .page { max-width: 1400px; margin: 24px auto; padding: 0 24px; display: grid; gap: 24px; }
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; box-shadow: var(--shadow); padding: 24px; }
     .card h2 { margin-top: 0; font-size: 22px; }
     .small-card { border-radius: 24px; background: var(--card); padding: 20px; display: grid; gap: 12px; }
@@ -58,25 +56,18 @@
     .table th { color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
     .table tbody tr:hover { background: #f8fafc; }
 
-    .pos-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(360px, 0.95fr); gap: 20px; align-items: flex-start; }
-    .pos-topbar { position: sticky; top: calc(var(--header-height) + var(--nav-height)); z-index: 7; background: rgba(255,255,255,0.96); padding: 14px 20px 10px; border-radius: 24px; margin-bottom: 16px; width: min(100%, calc(100% - 460px)); margin-right: auto; }
-    .pos-topbar h2 { margin: 0 0 12px; }
-    .pos-topbar .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .pos-topbar .form-control { gap: 6px; }
-    .pos-topbar .form-control label { font-size: 13px; }
-    .pos-topbar .form-control input, .pos-topbar .form-control select { padding: 12px 14px; }
-    .cart-panel { position: fixed; top: calc(var(--header-height) + var(--nav-height)); right: 24px; width: 420px; z-index: 6; }
-    .cart-panel .card { display: flex; flex-direction: column; gap: 16px; max-height: calc(100vh - (var(--header-height) + var(--nav-height) + 32px)); overflow-y: auto; }
+    .pos-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.95fr); gap: 20px; align-items: flex-start; }
+    .cart-panel { position: sticky; top: 100px; }
+    .cart-panel .card { display: flex; flex-direction: column; gap: 16px; max-height: calc(100vh - 140px); overflow-y: auto; }
     .cart-panel h2 { margin: 0; }
     .cart-summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .cart-summary .status-chip { margin: 0; }
-    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; align-items: stretch; }
-    .product-card { background: var(--card); border-radius: 24px; display: flex; flex-direction: column; gap: 12px; padding: 14px; cursor: pointer; transition: transform 0.16s ease, box-shadow 0.16s ease; min-height: 100%; }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+    .product-card { background: var(--card); border-radius: 24px; display: flex; flex-direction: column; gap: 16px; padding: 18px; cursor: pointer; transition: transform 0.16s ease, box-shadow 0.16s ease; }
     .product-card:hover { transform: translateY(-2px); box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12); }
-    .product-card img { width: 100%; height: 150px; object-fit: cover; border-radius: 18px; }
+    .product-card img { width: 100%; height: 180px; object-fit: cover; border-radius: 18px; }
     .product-card .meta { display: flex; justify-content: space-between; gap: 12px; align-items: center; font-size: 14px; color: var(--muted); }
-    .product-card .product-footer { margin-top: auto; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-    .product-card .price { font-size: 18px; font-weight: 700; margin: 0; white-space: nowrap; }
+    .product-card .price { font-size: 18px; font-weight: 700; }
     .product-card .actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
     .status-chip { background: rgba(255,255,255,0.18); border-radius: 999px; padding: 10px 16px; }
@@ -84,22 +75,6 @@
 
     @media (max-width: 1100px) { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
     @media (max-width: 720px) { body, .page { padding: 0 16px; } header { flex-direction: column; align-items: stretch; } }
-
-    /* Horizontal menu styles (fixed below header) */
-    .app-container { display: grid; grid-template-columns: 1fr; gap: 0; margin-top: 0; }
-    .sidebar { background: linear-gradient(180deg, #2563eb 0%, #1e40af 100%); color: white; padding: 8px 16px; overflow-x: auto; position: fixed; left: 0; top: var(--header-height); right: 0; width: 100%; height: var(--nav-height); z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; align-items: center; }
-    .sidebar-header { padding: 0 12px 0 12px; border-bottom: none; margin-right: 12px; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.95; }
-    .sidebar-menu { display: flex; flex-direction: row; gap: 8px; align-items: center; overflow-x: auto; padding: 6px 0; }
-    .sidebar-item { padding: 8px 12px; color: rgba(255,255,255,0.95); cursor: pointer; transition: background 160ms ease, transform 160ms ease; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-right: none; border-bottom: 3px solid transparent; border-radius: 8px; }
-    .sidebar-item:hover { background: rgba(255,255,255,0.06); color: white; }
-    .sidebar-item.active { background: rgba(255,255,255,0.12); color: white; border-bottom-color: white; font-weight: 600; }
-    .sidebar-item.section-divider { padding: 8px 12px; font-size: 12px; text-transform: uppercase; color: rgba(255,255,255,0.6); font-weight: 600; margin-left: 8px; }
-    .main-content { margin-left: 0; padding-top: var(--nav-height); }
-
-    @media (max-width: 768px) {
-      .sidebar { position: relative; top: 0; box-shadow: none; height: auto; }
-      .main-content { padding-top: 16px; }
-    }
   </style>
 </head>
 <body>
@@ -118,6 +93,7 @@
       <button class="tab-button active" id="tabLogin" onclick="showAuthTab('login')">Đăng nhập</button>
       <button class="tab-button" id="tabRegister" onclick="showAuthTab('register')">Đăng ký</button>
     </div>
+
     <div id="loginBox">
       <div class="form-grid">
         <div class="form-control"><label for="loginUsername">Tên đăng nhập</label><input id="loginUsername" type="text" placeholder="admin"></div>
@@ -127,6 +103,7 @@
         <button class="button" onclick="login(event)">Đăng nhập</button>
       </div>
     </div>
+
     <div id="registerBox" class="hidden">
       <div class="form-grid">
         <div class="form-control"><label for="registerUsername">Tên đăng nhập</label><input id="registerUsername" type="text" placeholder="nhanvien01"></div>
@@ -139,36 +116,31 @@
       </div>
     </div>
   </section>
+
   <section id="appSection" class="hidden">
-    <div class="app-container">
-      <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">Menu</div>
-        <div class="sidebar-menu" id="menuTabs"></div>
-      </aside>
-      <main class="main-content">
-        <div class="page page-with-sidebar">
-        <div id="dashboardSection" class="section">
-          <h2>Bảng điều khiển</h2>
-          <div class="grid-3">
-            <div class="small-card"><span>Sản phẩm</span><strong id="metricProducts">0</strong><span>Tổng số sản phẩm đang quản lý</span></div>
-            <div class="small-card"><span>Đơn hàng</span><strong id="metricOrders">0</strong><span>Tổng đơn hàng đã bán</span></div>
-            <div class="small-card"><span>Doanh thu</span><strong id="metricRevenue">0đ</strong><span>Tổng doanh thu từ bán hàng</span></div>
-          </div>
-          <div class="grid-2" style="margin-top:20px;">
-            <div class="small-card"><span>Doanh thu hôm nay</span><strong id="metricToday">0đ</strong></div>
-            <div class="small-card"><span>Vai trò</span><strong id="metricRole">Khách</strong></div>
-          </div>
+    <div class="card">
+      <div class="tabs" id="menuTabs"></div>
+      <div id="dashboardSection" class="section">
+        <h2>Bảng điều khiển</h2>
+        <div class="grid-3">
+          <div class="small-card"><span>Sản phẩm</span><strong id="metricProducts">0</strong><span>Tổng số sản phẩm đang quản lý</span></div>
+          <div class="small-card"><span>Đơn hàng</span><strong id="metricOrders">0</strong><span>Tổng đơn hàng đã bán</span></div>
+          <div class="small-card"><span>Doanh thu</span><strong id="metricRevenue">0đ</strong><span>Tổng doanh thu từ bán hàng</span></div>
         </div>
+        <div class="grid-2" style="margin-top:20px;">
+          <div class="small-card"><span>Doanh thu hôm nay</span><strong id="metricToday">0đ</strong></div>
+          <div class="small-card"><span>Vai trò</span><strong id="metricRole">Khách</strong></div>
+        </div>
+      </div>
+
       <div id="posSection" class="section hidden">
-        <div class="pos-topbar">
-          <h2>POS - Bán hàng</h2>
-          <div class="form-grid pos-toolbar">
-            <div class="form-control"><label for="searchProduct">Tìm kiếm sản phẩm</label><input id="searchProduct" type="text" placeholder="Nhập tên, mã, danh mục" oninput="applyProductFilter()"></div>
-            <div class="form-control"><label for="filterCategory">Lọc danh mục</label><select id="filterCategory" onchange="applyProductFilter()"></select></div>
-          </div>
+        <h2>POS - Bán hàng</h2>
+        <div class="form-grid" style="grid-template-columns: 1fr 200px; align-items: end; margin-bottom:20px; gap:16px;">
+          <div class="form-control"><label for="searchProduct">Tìm kiếm sản phẩm</label><input id="searchProduct" type="text" placeholder="Nhập tên, mã, danh mục" oninput="applyProductFilter()"></div>
+          <div class="form-control"><label for="filterCategory">Lọc danh mục</label><select id="filterCategory" onchange="applyProductFilter()"></select></div>
         </div>
         <div class="pos-layout">
-          <div class="pos-products">
+          <div>
             <div id="productDetailCard" class="card hidden" style="margin-bottom:20px;">
               <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
                 <div><h3>Chi tiết sản phẩm</h3><div id="productDetailSubtitle" style="color: var(--muted); font-size: 14px;">Chọn sản phẩm để xem thông tin</div></div>
@@ -184,51 +156,20 @@
                 <div>
                   <h2>Giỏ hàng</h2>
                   <div id="cartMeta" style="color: var(--muted); font-size: 14px;">0 sản phẩm</div>
-                  <div id="cartDiscountInfo" style="color: #059669; font-size:13px; margin-top:6px; display:none;"></div>
                 </div>
+                <span class="status-chip">Theo dõi đơn hàng</span>
               </div>
               <div id="cartItems"></div>
               <div class="summary-line" style="display:flex; justify-content:space-between; margin-top:12px; font-weight:700;"><span>Tổng tiền:</span><span id="cartTotal">0đ</span></div>
-              <div style="margin-top:12px; display:grid; gap:12px;">
-                <label style="font-weight:600; font-size:14px;">Tiền khách đưa</label>
-                <input id="cashReceived" type="number" min="0" step="1000" value="0" oninput="updateCashChange()" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px; font-size:14px;" />
-                <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700;">
-                  <span>Tiền thối:</span>
-                  <span id="cashChange">0đ</span>
-                </div>
-              </div>
-
-              <!-- Customer Info -->
-              <div style="margin-top:16px; padding:12px; background:#f8f9fa; border-radius:8px;">
-                <p style="margin:0 0 10px 0; font-weight:600; font-size:14px;">Thông tin khách hàng:</p>
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                  <input id="customerName" type="text" placeholder="Tên khách (tùy chọn)" style="padding:8px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
-                  <input id="customerPhone" type="text" placeholder="Số điện thoại (tùy chọn)" style="padding:8px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
-                </div>
-              </div>
-              
-              <!-- Payment Method Selection -->
-              <div style="margin-top:16px; padding:12px; background:#f0f9ff; border-radius:8px;">
-                <p style="margin:0 0 12px 0; font-weight:600; font-size:14px;">Phương thức thanh toán:</p>
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                  <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                    <input type="radio" name="checkoutPaymentMethod" value="cash" checked style="cursor:pointer;">
-                    <span style="font-size:14px;">Tiền mặt</span>
-                  </label>
-                  <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                    <input type="radio" name="checkoutPaymentMethod" value="transfer" style="cursor:pointer;">
-                    <span style="font-size:14px;">Chuyển khoản</span>
-                  </label>
-                </div>
-              </div>
-              
-              <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button id="checkoutButton" class="button" onclick="checkout()">Thanh toán</button><button class="button-outline" onclick="clearCart()">Xóa giỏ hàng</button></div>
+              <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="checkout()">Lưu đơn hàng</button><button class="button-outline" onclick="clearCart()">Xóa giỏ hàng</button></div>
             </div>
           </aside>
         </div>
       </div>
+
       <div id="productsSection" class="section hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Quản lý sản phẩm</h2><div style="display:flex; gap:8px; flex-wrap:wrap;"><button id="sampleImportButton" class="button-outline" onclick="importSampleProducts()">Nhập dữ liệu mẫu</button><button class="button" onclick="showProductEditor()">Thêm sản phẩm</button><button class="button-outline" onclick="toggleCategoriesEditor()">Quản lý danh mục</button></div></div>
+        <div id="sampleImportMessage" class="notification hidden"></div>
         <div id="productEditor" class="card hidden" style="margin-bottom:20px;">
           <h3 id="productEditorTitle">Thêm sản phẩm mới</h3>
           <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
@@ -259,13 +200,13 @@
         </div>
         <div class="card" id="inventoryLogsCard">
           <h3>Lịch sử tồn kho</h3>
-          <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>SL thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
+          <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Chi nhánh</th><th>SL thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
         </div>
       </div>
 
       <div id="ordersSection" class="section hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Danh sách đơn hàng</h2><div><button class="button-outline" onclick="loadOrders()">Tải lại</button></div></div>
-        <div class="card"><table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>SL</th><th>Giá</th><th>Thành tiền</th><th>Nhân viên</th><th>Hành động</th></tr></thead><tbody id="orderTable"></tbody></table></div>
+        <div class="card"><table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>SL</th><th>Giá</th><th>Thành tiền</th><th>Nhân viên</th></tr></thead><tbody id="orderTable"></tbody></table></div>
       </div>
 
       <div id="usersSection" class="section hidden">
@@ -288,56 +229,6 @@
         <div class="grid-2" style="margin-bottom:20px;"><div class="small-card"><span>Doanh thu 30 ngày</span><strong id="reportSalesTotal">0đ</strong></div><div class="small-card"><span>Đơn hàng 30 ngày</span><strong id="reportOrdersCount">0</strong></div></div>
         <div class="card"><h3>Doanh thu theo ngày</h3><table class="table"><thead><tr><th>Ngày</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportDailyTable"></tbody></table></div>
         <div class="card" style="margin-top:20px;"><h3>Doanh thu theo tuần</h3><table class="table"><thead><tr><th>Tuần</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportWeeklyTable"></tbody></table></div>
-      </div>
-
-      <div id="customersSection" class="section hidden">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Tích điểm & Khách hàng</h2><button class="button-outline" onclick="loadCustomers()">Tải lại</button></div>
-        
-        <div class="card" style="margin-bottom:20px;">
-          <h3>Mốc xếp hạng</h3>
-          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
-            <div style="padding: 16px; background: #f0f9ff; border-radius: 12px; border-left: 4px solid #3b82f6;">
-              <div style="font-weight: 600; color: #1e40af;">Thành viên</div>
-              <div style="font-size: 14px; color: #6b7280;">0 - 999 điểm</div>
-            </div>
-            <div style="padding: 16px; background: #f0fdf4; border-radius: 12px; border-left: 4px solid #10b981;">
-              <div style="font-weight: 600; color: #065f46;">⭐ Bạc</div>
-              <div style="font-size: 14px; color: #6b7280;">1.000 - 4.999 điểm</div>
-            </div>
-            <div style="padding: 16px; background: #fef3c7; border-radius: 12px; border-left: 4px solid #f59e0b;">
-              <div style="font-weight: 600; color: #92400e;">⭐⭐ Vàng</div>
-              <div style="font-size: 14px; color: #6b7280;">5.000 - 9.999 điểm</div>
-            </div>
-            <div style="padding: 16px; background: #fce7f3; border-radius: 12px; border-left: 4px solid #ec4899;">
-              <div style="font-weight: 600; color: #831843;">⭐⭐⭐ Bạch kim</div>
-              <div style="font-size: 14px; color: #6b7280;">10.000 - 14.999 điểm</div>
-            </div>
-            <div style="padding: 16px; background: #f5e6ff; border-radius: 12px; border-left: 4px solid #a855f7;">
-              <div style="font-weight: 600; color: #581c87;">⭐⭐⭐⭐ VIP</div>
-              <div style="font-size: 14px; color: #6b7280;">15.000+ điểm</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="card" style="margin-bottom:20px;">
-          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
-            <div class="form-control"><label for="customerSearch">Tìm kiếm theo tên hoặc số điện thoại</label><input id="customerSearch" type="text" placeholder="Nhập tên hoặc số điện thoại"></div>
-            <div style="display:flex; align-items:end;">
-              <button class="button" onclick="loadCustomers()">Tìm kiếm</button>
-            </div>
-          </div>
-        </div>
-        <div class="card"><table class="table"><thead><tr><th>Tên khách</th><th>Điện thoại</th><th>Điểm</th><th>Hạng</th><th>Ngày tạo</th><th>Hành động</th></tr></thead><tbody id="customerTable"></tbody></table></div>
-        <div id="customerHistoryBox" class="card hidden" style="margin-top:20px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-            <div>
-              <h3 id="customerHistoryTitle">Lịch sử đơn hàng khách hàng</h3>
-              <div id="customerHistorySubtitle" style="color:#6b7280; font-size:0.95rem;"></div>
-            </div>
-            <button class="button-outline" onclick="hideCustomerHistory()">Đóng</button>
-          </div>
-          <table class="table" style="margin-top:16px;"><thead><tr><th>Ngày</th><th>Mã đơn</th><th>Tổng tiền</th><th>Điểm nhận</th><th>Thanh toán</th><th>Nhân viên</th></tr></thead><tbody id="customerHistoryTable"></tbody></table>
-        </div>
       </div>
 
       <div id="profileSection" class="section hidden">
@@ -371,6 +262,7 @@
           <h3>Nhập/Xuất hàng</h3>
           <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
             <div class="form-control"><label for="invProduct">Sản phẩm</label><select id="invProduct"></select></div>
+            <div class="form-control"><label for="invBranch">Chi nhánh</label><select id="invBranch"><option value="">Tất cả</option></select></div>
             <div class="form-control"><label for="invQuantity">Số lượng</label><input id="invQuantity" type="number" min="1" value="1"></div>
           </div>
           <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
@@ -382,106 +274,30 @@
         
         <div class="card">
           <h3>Lịch sử tồn kho</h3>
-          <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Số lượng thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
-        </div>
-      </div>
-        </div>
-      </main>
-      
-      <!-- Payment Method Modal -->
-      
-      <!-- Transfer QR Modal -->
-      <div id="transferQrModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1001; align-items:center; justify-content:center; overflow:auto;">
-        <div style="background:white; border-radius:16px; padding:32px; max-width:520px; width:95%; margin:20px auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-          <h2 style="margin-top:0; font-size:22px; text-align:center;">Thanh toán chuyển khoản</h2>
-          <div style="display:flex; justify-content:center; margin:20px 0;">
-            <img id="transferQrImage" src="" alt="QR chuyển khoản" style="width:260px; height:260px; object-fit:contain; border:1px solid #e5e7eb; border-radius:20px; background:white;">
-          </div>
-          <div style="display:grid; gap:10px; margin-bottom:16px;">
-            <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Số tài khoản</span><strong id="transferAccountNumber">107873372407</strong></div>
-            <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Chủ TK</span><strong id="transferAccountName">TRAN QUOC ANH DUNG</strong></div>
-            <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Ngân hàng</span><strong id="transferBankBranch">VietinBank CN DAK NONG - HOI SO</strong></div>
-            <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Số tiền</span><strong id="transferAmountDisplay"></strong></div>
-          </div>
-          <div style="display:flex; gap:12px; justify-content:flex-end; flex-wrap:wrap;">
-            <button class="button" style="flex:1 1 200px;" onclick="confirmTransferPayment()">Xác nhận đã chuyển khoản</button>
-            <button class="button-outline" style="flex:1 1 200px;" onclick="closeTransferModal()">Hủy</button>
-          </div>
+          <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Chi nhánh</th><th>Số lượng thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
         </div>
       </div>
 
-      <!-- Invoice Modal -->
-      <div id="invoiceModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1002; align-items:center; justify-content:center; overflow:auto;">
-        <div style="background:white; border-radius:16px; padding:32px; max-width:600px; width:95%; margin:20px auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-          <div id="invoiceContent" style="font-family:Arial, sans-serif; line-height:1.6;">
-            <!-- Invoice content will be populated here -->
+      <div id="branchesSection" class="section hidden">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Quản lý chi nhánh</h2><button class="button" onclick="showBranchEditor()">Thêm chi nhánh</button></div>
+        <div id="branchEditor" class="card hidden" style="margin-bottom:20px;">
+          <h3 id="branchEditorTitle">Thêm chi nhánh mới</h3>
+          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
+            <div class="form-control"><label for="branchName">Tên chi nhánh</label><input id="branchName" type="text"></div>
+            <div class="form-control"><label for="branchLocation">Địa chỉ</label><input id="branchLocation" type="text"></div>
+            <div class="form-control"><label for="branchManager">Quản lý</label><select id="branchManager"><option value="">---</option></select></div>
           </div>
-          <div style="display:flex; gap:12px; margin-top:24px; justify-content:flex-end;">
-            <button class="button-outline" style="flex:0 0 auto;" onclick="printInvoice()">🖨️ In hóa đơn</button>
-            <button class="button" style="flex:0 0 auto;" onclick="closeInvoiceModal()">Đóng</button>
-          </div>
+          <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="saveBranch()">Lưu</button><button class="button-outline" onclick="hideBranchEditor()">Hủy</button></div>
+          <div id="branchEditorMessage" class="notification hidden"></div>
         </div>
+        <div class="card"><table class="table"><thead><tr><th>Tên</th><th>Địa chỉ</th><th>Quản lý</th><th>Hành động</th></tr></thead><tbody id="branchTable"></tbody></table></div>
       </div>
     </div>
   </section>
-
-<style>
-  @media print {
-    body > * { display: none; }
-    #invoiceModal { 
-      display: flex !important; 
-      position: static !important;
-      background: white !important;
-    }
-    .print-hidden { display: none !important; }
-  }
-</style>
+</div>
 
 <script>
-  const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, reportData: [], customerDiscount: 0, customerTier: null };
-
-  // Determine discount percent by customer tier
-  function getTierDiscount(tier) {
-    // Mapping: Thành viên=1%, Bạc=2%, Vàng=3%, Bạch kim=4%, VIP=5%
-    const map = { 'Thành viên': 1, 'Bạc': 2, 'Vàng': 3, 'Bạch kim': 4, 'VIP': 5 };
-    return map[tier] || 0;
-  }
-
-  async function applyCustomerPhoneDiscount() {
-    const phone = document.getElementById('customerPhone').value.trim();
-    state.customerDiscount = 0; state.customerTier = null;
-    if (!phone) { renderCart(); return; }
-    try {
-      const res = await apiFetch(`/customers?search=${encodeURIComponent(phone)}`, { method: 'GET' });
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        // find exact phone match
-        const found = data.find(c => (c.phone || '').toString() === phone.toString());
-        const customer = found || data[0];
-        if (customer && customer.tier) {
-          const pct = getTierDiscount(customer.tier);
-          state.customerDiscount = pct;
-          state.customerTier = customer.tier;
-        }
-      }
-    } catch (err) {
-      console.error('Không thể kiểm tra khách hàng:', err);
-    }
-    renderCart();
-  }
-
-  // Attach listener to phone input (immediate if available, fallback to DOMContentLoaded)
-  (function attachPhoneListener() {
-    const phoneEl = typeof document !== 'undefined' ? document.getElementById('customerPhone') : null;
-    if (phoneEl) {
-      phoneEl.addEventListener('blur', applyCustomerPhoneDiscount);
-      return;
-    }
-    document.addEventListener('DOMContentLoaded', () => {
-      const phoneEl2 = document.getElementById('customerPhone');
-      if (phoneEl2) phoneEl2.addEventListener('blur', applyCustomerPhoneDiscount);
-    });
-  })();
+  const state = { token: null, user: null, products: [], categories: [], cart: [], editProductId: null, reportData: [] };
 
   function showAuthTab(tab) {
     document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
@@ -495,23 +311,13 @@
   }
 
   function authHeaders() {
-    return state.token ? { Authorization: 'Bearer ' + state.token } : {};
+    return state.token ? { Authorization: 'Bearer ' + state.token } : {}; 
   }
 
   async function apiFetch(path, options = {}) {
-    const headers = { ...(options.headers || {}) };
-    if (options.body != null && !headers['Content-Type'] && !headers['content-type']) {
-      headers['Content-Type'] = 'application/json';
-    }
-    Object.assign(headers, authHeaders());
-
+    const headers = { 'Content-Type': 'application/json', ...options.headers, ...authHeaders() };
     const response = await fetch(path, { ...options, headers });
-
     if (!response.ok) {
-      if (response.status === 401) {
-        logout();
-        throw new Error('Phiên đã hết hạn hoặc chưa đăng nhập. Vui lòng đăng nhập lại.');
-      }
       const text = await response.text();
       throw new Error(text || 'Lỗi hệ thống');
     }
@@ -588,24 +394,16 @@
   }
 
   function renderMenu() {
-    const tabs = [
-      { id:'dashboard', label:'Dashboard' },
-      { id:'pos', label:'POS', role: ['seller', 'manager', 'admin'] },
-      { id:'products', label:'Sản phẩm', role: ['admin', 'manager'] },
-      { id:'inventory', label:'Tồn kho', role: ['admin', 'manager'] },
-      { id:'orders', label:'Đơn hàng' },
-      { id:'reports', label:'Báo cáo', role: ['admin', 'manager'] },
-      { id:'customers', label:'Tích điểm' }
-    ];
+    const tabs = [ { id:'dashboard', label:'Dashboard' }, { id:'pos', label:'POS', role: ['seller', 'manager', 'admin'] }, { id:'products', label:'Sản phẩm', role: ['admin', 'manager'] }, { id:'orders', label:'Đơn hàng' }, { id:'reports', label:'Báo cáo', role: ['admin', 'manager'] }, { id:'branches', label:'Chi nhánh', role: ['admin'] } ];
     if (state.user.role === 'admin') tabs.push({ id:'users', label:'Nhân sự' });
     
     const visibleTabs = tabs.filter(tab => !tab.role || tab.role.includes(state.user.role));
     const container = document.getElementById('menuTabs');
-    container.innerHTML = visibleTabs.map(tab => `<div class="sidebar-item" id="tab-${tab.id}" onclick="openSection('${tab.id}')">${tab.label}</div>`).join('');
+    container.innerHTML = visibleTabs.map(tab => `<button class="tab-button" id="tab-${tab.id}" onclick="openSection('${tab.id}')">${tab.label}</button>`).join('');
   }
 
   function openSection(section) {
-    const sections = ['dashboard','pos','products','orders','users','reports','customers','profile','inventory'];
+    const sections = ['dashboard','pos','products','orders','users','reports','profile','inventory','branches'];
     sections.forEach(id => document.getElementById(id + 'Section').classList.toggle('hidden', id !== section));
     sections.forEach(id => document.getElementById('tab-' + id) && document.getElementById('tab-' + id).classList.toggle('active', id === section));
     if (section === 'dashboard') loadDashboard();
@@ -614,9 +412,9 @@
     if (section === 'orders') loadOrders();
     if (section === 'users') loadUsers();
     if (section === 'reports') loadReport();
-    if (section === 'customers') loadCustomers();
     if (section === 'profile') loadProfile();
     if (section === 'inventory') loadInventory();
+    if (section === 'branches') loadBranches();
   }
 
   async function refreshData() {
@@ -642,19 +440,13 @@
     try {
       const res = await apiFetch('/categories', { method: 'GET' });
       const list = await res.json();
-      const normalized = list.map(c => ({
-        id: c.id,
-        value: c.value || c.name || c.label || '',
-        label: c.label || c.name || c.value || ''
-      })).filter(c => c.value);
-      state.categories = normalized;
-      // populate filter select (includes 'all')
+      state.categories = list;
+      // populate filter select (includes 'all' and 'no-orders')
       const filter = document.getElementById('filterCategory');
-      const filterOptions = [{ value: 'all', label: 'Tất cả danh mục' }].concat(state.categories);
-      filter.innerHTML = filterOptions.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
-      // populate product category select
+      filter.innerHTML = state.categories.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+      // populate product category select (exclude pseudo categories)
       const prodSelect = document.getElementById('productCategory');
-      const productOptions = [{ value: '', label: 'Không chọn' }].concat(state.categories);
+      const productOptions = [{ value: '', label: 'Không chọn' }].concat(state.categories.filter(c => c.value !== 'all' && c.value !== 'no-orders'));
       prodSelect.innerHTML = productOptions.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
       loadCategoriesList();
     } catch (err) { console.error(err); }
@@ -701,7 +493,7 @@
 
     const detailHtml = `
       <div style="display:grid; gap:20px; grid-template-columns: 260px 1fr; align-items:start;">
-        <img src="${product.image || '/assets/real-products/fallback.jpg'}" alt="${product.name}" style="width:100%; border-radius:18px; max-height:360px; object-fit:cover;" onerror="this.onerror=null;this.src='/assets/real-products/fallback.jpg'">
+        <img src="${product.image || SAMPLE_IMPORT_FALLBACK_IMAGE}" alt="${product.name}" style="width:100%; border-radius:18px; max-height:360px; object-fit:cover;" onerror="this.onerror=null;this.src='${SAMPLE_IMPORT_FALLBACK_IMAGE}'">
         <div style="display:grid; gap:12px;">
           <div><strong>Tên:</strong> ${product.name}</div>
           <div><strong>Mã SP:</strong> ${product.code || '-'}</div>
@@ -751,7 +543,195 @@
       alert('Xóa danh mục thành công.');
     } catch (err) { alert(err.message || 'Xóa thất bại.'); }
   }
-  // Sample import functionality removed to avoid seeding demo data in production.
+
+  const SAMPLE_IMPORT_TOTAL = 100;
+  const SAMPLE_IMPORT_FALLBACK_IMAGE = '/assets/real-products/fallback.jpg';
+
+  const sampleBrandOptions = [
+    { code: 'SH', name: 'Sunhouse' },
+    { code: 'KG', name: 'Kangaroo' },
+    { code: 'LG', name: 'LifeGood' },
+    { code: 'SS', name: 'SamsungHome' },
+    { code: 'PN', name: 'PanHome' }
+  ];
+
+  const sampleProductTemplates = [
+    { name: 'Nồi cơm điện 1.8L', categoryName: 'Đồ nhà bếp', baseCostPrice: 520000, warrantyMonths: 12, minStock: 5, imageUrl: '/assets/real-products/rice-cooker.jpg' },
+    { name: 'Ấm siêu tốc inox 1.7L', categoryName: 'Đồ nhà bếp', baseCostPrice: 180000, warrantyMonths: 12, minStock: 8, imageUrl: '/assets/real-products/electric-kettle.jpg' },
+    { name: 'Bếp điện từ đơn', categoryName: 'Đồ nhà bếp', baseCostPrice: 650000, warrantyMonths: 12, minStock: 4, imageUrl: '/assets/real-products/induction-cooker.jpg' },
+    { name: 'Lò nướng điện 25L', categoryName: 'Đồ nhà bếp', baseCostPrice: 890000, warrantyMonths: 12, minStock: 3, imageUrl: '/assets/real-products/oven.jpg' },
+    { name: 'Máy lọc không khí phòng ngủ', categoryName: 'Điện gia dụng', baseCostPrice: 1350000, warrantyMonths: 24, minStock: 3, imageUrl: '/assets/real-products/air-purifier.jpg' },
+    { name: 'Máy hút bụi cầm tay', categoryName: 'Điện gia dụng', baseCostPrice: 780000, warrantyMonths: 12, minStock: 4, imageUrl: '/assets/real-products/vacuum-cleaner.jpg' },
+    { name: 'Quạt cây điều khiển từ xa', categoryName: 'Điện gia dụng', baseCostPrice: 480000, warrantyMonths: 12, minStock: 6, imageUrl: '/assets/real-products/standing-fan.jpg' },
+    { name: 'Chảo chống dính đáy từ', categoryName: 'Đồ nhà bếp', baseCostPrice: 190000, warrantyMonths: 6, minStock: 10, imageUrl: '/assets/real-products/nonstick-pan.jpg' },
+    { name: 'Thảm sàn phòng khách', categoryName: 'Vật dụng gia đình', baseCostPrice: 160000, warrantyMonths: 3, minStock: 10, imageUrl: '/assets/real-products/floor-carpet.jpg' },
+    { name: 'Thùng rác nhựa đạp chân', categoryName: 'Vật dụng gia đình', baseCostPrice: 85000, warrantyMonths: 3, minStock: 12, imageUrl: '/assets/real-products/trash-bin.jpg' },
+    { name: 'Kệ để đồ nhà bếp', categoryName: 'Vật dụng gia đình', baseCostPrice: 240000, warrantyMonths: 6, minStock: 8, imageUrl: '/assets/real-products/storage-shelf.jpg' },
+    { name: 'Máy xay sinh tố thủy tinh', categoryName: 'Đồ nhà bếp', baseCostPrice: 390000, warrantyMonths: 12, minStock: 5, imageUrl: '/assets/real-products/blender.jpg' },
+    { name: 'Máy ép trái cây mini', categoryName: 'Đồ nhà bếp', baseCostPrice: 720000, warrantyMonths: 12, minStock: 4, imageUrl: '/assets/real-products/juicer.jpg' },
+    { name: 'Bàn ủi hơi nước', categoryName: 'Điện gia dụng', baseCostPrice: 350000, warrantyMonths: 12, minStock: 6, imageUrl: '/assets/real-products/steam-iron.jpg' },
+    { name: 'Đèn ngủ cảm ứng', categoryName: 'Điện gia dụng', baseCostPrice: 120000, warrantyMonths: 6, minStock: 10, imageUrl: '/assets/real-products/night-lamp.jpg' },
+    { name: 'Nồi chiên không dầu', categoryName: 'Đồ nhà bếp', baseCostPrice: 1250000, warrantyMonths: 12, minStock: 3, imageUrl: '/assets/real-products/air-fryer.jpg' },
+    { name: 'Máy sấy tóc gia đình', categoryName: 'Điện gia dụng', baseCostPrice: 260000, warrantyMonths: 12, minStock: 7, imageUrl: '/assets/real-products/hair-dryer.jpg' },
+    { name: 'Bình giữ nhiệt inox', categoryName: 'Vật dụng gia đình', baseCostPrice: 95000, warrantyMonths: 3, minStock: 15, imageUrl: '/assets/real-products/thermos.jpg' },
+    { name: 'Hộp đựng thực phẩm', categoryName: 'Vật dụng gia đình', baseCostPrice: 65000, warrantyMonths: 3, minStock: 20, imageUrl: '/assets/real-products/food-container.jpg' },
+    { name: 'Móc treo quần áo inox', categoryName: 'Vật dụng gia đình', baseCostPrice: 45000, warrantyMonths: 3, minStock: 20, imageUrl: '/assets/real-products/hanger.jpg' }
+  ];
+
+  function normalizeSampleText(value) {
+    return String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .trim();
+  }
+
+  function extractResponseList(json, fieldName) {
+    if (Array.isArray(json)) return json;
+    if (json && Array.isArray(json.data)) return json.data;
+    if (json && json.data && Array.isArray(json.data[fieldName])) return json.data[fieldName];
+    if (json && Array.isArray(json[fieldName])) return json[fieldName];
+    if (json && Array.isArray(json.items)) return json.items;
+    return [];
+  }
+
+  function setSampleImportLoading(isLoading, text) {
+    const button = document.getElementById('sampleImportButton');
+    if (!button) return;
+    button.disabled = isLoading;
+    button.style.opacity = isLoading ? '0.7' : '1';
+    button.style.cursor = isLoading ? 'not-allowed' : 'pointer';
+    button.textContent = isLoading ? (text || 'Đang nhập...') : 'Nhập dữ liệu mẫu';
+  }
+
+  function showSampleImportMessage(text, success) {
+    const message = document.getElementById('sampleImportMessage');
+    if (!message) return;
+    message.textContent = text;
+    message.style.color = success ? '#10b981' : '#ef4444';
+    message.classList.remove('hidden');
+  }
+
+  function getCategoryForTemplate(template, categories, index) {
+    const expected = normalizeSampleText(template.categoryName);
+    const matched = categories.find(category => normalizeSampleText(category.name || category.label || category.value) === expected);
+    return matched || categories[index % categories.length];
+  }
+
+  function calculateSampleCostPrice(template, index) {
+    return template.baseCostPrice + ((index % 8) * 15000);
+  }
+
+  function calculateSampleSalePrice(costPrice) {
+    return Math.ceil((costPrice * 1.25) / 1000) * 1000;
+  }
+
+  function generateSampleProducts(categories, suppliers, totalProducts) {
+    const products = [];
+    for (let index = 0; index < totalProducts; index += 1) {
+      const template = sampleProductTemplates[index % sampleProductTemplates.length];
+      const brand = sampleBrandOptions[index % sampleBrandOptions.length];
+      const modelNumber = String(index + 1).padStart(3, '0');
+      const name = `${template.name} ${brand.name} Model ${modelNumber}`;
+      const category = getCategoryForTemplate(template, categories, index);
+      const supplier = suppliers[index % suppliers.length];
+      const costPrice = calculateSampleCostPrice(template, index);
+      const salePrice = calculateSampleSalePrice(costPrice);
+      const stockQuantity = 20 + (index % 81);
+      const imageUrl = template.imageUrl || SAMPLE_IMPORT_FALLBACK_IMAGE;
+
+      products.push({
+        sku: '',
+        code: '',
+        barcode: '',
+        name: name,
+        categoryId: category.id,
+        supplierId: supplier.id,
+        category: category.name || category.label || category.value || template.categoryName,
+        costPrice: costPrice,
+        salePrice: salePrice,
+        price: salePrice,
+        stockQuantity: stockQuantity,
+        stock: stockQuantity,
+        minStock: template.minStock,
+        warrantyMonths: template.warrantyMonths,
+        imageUrl: imageUrl,
+        image: imageUrl,
+        description: `Sản phẩm mẫu ${name}, dùng để kiểm thử dữ liệu quản lý sản phẩm trong hệ thống POS.`
+      });
+    }
+    return products;
+  }
+
+  async function importSampleProducts() {
+    if (!state.user || !['admin', 'manager'].includes(state.user.role)) {
+      alert('Bạn cần đăng nhập bằng tài khoản admin hoặc manager để nhập dữ liệu mẫu.');
+      return;
+    }
+
+    if (!confirm(`Bạn muốn nhập ${SAMPLE_IMPORT_TOTAL} sản phẩm mẫu vào hệ thống?`)) {
+      return;
+    }
+
+    setSampleImportLoading(true, 'Đang tải dữ liệu...');
+    showSampleImportMessage('Đang lấy danh mục và nhà cung cấp ACTIVE...', true);
+
+    let createdCount = 0;
+    let errorCount = 0;
+    let firstErrorMessage = '';
+
+    try {
+      const categoryResponse = await apiFetch('/api/categories?status=ACTIVE&limit=100', { method: 'GET' });
+      const supplierResponse = await apiFetch('/api/suppliers?status=ACTIVE&limit=100', { method: 'GET' });
+      const categoryJson = await categoryResponse.json();
+      const supplierJson = await supplierResponse.json();
+      const categories = extractResponseList(categoryJson, 'categories').filter(category => Number(category.id) > 0);
+      const suppliers = extractResponseList(supplierJson, 'suppliers').filter(supplier => Number(supplier.id) > 0);
+
+      if (categories.length === 0) {
+        showSampleImportMessage('Không có danh mục ACTIVE. Vui lòng tạo danh mục trước.', false);
+        return;
+      }
+
+      if (suppliers.length === 0) {
+        showSampleImportMessage('Không có nhà cung cấp ACTIVE. Vui lòng tạo nhà cung cấp trước.', false);
+        return;
+      }
+
+      const products = generateSampleProducts(categories, suppliers, SAMPLE_IMPORT_TOTAL);
+      for (let index = 0; index < products.length; index += 1) {
+        const product = products[index];
+        setSampleImportLoading(true, `Đang nhập ${index + 1}/${products.length}`);
+
+        try {
+          await apiFetch('/api/products', {
+            method: 'POST',
+            body: JSON.stringify(product)
+          });
+          createdCount += 1;
+        } catch (error) {
+          errorCount += 1;
+          if (!firstErrorMessage) {
+            firstErrorMessage = error.message || 'Không rõ lỗi.';
+          }
+        }
+      }
+
+      const resultText = `Nhập dữ liệu mẫu hoàn tất. Đã tạo ${createdCount} sản phẩm, lỗi ${errorCount} sản phẩm.` + (firstErrorMessage ? ` Lỗi đầu tiên: ${firstErrorMessage}` : '');
+      showSampleImportMessage(resultText, errorCount === 0);
+      alert(resultText);
+      await loadCategories();
+      await loadProductList();
+      await loadDashboard();
+    } catch (error) {
+      const message = error.message || 'Không thể nhập dữ liệu mẫu.';
+      showSampleImportMessage(message, false);
+      alert(message);
+    } finally {
+      setSampleImportLoading(false);
+    }
+  }
 
   async function loadProductList() {
     try {
@@ -787,24 +767,21 @@
     const category = document.getElementById('filterCategory').value;
     const filtered = state.products.filter(product => {
       const match = product.name.toLowerCase().includes(query) || (product.code || '').toLowerCase().includes(query) || (product.category || '').toLowerCase().includes(query);
-      const showAll = !category || category === 'all' || category === 'no-orders';
-      const catMatch = showAll || (product.category || 'Khác') === category;
+      const catMatch = category === 'all' || category === 'no-orders' || (product.category || 'Khác') === category;
       return match && catMatch;
     });
     const grid = document.getElementById('posProductGrid');
     grid.innerHTML = filtered.length === 0 ? '<div class="small-card">Không tìm thấy sản phẩm.</div>' : filtered.map(product => `
       <div class="product-card" onclick="showProductDetails(${product.id})">
-        <img src="${product.image || '/assets/real-products/fallback.jpg'}" alt="${product.name}" onerror="this.onerror=null;this.src='/assets/real-products/fallback.jpg'">
+        <img src="${product.image || SAMPLE_IMPORT_FALLBACK_IMAGE}" alt="${product.name}" onerror="this.onerror=null;this.src='${SAMPLE_IMPORT_FALLBACK_IMAGE}'">
         <div>
           <h3>${product.name}</h3>
           <div class="meta"><span>${product.category || 'Chưa phân loại'}</span><span>Kho: ${product.stock}</span></div>
           <p>${product.description || 'Văn phòng phẩm chất lượng.'}</p>
         </div>
-        <div class="product-footer">
-          <div class="price">${formatCurrency(product.price)}</div>
-          <div class="actions">
-            <button class="button" onclick="event.stopPropagation(); addToCart(${product.id})" ${product.stock <= 0 ? 'disabled style="opacity:.65;cursor:not-allowed;"' : ''}>${product.stock > 0 ? 'Thêm vào giỏ' : 'Hết hàng'}</button>
-          </div>
+        <div class="price">${formatCurrency(product.price)}</div>
+        <div class="actions">
+          <button class="button" onclick="event.stopPropagation(); addToCart(${product.id})" ${product.stock <= 0 ? 'disabled style="opacity:.65;cursor:not-allowed;"' : ''}>${product.stock > 0 ? 'Thêm vào giỏ' : 'Hết hàng'}</button>
         </div>
       </div>
     `).join('');
@@ -815,8 +792,7 @@
     const category = document.getElementById('filterCategory').value;
     const filtered = state.products.filter(product => {
       const match = product.name.toLowerCase().includes(query) || (product.code || '').toLowerCase().includes(query) || (product.category || '').toLowerCase().includes(query);
-      const showAll = !category || category === 'all' || category === 'no-orders';
-      const catMatch = showAll || (product.category || 'Khác') === category;
+      const catMatch = category === 'all' || category === 'no-orders' || (product.category || 'Khác') === category;
       return match && catMatch;
     });
 
@@ -886,7 +862,7 @@
         <tr>
           <td>${new Date(log.created_at).toLocaleString()}</td>
           <td>${log.product_name || '-'}</td>
-          <td>-</td>
+          <td>${log.branch_name || '-'}</td>
           <td>${log.quantity_change}</td>
           <td>${log.reason || '-'}</td>
           <td>${log.created_by_user || '-'}</td>
@@ -1007,7 +983,6 @@
     if (state.cart.length === 0) {
       cartItems.innerHTML = '<div class="small-card">Giỏ hàng trống.</div>';
       document.getElementById('cartTotal').textContent = '0đ';
-      updateCashChange();
       return;
     }
     let total = 0;
@@ -1024,316 +999,28 @@
         </div>
       `;
     }).join('');
-    // Apply customer discount if any
-    const discountPercent = Number(state.customerDiscount || 0);
-    const discountAmount = +(total * (discountPercent / 100));
-    const discountedTotal = +(total - discountAmount);
-    document.getElementById('cartTotal').textContent = formatCurrency(discountedTotal);
-    const discountEl = document.getElementById('cartDiscountInfo');
-    if (discountPercent > 0) {
-      discountEl.style.display = 'block';
-      discountEl.textContent = `Ưu đãi hạng ${state.customerTier || ''}: -${discountPercent}% (${formatCurrency(discountAmount)})`;
-    } else {
-      discountEl.style.display = 'none';
-      discountEl.textContent = '';
-    }
-    updateCashChange();
-  }
-
-  function updateCashChange() {
-    const totalAmountRaw = state.cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
-    const discountPercent = Number(state.customerDiscount || 0);
-    const totalAmount = +(totalAmountRaw - (totalAmountRaw * (discountPercent / 100)));
-    const cashReceived = Number(document.getElementById('cashReceived').value || 0);
-    const cashChange = cashReceived - totalAmount;
-    document.getElementById('cashChange').textContent = formatCurrency(Math.max(cashChange, 0));
+    document.getElementById('cartTotal').textContent = formatCurrency(total);
   }
 
   function clearCart() { state.cart = []; renderCart(); }
 
-  const transferPaymentSettings = {
-    accountNumber: '107873372407',
-    accountName: 'TRAN QUOC ANH DUNG',
-    bankBranch: 'VietinBank CN DAK NONG'
-  };
-
-  const pendingTransferOrder = { paymentMethod: null, customerName: null, customerPhone: null, totalAmount: 0 };
-
-  function resetPendingTransferOrder() {
-    pendingTransferOrder.paymentMethod = null;
-    pendingTransferOrder.customerName = null;
-    pendingTransferOrder.customerPhone = null;
-    pendingTransferOrder.totalAmount = 0;
-  }
-
   async function checkout() {
     if (!state.user) return alert('Bạn cần đăng nhập để thanh toán.');
     if (state.cart.length === 0) return alert('Giỏ hàng trống.');
-
-    const paymentMethod = document.querySelector('input[name="checkoutPaymentMethod"]:checked').value;
-    const customerName = document.getElementById('customerName').value.trim();
-    const customerPhone = document.getElementById('customerPhone').value.trim();
-    const rawTotal = state.cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
-    const discountPercent = Number(state.customerDiscount || 0);
-    const totalAmount = +(rawTotal - (rawTotal * (discountPercent / 100)));
-
-    if (paymentMethod === 'transfer') {
-      pendingTransferOrder.paymentMethod = paymentMethod;
-      pendingTransferOrder.customerName = customerName || null;
-      pendingTransferOrder.customerPhone = customerPhone || null;
-      pendingTransferOrder.totalAmount = totalAmount;
-      showTransferModal(totalAmount);
-      return;
-    }
-
-    const cashReceived = Number(document.getElementById('cashReceived').value || 0);
-    if (cashReceived < totalAmount) return alert('Tiền khách đưa phải lớn hơn hoặc bằng tổng tiền.');
-    const cashChange = cashReceived - totalAmount;
-
-    await processOrder(paymentMethod, customerName, customerPhone, totalAmount, cashReceived, cashChange, discountPercent);
-  }
-
-  function showTransferModal(totalAmount) {
-    const qrText = `VietQR|${transferPaymentSettings.accountNumber}|${transferPaymentSettings.accountName}|${transferPaymentSettings.bankBranch}|${totalAmount.toFixed(0)}`;
-    const modal = document.getElementById('transferQrModal');
-    document.getElementById('transferQrImage').src = generateQrDataUrl(qrText);
-    document.getElementById('transferAccountNumber').textContent = transferPaymentSettings.accountNumber;
-    document.getElementById('transferAccountName').textContent = transferPaymentSettings.accountName;
-    document.getElementById('transferBankBranch').textContent = transferPaymentSettings.bankBranch;
-    document.getElementById('transferAmountDisplay').textContent = formatCurrency(totalAmount);
-    document.getElementById('checkoutButton').disabled = true;
-    modal.style.display = 'flex';
-  }
-
-  function closeTransferModal() {
-    document.getElementById('transferQrModal').style.display = 'none';
-    document.getElementById('checkoutButton').disabled = false;
-    resetPendingTransferOrder();
-  }
-
-  async function confirmTransferPayment() {
-    if (pendingTransferOrder.paymentMethod !== 'transfer') {
-      return alert('Không có đơn chuyển khoản đang chờ xác nhận.');
-    }
-
-    const { paymentMethod, customerName, customerPhone, totalAmount } = { ...pendingTransferOrder };
-    closeTransferModal();
-    await processOrder(paymentMethod, customerName, customerPhone, totalAmount);
-  }
-
-  async function processOrder(paymentMethod, customerName, customerPhone, totalAmount, cashReceived = null, cashChange = null, discountPercent = 0) {
     try {
-      const res = await apiFetch('/orders', {
-        method: 'POST',
-        body: JSON.stringify({
-          cart: state.cart,
-          paymentMethod,
-          customer: {
-            name: customerName || null,
-            phone: customerPhone || null
-          },
-          payment: {
-            cashReceived: cashReceived != null ? cashReceived : undefined,
-            cashChange: cashChange != null ? cashChange : undefined
-          },
-          discountPercent: discountPercent,
-          totalAfterDiscount: totalAmount
-        })
-      });
-      const result = await res.json();
-
-      showInvoice({
-        orderNumber: result.orderNumber,
-        sellerName: state.user.username,
-        customerName: customerName || 'Khách lẻ',
-        customerPhone: customerPhone || '-',
-        paymentMethod: paymentMethod === 'transfer' ? 'Chuyển khoản' : 'Tiền mặt',
-        qrText: null,
-        items: state.cart,
-        totalAmount: totalAmount,
-        cashReceived: cashReceived,
-        cashChange: cashChange,
-        pointsEarned: result.pointsEarned || 0,
-        currentPoints: result.currentPoints || 0,
-        createdAt: new Date().toLocaleString('vi-VN')
-      });
-
-      if (result.pointsEarned != null && result.currentPoints != null) {
-        const info = document.getElementById('customerPointsInfo');
-        if (info) {
-          info.textContent = `Khách hàng hiện có ${result.currentPoints} điểm.`;
-          info.style.color = '#10b981';
-          info.classList.remove('hidden');
-        }
-      }
-
+      await apiFetch('/orders', { method: 'POST', body: JSON.stringify({ cart: state.cart }) });
+      alert('Thanh toán thành công.');
       state.cart = [];
       renderCart();
       loadProductList();
       loadDashboard();
-    } catch (err) {
-      alert(err.message || 'Thanh toán thất bại.');
-    }
-  }
-
-  function showInvoice(data) {
-    const invoiceHTML = `
-      <div style="padding:20px; background:#f8fafc; border-radius:8px; margin-bottom:20px;">
-        <div style="text-align:center; margin-bottom:20px;">
-          <h1 style="margin:0 0 8px 0; font-size:24px; color:#1e40af;">HÓA ĐƠN BÁN HÀNG</h1>
-          <p style="margin:0; font-size:14px; color:#666;">Mã đơn: <strong>${escapeHtml(data.orderNumber)}</strong></p>
-          <p style="margin:8px 0 0 0; font-size:12px; color:#999;">${escapeHtml(data.createdAt)}</p>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; font-size:14px;">
-          <div>
-            <p style="margin:0 0 8px 0; color:#666;">Người bán:</p>
-            <p style="margin:0; font-weight:600;">${escapeHtml(data.sellerName)}</p>
-          </div>
-          <div>
-            <p style="margin:0 0 8px 0; color:#666;">Phương thức:</p>
-            <p style="margin:0; font-weight:600;">${escapeHtml(data.paymentMethod)}</p>
-          </div>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; padding:12px; background:white; border-radius:8px; font-size:14px;">
-          <div>
-            <p style="margin:0 0 8px 0; color:#666;">Khách hàng:</p>
-            <p style="margin:0; font-weight:600;">${escapeHtml(data.customerName)}</p>
-            <p style="margin:4px 0 0 0; font-size:13px; color:#666;">ĐT: ${escapeHtml(data.customerPhone)}</p>
-          </div>
-          <div>
-            <p style="margin:0 0 8px 0; color:#666;">Điểm thưởng:</p>
-            <p style="margin:0; font-weight:600; font-size:16px; color:#10b981;">+${data.pointsEarned} điểm</p>
-            <p style="margin:4px 0 0 0; font-size:13px; color:#666;">Tổng: ${data.currentPoints} điểm</p>
-          </div>
-        </div>
-
-        <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:13px;">
-          <thead>
-            <tr style="background:#e0e7ff; border-bottom:2px solid #c7d2fe;">
-              <th style="padding:8px; text-align:left; font-weight:600;">Sản phẩm</th>
-              <th style="padding:8px; text-align:right; font-weight:600;">Giá</th>
-              <th style="padding:8px; text-align:center; font-weight:600;">SL</th>
-              <th style="padding:8px; text-align:right; font-weight:600;">Thành tiền</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${data.items.map((item, idx) => {
-              const itemTotal = Number(item.price || 0) * Number(item.quantity || 0);
-              return `
-                <tr style="border-bottom:1px solid #e5e7eb;">
-                  <td style="padding:8px;">${escapeHtml(item.product_name || item.name || 'N/A')}</td>
-                  <td style="padding:8px; text-align:right;">${Number(item.price || 0).toLocaleString('vi-VN')}đ</td>
-                  <td style="padding:8px; text-align:center;">${item.quantity || 1}</td>
-                  <td style="padding:8px; text-align:right; font-weight:600;">${itemTotal.toLocaleString('vi-VN')}đ</td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-
-        <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
-          <div style="width:320px; background:#f0f9ff; border-radius:8px; padding:16px; display:flex; flex-direction:column; gap:12px;">
-            <div style="display:flex; justify-content:space-between; gap:16px;">
-              <span style="color:#666;">Tổng tiền:</span>
-              <span style="font-weight:700; color:#1e40af;">${data.totalAmount.toLocaleString('vi-VN')}đ</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; gap:16px;">
-              <span style="color:#666;">Tiền khách đưa:</span>
-              <span style="font-weight:600; color:#1e40af;">${data.cashReceived != null ? data.cashReceived.toLocaleString('vi-VN') + 'đ' : '-'}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; gap:16px;">
-              <span style="color:#666;">Tiền thối:</span>
-              <span style="font-weight:600; color:#1e40af;">${data.cashChange != null ? data.cashChange.toLocaleString('vi-VN') + 'đ' : '0đ'}</span>
-            </div>
-          </div>
-        </div>
-        </div>
-
-        <div id="invoiceQrBlock" style="display:${data.qrText ? 'block' : 'none'}; margin-bottom:20px; padding:20px; background:#fff7ed; border-radius:12px; text-align:center;">
-          <p style="margin:0 0 12px 0; font-weight:600; color:#c2410c;">Quét QR để thanh toán chuyển khoản</p>
-          <div style="display:flex; justify-content:center; margin-bottom:12px;">
-            <img src="${data.qrText ? generateQrDataUrl(data.qrText) : ''}" alt="QR chuyển khoản" style="width:220px; height:220px; object-fit:contain; border:1px solid #f3e0d8; border-radius:16px; background:white;">
-          </div>
-          <p style="margin:0; font-size:13px; color:#444;">Số tài khoản: <strong>${escapeHtml(transferPaymentSettings.accountNumber)}</strong></p>
-          <p style="margin:4px 0 0 0; font-size:13px; color:#444;">Chủ tài khoản: <strong>${escapeHtml(transferPaymentSettings.accountName)}</strong></p>
-          <p style="margin:4px 0 0 0; font-size:13px; color:#444;">Ngân hàng: <strong>${escapeHtml(transferPaymentSettings.bankBranch)}</strong></p>
-        </div>
-        <div style="text-align:center; margin-top:20px; padding-top:20px; border-top:1px solid #e5e7eb; color:#999; font-size:12px;">
-          <p style="margin:0;">Cảm ơn quý khách đã mua hàng! 🙏</p>
-          <p style="margin:4px 0 0 0;">Vui lòng giữ lại hóa đơn này.</p>
-        </div>
-      </div>
-    `;
-    
-    document.getElementById('invoiceContent').innerHTML = invoiceHTML;
-    document.getElementById('invoiceModal').style.display = 'flex';
-  }
-
-  function closeInvoiceModal() {
-    document.getElementById('invoiceModal').style.display = 'none';
-  }
-
-  function printInvoice() {
-    window.print();
-  }
-
-  function escapeHtml(text) {
-    if (!text) return '';
-    const map = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;'
-    };
-    return String(text).replace(/[&<>"']/g, m => map[m]);
-  }
-
-  function generateQrDataUrl(text) {
-    return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(text)}`;
-  }
-
-  async function viewOrderInvoice(orderId) {
-    try {
-      // Fetch latest orders to ensure we have payment fields populated
-      const res = await apiFetch('/orders', { method: 'GET' });
-      const orders = await res.json();
-      const order = orders.find(item => item.id === orderId);
-      if (!order) return alert('Không tìm thấy đơn hàng.');
-
-      showInvoice({
-        orderNumber: order.order_number || `#${order.id}`,
-        createdAt: new Date(order.created_at).toLocaleString('vi-VN'),
-        sellerName: order.seller_full_name || order.seller_name || '-',
-        customerName: order.customer_name || 'Khách lẻ',
-        customerPhone: order.customer_phone || '-',
-        paymentMethod: order.payment_method || 'Tiền mặt',
-        cashReceived: order.payment_cash_received != null ? Number(order.payment_cash_received) : null,
-        cashChange: order.payment_cash_change != null ? Number(order.payment_cash_change) : null,
-        discountPercent: order.discount_percent != null ? Number(order.discount_percent) : 0,
-        totalAmount: order.total_after_discount != null ? Number(order.total_after_discount) : (Number(order.price || 0) * Number(order.quantity || 1)),
-        pointsEarned: 0,
-        currentPoints: 0,
-        items: [{
-          product_name: order.product_name || 'Sản phẩm',
-          price: Number(order.price || 0),
-          quantity: Number(order.quantity || 1)
-        }],
-        qrText: null
-      });
-    } catch (err) {
-      console.error(err);
-      alert('Không thể tải thông tin đơn hàng.');
-    }
+    } catch (err) { alert(err.message || 'Thanh toán thất bại.'); }
   }
 
   async function loadOrders() {
     try {
       const res = await apiFetch('/orders', { method: 'GET' });
       const orders = await res.json();
-      state.orders = orders;
       document.getElementById('orderTable').innerHTML = orders.map(order => `
         <tr>
           <td>${new Date(order.created_at).toLocaleString()}</td>
@@ -1342,11 +1029,10 @@
           <td>${formatCurrency(order.price)}</td>
           <td>${formatCurrency(order.price * order.quantity)}</td>
           <td>${order.seller_full_name || order.seller_name || order.seller_name || '-'}</td>
-          <td><button class="button-outline" onclick="viewOrderInvoice(${order.id})">Xem</button></td>
         </tr>
       `).join('');
     } catch (err) {
-      document.getElementById('orderTable').innerHTML = '<tr><td colspan="7">Không thể tải đơn hàng.</td></tr>';
+      document.getElementById('orderTable').innerHTML = '<tr><td colspan="6">Không thể tải đơn hàng.</td></tr>';
       console.error(err);
     }
   }
@@ -1397,58 +1083,6 @@
       alert('Xóa thành công.');
       loadUsers();
     } catch (err) { alert(err.message || 'Xóa thất bại.'); }
-  }
-
-  async function loadCustomers() {
-    try {
-      const search = document.getElementById('customerSearch').value.trim();
-      const url = search ? `/customers?search=${encodeURIComponent(search)}` : '/customers';
-      const res = await apiFetch(url, { method: 'GET' });
-      const customers = await res.json();
-      document.getElementById('customerTable').innerHTML = customers.map(customer => `
-        <tr>
-          <td>${customer.name || '-'}</td>
-          <td>${customer.phone || '-'}</td>
-          <td>${customer.points || 0}</td>
-          <td>${customer.tier || '-'}</td>
-          <td>${customer.created_at ? new Date(customer.created_at).toLocaleDateString() : '-'}</td>
-          <td><button class="button-outline" onclick="loadCustomerHistory(${customer.id})">Lịch sử</button></td>
-        </tr>
-      `).join('');
-    } catch (err) {
-      console.error(err);
-      document.getElementById('customerTable').innerHTML = '<tr><td colspan="6">Không thể tải danh sách khách hàng.</td></tr>';
-    }
-  }
-
-  function hideCustomerHistory() {
-    document.getElementById('customerHistoryBox').classList.add('hidden');
-  }
-
-  async function loadCustomerHistory(customerId) {
-    if (!customerId) return;
-    try {
-      const res = await apiFetch(`/customers/${customerId}/history`, { method: 'GET' });
-      const payload = await res.json();
-      const customer = payload.customer || {};
-      const history = payload.history || [];
-      document.getElementById('customerHistoryTitle').textContent = `Lịch sử đơn hàng của ${customer.name || 'khách hàng'}`;
-      document.getElementById('customerHistorySubtitle').textContent = `Điện thoại: ${customer.phone || '-'} · Điểm hiện tại: ${customer.points || 0}`;
-      document.getElementById('customerHistoryTable').innerHTML = history.length > 0 ? history.map(order => `
-        <tr>
-          <td>${order.created_at ? new Date(order.created_at).toLocaleString() : '-'}</td>
-          <td>${order.order_number || '-'}</td>
-          <td>${formatCurrency(order.total_amount || 0)}</td>
-          <td>${order.points_earned || 0}</td>
-          <td>${order.payment_method || '-'}</td>
-          <td>${order.seller_name || '-'}</td>
-        </tr>
-      `).join('') : '<tr><td colspan="6">Không có lịch sử đơn hàng cho khách hàng này.</td></tr>';
-      document.getElementById('customerHistoryBox').classList.remove('hidden');
-    } catch (err) {
-      console.error(err);
-      alert(err.message || 'Không thể tải lịch sử khách hàng.');
-    }
   }
 
   async function loadReport() {
@@ -1537,21 +1171,29 @@
   // Inventory functions
   async function loadInventory() {
     try {
-      const [productsRes, logsRes] = await Promise.all([
+      const [productsRes, branchesRes, logsRes] = await Promise.all([
         apiFetch('/products', { method: 'GET' }),
+        apiFetch('/branches', { method: 'GET' }),
         apiFetch('/inventory', { method: 'GET' })
       ]);
       const products = await productsRes.json();
+      const branches = await branchesRes.json();
       const logs = await logsRes.json();
       
       // Fill product select
       const prodSelect = document.getElementById('invProduct');
       prodSelect.innerHTML = products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+      
+      // Fill branch select
+      const branchSelect = document.getElementById('invBranch');
+      branchSelect.innerHTML = '<option value="">Tất cả chi nhánh</option>' + branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+      
       // Load inventory logs
       document.getElementById('inventoryTable').innerHTML = logs.map(log => `
         <tr>
           <td>${new Date(log.created_at).toLocaleString()}</td>
           <td>${log.product_name || '-'}</td>
+          <td>${log.branch_name || '-'}</td>
           <td>${log.quantity_change}</td>
           <td>${log.reason || '-'}</td>
           <td>${log.created_by_user || '-'}</td>
@@ -1565,13 +1207,14 @@
 
   async function importInventory() {
     const productId = Number(document.getElementById('invProduct').value);
+    const branchId = document.getElementById('invBranch').value ? Number(document.getElementById('invBranch').value) : null;
     const quantity = Number(document.getElementById('invQuantity').value);
     if (!productId || quantity <= 0) {
       alert('Vui lòng chọn sản phẩm và nhập số lượng.');
       return;
     }
     try {
-      await apiFetch('/inventory/import', { method: 'POST', body: JSON.stringify({ product_id: productId, quantity }) });
+      await apiFetch('/inventory/import', { method: 'POST', body: JSON.stringify({ product_id: productId, branch_id: branchId, quantity }) });
       showInventoryMessage('Nhập hàng thành công.', true);
       document.getElementById('invQuantity').value = '1';
       loadInventory();
@@ -1582,13 +1225,14 @@
 
   async function exportInventory() {
     const productId = Number(document.getElementById('invProduct').value);
+    const branchId = document.getElementById('invBranch').value ? Number(document.getElementById('invBranch').value) : null;
     const quantity = Number(document.getElementById('invQuantity').value);
     if (!productId || quantity <= 0) {
       alert('Vui lòng chọn sản phẩm và nhập số lượng.');
       return;
     }
     try {
-      await apiFetch('/inventory/export', { method: 'POST', body: JSON.stringify({ product_id: productId, quantity }) });
+      await apiFetch('/inventory/export', { method: 'POST', body: JSON.stringify({ product_id: productId, branch_id: branchId, quantity }) });
       showInventoryMessage('Xuất hàng thành công.', true);
       document.getElementById('invQuantity').value = '1';
       loadInventory();
@@ -1604,7 +1248,105 @@
     msg.classList.remove('hidden');
   }
 
-  // Branch functions removed because branch management is disabled.
+  // Branch functions
+  let editBranchId = null;
+
+  async function loadBranches() {
+    try {
+      const [branchesRes, usersRes] = await Promise.all([
+        apiFetch('/branches', { method: 'GET' }),
+        apiFetch('/users', { method: 'GET' })
+      ]);
+      const branches = await branchesRes.json();
+      const users = await usersRes.json();
+      
+      // Fill users select for manager assignment
+      const managerSelect = document.getElementById('branchManager');
+      managerSelect.innerHTML = '<option value="">---</option>' + users.map(u => `<option value="${u.id}">${u.full_name || u.username}</option>`).join('');
+      
+      // Load branches table
+      document.getElementById('branchTable').innerHTML = branches.map(b => `
+        <tr>
+          <td>${b.name}</td>
+          <td>${b.location || '-'}</td>
+          <td>${b.manager_id ? users.find(u => u.id === b.manager_id)?.full_name || users.find(u => u.id === b.manager_id)?.username : '-'}</td>
+          <td style="white-space:nowrap; display:flex; gap:8px;">
+            <button class="button-outline" onclick="editBranch(${b.id})">Sửa</button>
+            <button class="button-danger" onclick="deleteBranch(${b.id})">Xóa</button>
+          </td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function showBranchEditor(branch = null) {
+    document.getElementById('branchEditor').classList.remove('hidden');
+    document.getElementById('branchEditorTitle').textContent = branch ? 'Chỉnh sửa chi nhánh' : 'Thêm chi nhánh mới';
+    document.getElementById('branchEditorMessage').classList.add('hidden');
+    if (branch) {
+      editBranchId = branch.id;
+      document.getElementById('branchName').value = branch.name;
+      document.getElementById('branchLocation').value = branch.location || '';
+      document.getElementById('branchManager').value = branch.manager_id || '';
+    } else {
+      editBranchId = null;
+      document.getElementById('branchName').value = '';
+      document.getElementById('branchLocation').value = '';
+      document.getElementById('branchManager').value = '';
+    }
+  }
+
+  function hideBranchEditor() {
+    document.getElementById('branchEditor').classList.add('hidden');
+    editBranchId = null;
+  }
+
+  async function saveBranch() {
+    const name = document.getElementById('branchName').value.trim();
+    const location = document.getElementById('branchLocation').value.trim();
+    const manager_id = document.getElementById('branchManager').value ? Number(document.getElementById('branchManager').value) : null;
+    if (!name) {
+      alert('Vui lòng nhập tên chi nhánh.');
+      return;
+    }
+    try {
+      if (editBranchId) {
+        await apiFetch(`/branches/${editBranchId}`, { method: 'PUT', body: JSON.stringify({ name, location, manager_id }) });
+        alert('Cập nhật chi nhánh thành công.');
+      } else {
+        await apiFetch('/branches', { method: 'POST', body: JSON.stringify({ name, location, manager_id }) });
+        alert('Tạo chi nhánh thành công.');
+      }
+      hideBranchEditor();
+      loadBranches();
+    } catch (err) {
+      alert(err.message || 'Lưu chi nhánh thất bại.');
+    }
+  }
+
+  async function editBranch(id) {
+    try {
+      const res = await apiFetch(`/branches`, { method: 'GET' });
+      const branches = await res.json();
+      const branch = branches.find(b => b.id === id);
+      if (branch) showBranchEditor(branch);
+    } catch (err) {
+      alert('Không thể tải thông tin chi nhánh.');
+    }
+  }
+
+  async function deleteBranch(id) {
+    if (!confirm('Xác nhận xóa chi nhánh này?')) return;
+    try {
+      await apiFetch(`/branches/${id}`, { method: 'DELETE' });
+      alert('Xóa chi nhánh thành công.');
+      loadBranches();
+    } catch (err) {
+      alert(err.message || 'Xóa chi nhánh thất bại.');
+    }
+  }
 
   window.onload = init;
 </script>

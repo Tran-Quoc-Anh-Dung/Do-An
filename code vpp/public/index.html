@@ -15,6 +15,11 @@
       --secondary: #10b981;
       --danger: #ef4444;
       --border: #d1d5db;
+      --sidebar-width: 260px;
+      --cart-width: 360px;
+      --page-padding: 24px;
+      --header-height: 76px;
+      --pos-offset-x: 12px;
       --shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
     }
 
@@ -63,6 +68,27 @@
     .cart-summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .cart-summary .status-chip { margin: 0; }
     .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+    .product-card { background: var(--card); border-radius: 24px; display: flex; flex-direction: column; gap: 16px; padding: 18px; cursor: pointer; transition: transform 0.16s ease, box-shadow 0.16s ease; }
+    .product-card:hover { transform: translateY(-2px); box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12); }
+    .product-card img { width: 100%; height: 180px; object-fit: cover; border-radius: 18px; }
+    .product-card .meta { display: flex; justify-content: space-between; gap: 12px; align-items: center; font-size: 14px; color: var(--muted); }
+    .product-card .price { font-size: 18px; font-weight: 700; }
+    .product-card .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    @media (max-width: 1200px) {
+      .pos-layout { grid-template-columns: 1fr; }
+      .pos-topbar { position: static; left: auto; right: auto; top: auto; margin-bottom: 16px; }
+      .cart-panel { position: static; width: 100%; }
+      .pos-products { max-height: none; padding-top: 0; padding-right: 0; }
+    }
+    @media (max-width: 900px) {
+      .pos-toolbar { grid-template-columns: 1fr; }
+      .pos-products .product-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+      .cart-panel { width: 100%; }
+    }
+    .cart-panel .card { display: flex; flex-direction: column; gap: 16px; max-height: calc(100vh - 180px); overflow-y: auto; }
+    .cart-panel h2 { margin: 0; }
+    .cart-summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .cart-summary .status-chip { margin: 0; }
     .product-card { background: var(--card); border-radius: 24px; display: flex; flex-direction: column; gap: 16px; padding: 18px; cursor: pointer; transition: transform 0.16s ease, box-shadow 0.16s ease; }
     .product-card:hover { transform: translateY(-2px); box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12); }
     .product-card img { width: 100%; height: 180px; object-fit: cover; border-radius: 18px; }
@@ -160,13 +186,15 @@
           </div>
         </div>
       <div id="posSection" class="section hidden">
-        <h2>POS - Bán hàng</h2>
-        <div class="form-grid" style="grid-template-columns: 1fr 200px; align-items: end; margin-bottom:20px; gap:16px;">
-          <div class="form-control"><label for="searchProduct">Tìm kiếm sản phẩm</label><input id="searchProduct" type="text" placeholder="Nhập tên, mã, danh mục" oninput="applyProductFilter()"></div>
-          <div class="form-control"><label for="filterCategory">Lọc danh mục</label><select id="filterCategory" onchange="applyProductFilter()"></select></div>
+        <div class="pos-topbar">
+          <h2>POS - Bán hàng</h2>
+          <div class="form-grid pos-toolbar">
+            <div class="form-control"><label for="searchProduct">Tìm kiếm sản phẩm</label><input id="searchProduct" type="text" placeholder="Nhập tên, mã, danh mục" oninput="applyProductFilter()"></div>
+            <div class="form-control"><label for="filterCategory">Lọc danh mục</label><select id="filterCategory" onchange="applyProductFilter()"></select></div>
+          </div>
         </div>
         <div class="pos-layout">
-          <div>
+          <div class="pos-products">
             <div id="productDetailCard" class="card hidden" style="margin-bottom:20px;">
               <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
                 <div><h3>Chi tiết sản phẩm</h3><div id="productDetailSubtitle" style="color: var(--muted); font-size: 14px;">Chọn sản phẩm để xem thông tin</div></div>
@@ -187,7 +215,32 @@
               </div>
               <div id="cartItems"></div>
               <div class="summary-line" style="display:flex; justify-content:space-between; margin-top:12px; font-weight:700;"><span>Tổng tiền:</span><span id="cartTotal">0đ</span></div>
-              <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="checkout()">Lưu đơn hàng</button><button class="button-outline" onclick="clearCart()">Xóa giỏ hàng</button></div>
+              
+              <!-- Customer Info -->
+              <div style="margin-top:16px; padding:12px; background:#f8f9fa; border-radius:8px;">
+                <p style="margin:0 0 10px 0; font-weight:600; font-size:14px;">Thông tin khách hàng:</p>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <input id="customerName" type="text" placeholder="Tên khách (tùy chọn)" style="padding:8px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
+                  <input id="customerPhone" type="text" placeholder="Số điện thoại (tùy chọn)" style="padding:8px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
+                </div>
+              </div>
+              
+              <!-- Payment Method Selection -->
+              <div style="margin-top:16px; padding:12px; background:#f0f9ff; border-radius:8px;">
+                <p style="margin:0 0 12px 0; font-weight:600; font-size:14px;">Phương thức thanh toán:</p>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="radio" name="checkoutPaymentMethod" value="cash" checked style="cursor:pointer;">
+                    <span style="font-size:14px;">Tiền mặt</span>
+                  </label>
+                  <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="radio" name="checkoutPaymentMethod" value="transfer" style="cursor:pointer;">
+                    <span style="font-size:14px;">Chuyển khoản</span>
+                  </label>
+                </div>
+              </div>
+              
+              <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button id="checkoutButton" class="button" onclick="checkout()">Thanh toán</button><button class="button-outline" onclick="clearCart()">Xóa giỏ hàng</button></div>
             </div>
           </aside>
         </div>
@@ -352,8 +405,55 @@
       </div>
         </div>
       </main>
+      
+      <!-- Payment Method Modal -->
+      
+      <!-- Transfer QR Modal -->
+      <div id="transferQrModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1001; align-items:center; justify-content:center; overflow:auto;">
+        <div style="background:white; border-radius:16px; padding:32px; max-width:520px; width:95%; margin:20px auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+          <h2 style="margin-top:0; font-size:22px; text-align:center;">Thanh toán chuyển khoản</h2>
+          <div style="display:flex; justify-content:center; margin:20px 0;">
+            <img id="transferQrImage" src="" alt="QR chuyển khoản" style="width:260px; height:260px; object-fit:contain; border:1px solid #e5e7eb; border-radius:20px; background:white;">
+          </div>
+          <div style="display:grid; gap:10px; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Số tài khoản</span><strong id="transferAccountNumber">107873372407</strong></div>
+            <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Chủ TK</span><strong id="transferAccountName">TRAN QUOC ANH DUNG</strong></div>
+            <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Ngân hàng</span><strong id="transferBankBranch">VietinBank CN DAK NONG - HOI SO</strong></div>
+            <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Số tiền</span><strong id="transferAmountDisplay"></strong></div>
+          </div>
+          <div style="display:flex; gap:12px; justify-content:flex-end; flex-wrap:wrap;">
+            <button class="button" style="flex:1 1 200px;" onclick="confirmTransferPayment()">Xác nhận đã chuyển khoản</button>
+            <button class="button-outline" style="flex:1 1 200px;" onclick="closeTransferModal()">Hủy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Invoice Modal -->
+      <div id="invoiceModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1002; align-items:center; justify-content:center; overflow:auto;">
+        <div style="background:white; border-radius:16px; padding:32px; max-width:600px; width:95%; margin:20px auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+          <div id="invoiceContent" style="font-family:Arial, sans-serif; line-height:1.6;">
+            <!-- Invoice content will be populated here -->
+          </div>
+          <div style="display:flex; gap:12px; margin-top:24px; justify-content:flex-end;">
+            <button class="button-outline" style="flex:0 0 auto;" onclick="printInvoice()">🖨️ In hóa đơn</button>
+            <button class="button" style="flex:0 0 auto;" onclick="closeInvoiceModal()">Đóng</button>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
+
+<style>
+  @media print {
+    body > * { display: none; }
+    #invoiceModal { 
+      display: flex !important; 
+      position: static !important;
+      background: white !important;
+    }
+    .print-hidden { display: none !important; }
+  }
+</style>
 
 <script>
   const state = { token: null, user: null, products: [], categories: [], cart: [], editProductId: null, reportData: [] };
@@ -901,14 +1001,71 @@
 
   function clearCart() { state.cart = []; renderCart(); }
 
+  const transferPaymentSettings = {
+    accountNumber: '107873372407',
+    accountName: 'TRAN QUOC ANH DUNG',
+    bankBranch: 'VietinBank CN DAK NONG'
+  };
+
+  const pendingTransferOrder = { paymentMethod: null, customerName: null, customerPhone: null, totalAmount: 0 };
+
+  function resetPendingTransferOrder() {
+    pendingTransferOrder.paymentMethod = null;
+    pendingTransferOrder.customerName = null;
+    pendingTransferOrder.customerPhone = null;
+    pendingTransferOrder.totalAmount = 0;
+  }
+
   async function checkout() {
     if (!state.user) return alert('Bạn cần đăng nhập để thanh toán.');
     if (state.cart.length === 0) return alert('Giỏ hàng trống.');
 
-    const paymentMethod = document.getElementById('paymentMethod').value;
+    const paymentMethod = document.querySelector('input[name="checkoutPaymentMethod"]:checked').value;
     const customerName = document.getElementById('customerName').value.trim();
     const customerPhone = document.getElementById('customerPhone').value.trim();
+    const totalAmount = state.cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
 
+    if (paymentMethod === 'transfer') {
+      pendingTransferOrder.paymentMethod = paymentMethod;
+      pendingTransferOrder.customerName = customerName || null;
+      pendingTransferOrder.customerPhone = customerPhone || null;
+      pendingTransferOrder.totalAmount = totalAmount;
+      showTransferModal(totalAmount);
+      return;
+    }
+
+    await processOrder(paymentMethod, customerName, customerPhone, totalAmount);
+  }
+
+  function showTransferModal(totalAmount) {
+    const qrText = `VietQR|${transferPaymentSettings.accountNumber}|${transferPaymentSettings.accountName}|${transferPaymentSettings.bankBranch}|${totalAmount.toFixed(0)}`;
+    const modal = document.getElementById('transferQrModal');
+    document.getElementById('transferQrImage').src = generateQrDataUrl(qrText);
+    document.getElementById('transferAccountNumber').textContent = transferPaymentSettings.accountNumber;
+    document.getElementById('transferAccountName').textContent = transferPaymentSettings.accountName;
+    document.getElementById('transferBankBranch').textContent = transferPaymentSettings.bankBranch;
+    document.getElementById('transferAmountDisplay').textContent = formatCurrency(totalAmount);
+    document.getElementById('checkoutButton').disabled = true;
+    modal.style.display = 'flex';
+  }
+
+  function closeTransferModal() {
+    document.getElementById('transferQrModal').style.display = 'none';
+    document.getElementById('checkoutButton').disabled = false;
+    resetPendingTransferOrder();
+  }
+
+  async function confirmTransferPayment() {
+    if (pendingTransferOrder.paymentMethod !== 'transfer') {
+      return alert('Không có đơn chuyển khoản đang chờ xác nhận.');
+    }
+
+    const { paymentMethod, customerName, customerPhone, totalAmount } = { ...pendingTransferOrder };
+    closeTransferModal();
+    await processOrder(paymentMethod, customerName, customerPhone, totalAmount);
+  }
+
+  async function processOrder(paymentMethod, customerName, customerPhone, totalAmount) {
     try {
       const res = await apiFetch('/orders', {
         method: 'POST',
@@ -922,18 +1079,30 @@
         })
       });
       const result = await res.json();
-      let successMessage = 'Thanh toán thành công.';
-      if (result.orderNumber) {
-        successMessage += ` Mã đơn: ${result.orderNumber}.`;
-      }
-      if (result.pointsEarned != null) {
-        successMessage += ` Khách hàng được cộng ${result.pointsEarned} điểm.`;
+
+      showInvoice({
+        orderNumber: result.orderNumber,
+        sellerName: state.user.username,
+        customerName: customerName || 'Khách lẻ',
+        customerPhone: customerPhone || '-',
+        paymentMethod: paymentMethod === 'transfer' ? 'Chuyển khoản' : 'Tiền mặt',
+        qrText: null,
+        items: state.cart,
+        totalAmount: totalAmount,
+        pointsEarned: result.pointsEarned || 0,
+        currentPoints: result.currentPoints || 0,
+        createdAt: new Date().toLocaleString('vi-VN')
+      });
+
+      if (result.pointsEarned != null && result.currentPoints != null) {
         const info = document.getElementById('customerPointsInfo');
-        info.textContent = `Khách hàng hiện có ${result.currentPoints} điểm.`;
-        info.style.color = '#10b981';
-        info.classList.remove('hidden');
+        if (info) {
+          info.textContent = `Khách hàng hiện có ${result.currentPoints} điểm.`;
+          info.style.color = '#10b981';
+          info.classList.remove('hidden');
+        }
       }
-      alert(successMessage);
+
       state.cart = [];
       renderCart();
       loadProductList();
@@ -941,6 +1110,114 @@
     } catch (err) {
       alert(err.message || 'Thanh toán thất bại.');
     }
+  }
+
+  function showInvoice(data) {
+    const invoiceHTML = `
+      <div style="padding:20px; background:#f8fafc; border-radius:8px; margin-bottom:20px;">
+        <div style="text-align:center; margin-bottom:20px;">
+          <h1 style="margin:0 0 8px 0; font-size:24px; color:#1e40af;">HÓA ĐƠN BÁN HÀNG</h1>
+          <p style="margin:0; font-size:14px; color:#666;">Mã đơn: <strong>${escapeHtml(data.orderNumber)}</strong></p>
+          <p style="margin:8px 0 0 0; font-size:12px; color:#999;">${escapeHtml(data.createdAt)}</p>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; font-size:14px;">
+          <div>
+            <p style="margin:0 0 8px 0; color:#666;">Người bán:</p>
+            <p style="margin:0; font-weight:600;">${escapeHtml(data.sellerName)}</p>
+          </div>
+          <div>
+            <p style="margin:0 0 8px 0; color:#666;">Phương thức:</p>
+            <p style="margin:0; font-weight:600;">${escapeHtml(data.paymentMethod)}</p>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; padding:12px; background:white; border-radius:8px; font-size:14px;">
+          <div>
+            <p style="margin:0 0 8px 0; color:#666;">Khách hàng:</p>
+            <p style="margin:0; font-weight:600;">${escapeHtml(data.customerName)}</p>
+            <p style="margin:4px 0 0 0; font-size:13px; color:#666;">ĐT: ${escapeHtml(data.customerPhone)}</p>
+          </div>
+          <div>
+            <p style="margin:0 0 8px 0; color:#666;">Điểm thưởng:</p>
+            <p style="margin:0; font-weight:600; font-size:16px; color:#10b981;">+${data.pointsEarned} điểm</p>
+            <p style="margin:4px 0 0 0; font-size:13px; color:#666;">Tổng: ${data.currentPoints} điểm</p>
+          </div>
+        </div>
+
+        <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:13px;">
+          <thead>
+            <tr style="background:#e0e7ff; border-bottom:2px solid #c7d2fe;">
+              <th style="padding:8px; text-align:left; font-weight:600;">Sản phẩm</th>
+              <th style="padding:8px; text-align:right; font-weight:600;">Giá</th>
+              <th style="padding:8px; text-align:center; font-weight:600;">SL</th>
+              <th style="padding:8px; text-align:right; font-weight:600;">Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.items.map((item, idx) => {
+              const itemTotal = Number(item.price || 0) * Number(item.quantity || 0);
+              return `
+                <tr style="border-bottom:1px solid #e5e7eb;">
+                  <td style="padding:8px;">${escapeHtml(item.product_name || item.name || 'N/A')}</td>
+                  <td style="padding:8px; text-align:right;">${Number(item.price || 0).toLocaleString('vi-VN')}đ</td>
+                  <td style="padding:8px; text-align:center;">${item.quantity || 1}</td>
+                  <td style="padding:8px; text-align:right; font-weight:600;">${itemTotal.toLocaleString('vi-VN')}đ</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+
+        <div style="background:#f0f9ff; border-radius:8px; padding:16px; text-align:right;">
+          <div style="display:flex; justify-content:flex-end; gap:40px; margin-bottom:8px;">
+            <span style="color:#666;">Tổng tiền:</span>
+            <span style="font-weight:600; font-size:16px; color:#1e40af; min-width:120px;">${data.totalAmount.toLocaleString('vi-VN')}đ</span>
+          </div>
+        </div>
+
+        <div id="invoiceQrBlock" style="display:${data.qrText ? 'block' : 'none'}; margin-bottom:20px; padding:20px; background:#fff7ed; border-radius:12px; text-align:center;">
+          <p style="margin:0 0 12px 0; font-weight:600; color:#c2410c;">Quét QR để thanh toán chuyển khoản</p>
+          <div style="display:flex; justify-content:center; margin-bottom:12px;">
+            <img src="${data.qrText ? generateQrDataUrl(data.qrText) : ''}" alt="QR chuyển khoản" style="width:220px; height:220px; object-fit:contain; border:1px solid #f3e0d8; border-radius:16px; background:white;">
+          </div>
+          <p style="margin:0; font-size:13px; color:#444;">Số tài khoản: <strong>${escapeHtml(transferPaymentSettings.accountNumber)}</strong></p>
+          <p style="margin:4px 0 0 0; font-size:13px; color:#444;">Chủ tài khoản: <strong>${escapeHtml(transferPaymentSettings.accountName)}</strong></p>
+          <p style="margin:4px 0 0 0; font-size:13px; color:#444;">Ngân hàng: <strong>${escapeHtml(transferPaymentSettings.bankBranch)}</strong></p>
+        </div>
+        <div style="text-align:center; margin-top:20px; padding-top:20px; border-top:1px solid #e5e7eb; color:#999; font-size:12px;">
+          <p style="margin:0;">Cảm ơn quý khách đã mua hàng! 🙏</p>
+          <p style="margin:4px 0 0 0;">Vui lòng giữ lại hóa đơn này.</p>
+        </div>
+      </div>
+    `;
+    
+    document.getElementById('invoiceContent').innerHTML = invoiceHTML;
+    document.getElementById('invoiceModal').style.display = 'flex';
+  }
+
+  function closeInvoiceModal() {
+    document.getElementById('invoiceModal').style.display = 'none';
+  }
+
+  function printInvoice() {
+    window.print();
+  }
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
+  }
+
+  function generateQrDataUrl(text) {
+    return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(text)}`;
   }
 
   async function loadOrders() {

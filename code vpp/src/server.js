@@ -645,6 +645,493 @@ app.get('/reports/sales', authenticateToken, authorizeRoles(['admin', 'manager',
   }
 });
 
+// Public version of sales for demo UI (no auth) - returns last 30 days + 8 weeks
+app.get('/public/reports/sales', async (req, res) => {
+  try {
+    const { start, end, product_id, seller_id } = req.query;
+    const params = [];
+    let where = 'WHERE 1=1';
+    
+    // Filter by date range (with default 30 days)
+    if (start) {
+      where += ' AND created_at >= ?';
+      params.push(start);
+    } else {
+      where += ' AND created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)';
+    }
+    if (end) {
+      where += ' AND created_at <= ?';
+      params.push(end);
+    }
+    
+    // Filter by product
+    if (product_id) {
+      where += ' AND product_id = ?';
+      params.push(Number(product_id));
+    }
+    
+    // Filter by seller
+    if (seller_id) {
+      where += ' AND seller_id = ?';
+      params.push(Number(seller_id));
+    }
+
+    const daily = await query(
+      `SELECT DATE(created_at) AS date, COUNT(*) AS orders, COALESCE(SUM(price * quantity), 0) AS total_sales
+       FROM orders
+       ${where}
+       GROUP BY DATE(created_at)
+       ORDER BY DATE(created_at) ASC`, params
+    );
+
+    const weekly = await query(
+      `SELECT YEARWEEK(created_at, 1) AS week, COUNT(*) AS orders, COALESCE(SUM(price * quantity), 0) AS total_sales
+       FROM orders
+       ${where}
+       GROUP BY YEARWEEK(created_at, 1)
+       ORDER BY YEARWEEK(created_at, 1) ASC`, params
+    );
+
+    const weeklyFormatted = weekly.map(row => ({ week: String(row.week), orders: row.orders, total_sales: row.total_sales }));
+    res.json({ daily, weekly: weeklyFormatted });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải báo cáo doanh thu.');
+  }
+});
+
+// Flexible summary report: total revenue, number of orders, average order value
+app.get('/reports/summary', authenticateToken, authorizeRoles(['admin','manager','seller']), async (req, res) => {
+  try {
+    const { start, end, product_id, seller_id } = req.query;
+    const params = [];
+    let where = 'WHERE 1=1';
+    if (start) { where += ' AND created_at >= ?'; params.push(start); }
+    if (end) { where += ' AND created_at <= ?'; params.push(end); }
+    if (product_id) { where += ' AND product_id = ?'; params.push(Number(product_id)); }
+    if (seller_id) { where += ' AND seller_id = ?'; params.push(Number(seller_id)); }
+
+    // aggregate per order_number to avoid double counting items
+    const rows = await query(
+      `SELECT
+         COUNT(DISTINCT order_number) AS order_count,
+         COALESCE(SUM(item_total),0) AS total_revenue,
+         COALESCE(AVG(order_total),0) AS avg_order_value
+       FROM (
+         SELECT order_number, SUM(price * quantity) AS order_total, SUM(price * quantity) AS item_total
+         FROM orders
+         ${where}
+         GROUP BY order_number
+       ) t`, params
+    );
+
+    const r = rows[0] || { order_count: 0, total_revenue: 0, avg_order_value: 0 };
+    res.json({ order_count: Number(r.order_count || 0), total_revenue: Number(r.total_revenue || 0), avg_order_value: Number(r.avg_order_value || 0) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải báo cáo tóm tắt.');
+  }
+});
+
+// Public summary (no auth) for demo UI
+app.get('/public/reports/summary', async (req, res) => {
+  try {
+    const { start, end, product_id, seller_id } = req.query;
+    const params = [];
+    let where = 'WHERE 1=1';
+    if (start) { where += ' AND created_at >= ?'; params.push(start); }
+    if (end) { where += ' AND created_at <= ?'; params.push(end); }
+    if (product_id) { where += ' AND product_id = ?'; params.push(Number(product_id)); }
+    if (seller_id) { where += ' AND seller_id = ?'; params.push(Number(seller_id)); }
+
+    const rows = await query(
+      `SELECT
+         COUNT(DISTINCT order_number) AS order_count,
+         COALESCE(SUM(item_total),0) AS total_revenue,
+         COALESCE(AVG(order_total),0) AS avg_order_value
+       FROM (
+         SELECT order_number, SUM(price * quantity) AS order_total, SUM(price * quantity) AS item_total
+         FROM orders
+         ${where}
+         GROUP BY order_number
+       ) t`, params
+    );
+
+    const monthlyParams = [];
+    let monthlyWhere = 'WHERE DATE(created_at) BETWEEN DATE_FORMAT(CURRENT_DATE(), "%Y-%m-01") AND LAST_DAY(CURRENT_DATE())';
+    if (product_id) { monthlyWhere += ' AND product_id = ?'; monthlyParams.push(Number(product_id)); }
+    if (seller_id) { monthlyWhere += ' AND seller_id = ?'; monthlyParams.push(Number(seller_id)); }
+
+    const monthlyRows = await query(
+      `SELECT
+         COUNT(DISTINCT order_number) AS order_count,
+         COALESCE(SUM(price * quantity),0) AS total_revenue,
+         COALESCE(AVG(price * quantity),0) AS avg_order_value
+       FROM orders
+       ${monthlyWhere}`, monthlyParams
+    );
+
+    const dailySummaryRows = await query(
+      `SELECT
+         COUNT(DISTINCT order_number) AS daily_orders,
+         COALESCE(SUM(price * quantity), 0) AS daily_revenue
+       FROM orders
+       ${where}`, params
+    );
+
+    const r = rows[0] || { order_count: 0, total_revenue: 0, avg_order_value: 0 };
+    const m = monthlyRows[0] || { order_count: 0, total_revenue: 0, avg_order_value: 0 };
+    const d = dailySummaryRows[0] || { daily_orders: 0, daily_revenue: 0 };
+
+    res.json({
+      month_order_count: Number(m.order_count || 0),
+      month_total_revenue: Number(m.total_revenue || 0),
+      month_avg_order_value: Number(m.avg_order_value || 0),
+      daily_revenue: Number(d.daily_revenue || 0),
+      daily_orders: Number(d.daily_orders || 0)
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải báo cáo tóm tắt.');
+  }
+});
+
+// Products report: top selling, revenue by product, stock
+app.get('/reports/products', authenticateToken, authorizeRoles(['admin','manager']), async (req, res) => {
+  try {
+    const { start, end, limit } = req.query;
+    const params = [];
+    let where = 'WHERE 1=1';
+    if (start) { where += ' AND o.created_at >= ?'; params.push(start); }
+    if (end) { where += ' AND o.created_at <= ?'; params.push(end); }
+    const lim = Number(limit) || 20;
+
+    const top = await query(
+      `SELECT o.product_id, o.product_name, SUM(o.quantity) AS total_qty, COALESCE(SUM(o.price * o.quantity),0) AS total_revenue, p.stock
+       FROM orders o
+       INNER JOIN products p ON p.id = o.product_id
+       ${where}
+       GROUP BY o.product_id, o.product_name, p.stock
+       ORDER BY total_qty DESC
+       LIMIT ?`, [...params, lim]
+    );
+
+    const byProduct = await query(
+      `SELECT o.product_id, o.product_name, SUM(o.quantity) AS total_qty, COALESCE(SUM(o.price * o.quantity),0) AS total_revenue
+       FROM orders o
+       INNER JOIN products p ON p.id = o.product_id
+       ${where}
+       GROUP BY o.product_id, o.product_name
+       ORDER BY total_revenue DESC
+       LIMIT 200`, params
+    );
+
+    res.json({ top, byProduct });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải báo cáo sản phẩm.');
+  }
+});
+
+// Public products report
+app.get('/public/reports/products', async (req, res) => {
+  try {
+    const { start, end, limit } = req.query;
+    const params = [];
+    let where = 'WHERE 1=1';
+    if (start) { where += ' AND o.created_at >= ?'; params.push(start); }
+    if (end) { where += ' AND o.created_at <= ?'; params.push(end); }
+    const lim = Number(limit) || 10;
+
+    const top = await query(
+      `SELECT o.product_id, o.product_name, SUM(o.quantity) AS total_qty, COALESCE(SUM(o.price * o.quantity),0) AS total_revenue, p.stock
+       FROM orders o
+       INNER JOIN products p ON p.id = o.product_id
+       ${where}
+       GROUP BY o.product_id, o.product_name, p.stock
+       ORDER BY total_qty DESC
+       LIMIT ?`, [...params, lim]
+    );
+
+    const byProduct = await query(
+      `SELECT o.product_id, o.product_name, SUM(o.quantity) AS total_qty, COALESCE(SUM(o.price * o.quantity),0) AS total_revenue
+       FROM orders o
+       INNER JOIN products p ON p.id = o.product_id
+       ${where}
+       GROUP BY o.product_id, o.product_name
+       ORDER BY total_revenue DESC
+       LIMIT 200`, params
+    );
+
+    res.json({ top, byProduct });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải báo cáo sản phẩm.');
+  }
+});
+
+// Customers report: top customers by revenue and purchase count
+app.get('/reports/customers', authenticateToken, authorizeRoles(['admin','manager']), async (req, res) => {
+  try {
+    const { start, end, limit } = req.query;
+    const params = [];
+    let where = 'WHERE 1=1';
+    if (start) { where += ' AND o.created_at >= ?'; params.push(start); }
+    if (end) { where += ' AND o.created_at <= ?'; params.push(end); }
+    const lim = Number(limit) || 50;
+
+    const rows = await query(
+      `SELECT o.customer_id, o.customer_name, COUNT(DISTINCT o.order_number) AS orders_count, COALESCE(SUM(o.price * o.quantity),0) AS total_revenue
+       FROM orders o
+       ${where}
+       GROUP BY o.customer_id, o.customer_name
+       ORDER BY total_revenue DESC
+       LIMIT ?`, [...params, lim]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải báo cáo khách hàng.');
+  }
+});
+
+// Public customers report
+app.get('/public/reports/customers', async (req, res) => {
+  try {
+    const { start, end, limit } = req.query;
+    const params = [];
+    let where = 'WHERE 1=1';
+    if (start) { where += ' AND o.created_at >= ?'; params.push(start); }
+    if (end) { where += ' AND o.created_at <= ?'; params.push(end); }
+    const lim = Number(limit) || 50;
+
+    const rows = await query(
+      `SELECT o.customer_id, o.customer_name, COUNT(DISTINCT o.order_number) AS orders_count, COALESCE(SUM(o.price * o.quantity),0) AS total_revenue
+       FROM orders o
+       ${where}
+       GROUP BY o.customer_id, o.customer_name
+       ORDER BY total_revenue DESC
+       LIMIT ?`, [...params, lim]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải báo cáo khách hàng.');
+  }
+});
+
+// Staff report: revenue and orders processed by staff
+app.get('/reports/staff', authenticateToken, authorizeRoles(['admin','manager']), async (req, res) => {
+  try {
+    const { start, end, limit } = req.query;
+    const params = [];
+    let where = 'WHERE 1=1';
+    if (start) { where += ' AND o.created_at >= ?'; params.push(start); }
+    if (end) { where += ' AND o.created_at <= ?'; params.push(end); }
+    const lim = Number(limit) || 50;
+
+    const rows = await query(
+      `SELECT o.seller_id, o.seller_name, COUNT(DISTINCT o.order_number) AS orders_count, COALESCE(SUM(o.price * o.quantity),0) AS total_revenue
+       FROM orders o
+       ${where}
+       GROUP BY o.seller_id, o.seller_name
+       ORDER BY total_revenue DESC
+       LIMIT ?`, [...params, lim]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải báo cáo nhân viên.');
+  }
+});
+
+// Public staff report
+app.get('/public/reports/staff', async (req, res) => {
+  try {
+    const { start, end, limit } = req.query;
+    const params = [];
+    let where = 'WHERE 1=1';
+    if (start) { where += ' AND o.created_at >= ?'; params.push(start); }
+    if (end) { where += ' AND o.created_at <= ?'; params.push(end); }
+    const lim = Number(limit) || 50;
+
+    const rows = await query(
+      `SELECT o.seller_id, o.seller_name, COUNT(DISTINCT o.order_number) AS orders_count, COALESCE(SUM(o.price * o.quantity),0) AS total_revenue
+       FROM orders o
+       ${where}
+       GROUP BY o.seller_id, o.seller_name
+       ORDER BY total_revenue DESC
+       LIMIT ?`, [...params, lim]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải báo cáo nhân viên.');
+  }
+});
+
+// Export CSV for basic reports (products/customers/staff/summary)
+app.get('/reports/export', authenticateToken, authorizeRoles(['admin','manager']), async (req, res) => {
+  try {
+    const { report = 'products', start, end } = req.query;
+    const params = [];
+    let where = 'WHERE 1=1';
+    if (start) { where += ' AND o.created_at >= ?'; params.push(start); }
+    if (end) { where += ' AND o.created_at <= ?'; params.push(end); }
+
+    let rows = [];
+    let header = [];
+    if (report === 'products') {
+      rows = await query(
+        `SELECT o.product_id, o.product_name, SUM(o.quantity) AS total_qty, COALESCE(SUM(o.price * o.quantity),0) AS total_revenue, p.stock
+         FROM orders o
+         LEFT JOIN products p ON p.id = o.product_id
+         ${where}
+         GROUP BY o.product_id, o.product_name, p.stock
+         ORDER BY total_qty DESC`, params
+      );
+      header = ['product_id','product_name','total_qty','total_revenue','stock'];
+    } else if (report === 'customers') {
+      rows = await query(
+        `SELECT o.customer_id, o.customer_name, COUNT(DISTINCT o.order_number) AS orders_count, COALESCE(SUM(o.price * o.quantity),0) AS total_revenue
+         FROM orders o
+         ${where}
+         GROUP BY o.customer_id, o.customer_name
+         ORDER BY total_revenue DESC`, params
+      );
+      header = ['customer_id','customer_name','orders_count','total_revenue'];
+    } else if (report === 'staff') {
+      rows = await query(
+        `SELECT o.seller_id, o.seller_name, COUNT(DISTINCT o.order_number) AS orders_count, COALESCE(SUM(o.price * o.quantity),0) AS total_revenue
+         FROM orders o
+         ${where}
+         GROUP BY o.seller_id, o.seller_name
+         ORDER BY total_revenue DESC`, params
+      );
+      header = ['seller_id','seller_name','orders_count','total_revenue'];
+    } else {
+      return res.status(400).send('Loại báo cáo không hỗ trợ xuất.');
+    }
+
+    // build CSV
+    const lines = [];
+    lines.push(header.join(','));
+    for (const r of rows) {
+      const vals = header.map(h => {
+        const v = r[h] == null ? '' : String(r[h]);
+        if (v.includes(',') || v.includes('\n') || v.includes('"')) return '"' + v.replace(/"/g, '""') + '"';
+        return v;
+      });
+      lines.push(vals.join(','));
+    }
+    const content = lines.join('\n');
+    const filename = `report-${report}-${Date.now()}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(content);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi xuất báo cáo.');
+  }
+});
+
+// Public export (CSV) for demo UI
+app.get('/public/reports/export', async (req, res) => {
+  try {
+    const { report = 'products', start, end } = req.query;
+    const params = [];
+    let where = 'WHERE 1=1';
+    if (start) { where += ' AND o.created_at >= ?'; params.push(start); }
+    if (end) { where += ' AND o.created_at <= ?'; params.push(end); }
+
+    let rows = [];
+    let header = [];
+    if (report === 'products') {
+      rows = await query(
+        `SELECT o.product_id, o.product_name, SUM(o.quantity) AS total_qty, COALESCE(SUM(o.price * o.quantity),0) AS total_revenue, p.stock
+         FROM orders o
+         LEFT JOIN products p ON p.id = o.product_id
+         ${where}
+         GROUP BY o.product_id, o.product_name, p.stock
+         ORDER BY total_qty DESC`, params
+      );
+      header = ['product_id','product_name','total_qty','total_revenue','stock'];
+    } else if (report === 'customers') {
+      rows = await query(
+        `SELECT o.customer_id, o.customer_name, COUNT(DISTINCT o.order_number) AS orders_count, COALESCE(SUM(o.price * o.quantity),0) AS total_revenue
+         FROM orders o
+         ${where}
+         GROUP BY o.customer_id, o.customer_name
+         ORDER BY total_revenue DESC`, params
+      );
+      header = ['customer_id','customer_name','orders_count','total_revenue'];
+    } else if (report === 'staff') {
+      rows = await query(
+        `SELECT o.seller_id, o.seller_name, COUNT(DISTINCT o.order_number) AS orders_count, COALESCE(SUM(o.price * o.quantity),0) AS total_revenue
+         FROM orders o
+         ${where}
+         GROUP BY o.seller_id, o.seller_name
+         ORDER BY total_revenue DESC`, params
+      );
+      header = ['seller_id','seller_name','orders_count','total_revenue'];
+    } else {
+      return res.status(400).send('Loại báo cáo không hỗ trợ xuất.');
+    }
+
+    const lines = [];
+    lines.push(header.join(','));
+    for (const r of rows) {
+      const vals = header.map(h => {
+        const v = r[h] == null ? '' : String(r[h]);
+        if (v.includes(',') || v.includes('\n') || v.includes('"')) return '"' + v.replace(/"/g, '""') + '"';
+        return v;
+      });
+      lines.push(vals.join(','));
+    }
+    const content = lines.join('\n');
+    const filename = `report-${report}-${Date.now()}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(content);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi xuất báo cáo.');
+  }
+});
+
+// Diagnostic test data for frontend connectivity checks
+app.get('/public/reports/test', async (req, res) => {
+  try {
+    const sample = {
+      daily: [ { date: new Date().toISOString().split('T')[0], orders: 3, total_sales: 120000 }, { date: new Date(Date.now()-86400000).toISOString().split('T')[0], orders: 5, total_sales: 200000 } ],
+      weekly: [ { week: '202601', orders: 8, total_sales: 320000 } ],
+      top: [ { product_id: 1, product_name: 'Sản phẩm A', total_qty: 10, total_revenue: 500000, stock: 20 } ],
+      byProduct: [ { product_id: 1, product_name: 'Sản phẩm A', total_qty: 10, total_revenue: 500000 } ],
+      customers: [ { customer_id: 1, customer_name: 'Khách A', orders_count: 3, total_revenue: 150000 } ],
+      staff: [ { seller_id: 1, seller_name: 'NV A', orders_count: 5, total_revenue: 220000 } ]
+    };
+    res.json(sample);
+  } catch (err) {
+    console.error('reports test error', err);
+    res.status(500).send('Test error');
+  }
+});
+
+// Public staff list for populating filters when not authenticated
+app.get('/api/staff_public', async (req, res) => {
+  try {
+    const rows = await query('SELECT id, username, full_name FROM users ORDER BY full_name ASC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải danh sách nhân viên.');
+  }
+});
+
 app.get('/inventory', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
   try {
     const logs = await query(
@@ -726,6 +1213,18 @@ app.get('/api/categories', async (req, res) => {
 
 app.get('/api/products', async (req, res) => {
   try {
+    const soldOnly = String(req.query.sold || '').toLowerCase() === '1' || String(req.query.sold || '').toLowerCase() === 'true';
+    if (soldOnly) {
+      const products = await query(
+        `SELECT DISTINCT p.id, p.name, p.description, p.category, p.price, p.stock, p.image, p.code, p.barcode
+         FROM products p
+         LEFT JOIN orders o ON o.product_id = p.id
+         WHERE (p.stock IS NOT NULL AND p.stock > 0) OR o.product_id IS NOT NULL
+         ORDER BY p.name ASC`
+      );
+      return res.json(products);
+    }
+
     const products = await query(
       `SELECT id, name, description, category, price, stock, image, code, barcode FROM products ORDER BY name ASC`
     );
@@ -1143,7 +1642,7 @@ app.post('/orders', authenticateToken, async (req, res) => {
     return res.status(400).send('Giỏ hàng không hợp lệ.');
   }
 
-  const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`;
+  const baseOrderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`;
   const sellerName = req.user.username;
   const sellerId = req.user.id;
   const method = paymentMethod === 'transfer' ? 'Chuyển khoản' : 'Tiền mặt';
@@ -1176,23 +1675,26 @@ app.post('/orders', authenticateToken, async (req, res) => {
       }
     }
 
-    const orderRecords = cart.map(item => [
-      item.product_id || null,
-      item.product_name || null,
-      item.price || 0,
-      item.quantity || 1,
-      sellerId,
-      sellerName,
-      orderNumber,
-      method,
-      paymentCashReceived,
-      paymentCashChange,
-      discountPct,
-      computedTotalAfter,
-      customerId,
-      name || null,
-      phone || null
-    ]);
+    const orderRecords = cart.map((item, index) => {
+      const uniqueOrderNumber = `${baseOrderNumber}-${index + 1}`;
+      return [
+        item.product_id || null,
+        item.product_name || null,
+        item.price || 0,
+        item.quantity || 1,
+        sellerId,
+        sellerName,
+        uniqueOrderNumber,
+        method,
+        paymentCashReceived,
+        paymentCashChange,
+        discountPct,
+        computedTotalAfter,
+        customerId,
+        name || null,
+        phone || null
+      ];
+    });
 
     // Insert orders including payment cash fields if available
     await query(
@@ -1206,7 +1708,7 @@ app.post('/orders', authenticateToken, async (req, res) => {
       await query('UPDATE products SET stock = GREATEST(stock - ?, 0) WHERE id = ?', [item.quantity, item.product_id]);
     }
 
-    res.json({ success: true, orderNumber, pointsEarned: currentPoints != null ? earnedPoints : 0, currentPoints });
+    res.json({ success: true, orderNumber: baseOrderNumber, pointsEarned: currentPoints != null ? earnedPoints : 0, currentPoints });
   } catch (err) {
     console.error(err);
     res.status(500).send('Lỗi xử lý đơn hàng.');

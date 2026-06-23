@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Báo cáo</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Báo cáo</h1>
+
+    <section id="filters">
+      <label>From: <input type="date" id="filter-start"></label>
+      <label>To: <input type="date" id="filter-end"></label>
+      <label>Product: <select id="filter-product"><option value="">All</option></select></label>
+      <label>Staff: <select id="filter-staff"><option value="">All</option></select></label>
+      <button id="btn-apply">Áp dụng</button>
+      <button id="btn-export">Xuất CSV</button>
+    </section>
+
+    <section id="summary">
+      <h2>Tóm tắt</h2>
+      <div id="summary-cards">
+        <div>Total revenue: <span id="sum-revenue">0</span></div>
+        <div>Orders: <span id="sum-orders">0</span></div>
+        <div>Avg order: <span id="sum-avg">0</span></div>
+      </div>
+    </section>
+
+    <section id="charts">
+      <h2>Biểu đồ</h2>
+      <canvas id="chart-sales" width="800" height="300"></canvas>
+      <canvas id="chart-products" width="400" height="300"></canvas>
+    </section>
+
+    <section id="products-report">
+      <h2>Sản phẩm bán chạy</h2>
+      <table id="table-products" border="1">
+        <thead><tr><th>Product</th><th>Quantity</th><th>Revenue</th><th>Stock</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="customers-report">
+      <h2>Khách hàng</h2>
+      <table id="table-customers" border="1">
+        <thead><tr><th>Customer</th><th>Orders</th><th>Revenue</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="staff-report">
+      <h2>Nhân viên</h2>
+      <table id="table-staff" border="1">
+        <thead><tr><th>Staff</th><th>Orders</th><th>Revenue</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+  </div>
+  <script src="/js/reports.js"></script>
+</body>
+</html>

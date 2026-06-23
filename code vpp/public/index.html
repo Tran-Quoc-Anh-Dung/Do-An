@@ -261,8 +261,8 @@
           <table class="table"><thead><tr><th>Danh mục</th><th>Số sản phẩm</th><th>Tổng tồn kho</th></tr></thead><tbody id="inventorySummaryTable"></tbody></table>
         </div>
         <div class="card" id="inventoryLogsCard">
-          <h3>Lịch sử tồn kho</h3>
-          <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>SL thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
+          <h3>Lịch sử</h3>
+          <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Số lượng thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTableProducts"></tbody></table>
         </div>
       </div>
 
@@ -335,6 +335,17 @@
             </div>
           </div>
         </div>
+        <div id="customerEditBox" class="card hidden" style="margin-bottom:20px;">
+          <h3>Chỉnh sửa thông tin khách hàng</h3>
+          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;">
+            <div class="form-control"><label for="editCustomerName">Tên khách</label><input id="editCustomerName" type="text" readonly></div>
+            <div class="form-control"><label for="editCustomerPhone">Số điện thoại</label><input id="editCustomerPhone" type="text" readonly></div>
+            <div class="form-control"><label for="editCustomerPoints">Điểm</label><input id="editCustomerPoints" type="number" min="0"></div>
+            <div class="form-control"><label for="editCustomerTier">Hạng</label><select id="editCustomerTier"><option value="Thành viên">Thành viên</option><option value="Bạc">Bạc</option><option value="Vàng">Vàng</option><option value="Bạch kim">Bạch kim</option><option value="VIP">VIP</option></select></div>
+          </div>
+          <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="saveCustomerEdit()">Lưu thay đổi</button><button class="button-outline" onclick="hideCustomerEditor()">Hủy</button></div>
+          <div id="customerEditMessage" class="notification hidden"></div>
+        </div>
         <div class="card"><table class="table"><thead><tr><th>Tên khách</th><th>Điện thoại</th><th>Điểm</th><th>Hạng</th><th>Ngày tạo</th><th>Hành động</th></tr></thead><tbody id="customerTable"></tbody></table></div>
         <div id="customerHistoryBox" class="card hidden" style="margin-top:20px;">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
@@ -374,7 +385,7 @@
       </div>
 
       <div id="inventorySection" class="section hidden">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Quản lý tồn kho</h2></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Quản lý Nhà cung cấp</h2></div>
         <div class="card" style="margin-bottom:20px;">
           <h3>Nhập/Xuất hàng</h3>
           <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
@@ -389,7 +400,7 @@
         </div>
         
         <div class="card">
-          <h3>Lịch sử tồn kho</h3>
+          <h3>Lịch sử</h3>
           <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Số lượng thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
         </div>
       </div>
@@ -475,7 +486,7 @@
 </style>
 
 <script>
-  const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, reportData: [], customerDiscount: 0, customerTier: null, currentShift: null, shifts: [] };
+  const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, editCustomerId: null, reportData: [], customerDiscount: 0, customerTier: null, currentShift: null, shifts: [] };
 
   // Determine discount percent by customer tier
   function getTierDiscount(tier) {
@@ -575,7 +586,11 @@
     document.getElementById('appSection').classList.remove('hidden');
     document.getElementById('logoutButton').classList.remove('hidden');
     document.getElementById('profileButton').classList.remove('hidden');
-    document.getElementById('shiftStatus').classList.remove('hidden');
+    if (state.user.role !== 'admin') {
+      document.getElementById('shiftStatus').classList.remove('hidden');
+    } else {
+      document.getElementById('shiftStatus').classList.add('hidden');
+    }
     setStatus(`${state.user.full_name || state.user.username} • ${roleLabel(state.user.role)}`);
     renderMenu();
     openSection('dashboard');
@@ -673,7 +688,7 @@
       { id:'dashboard', label:'Dashboard' },
       { id:'pos', label:'POS', role: ['seller', 'manager', 'admin'] },
       { id:'products', label:'Sản phẩm', role: ['admin', 'manager'] },
-      { id:'inventory', label:'Tồn kho', role: ['admin', 'manager'] },
+      { id:'inventory', label:'Nhà cung cấp', role: ['admin', 'manager'] },
       { id:'orders', label:'Đơn hàng' },
       { id:'reports', label:'Báo cáo', role: ['admin', 'manager'] },
       { id:'customers', label:'Tích điểm' }
@@ -996,15 +1011,14 @@
         <tr>
           <td>${formatDateTime(log.created_at)}</td>
           <td>${log.product_name || '-'}</td>
-          <td>-</td>
-          <td>${log.quantity_change}</td>
+          <td>${log.quantity_change != null ? log.quantity_change : '-'}</td>
           <td>${log.reason || '-'}</td>
           <td>${log.created_by_user || '-'}</td>
         </tr>
       `).join('');
     } catch (err) {
       console.error(err);
-      document.getElementById('inventoryTable').innerHTML = '<tr><td colspan="6">Không thể tải lịch sử tồn kho.</td></tr>';
+      document.getElementById('inventoryTable').innerHTML = '<tr><td colspan="5">Không thể tải lịch sử.</td></tr>';
     }
   }
 
@@ -1608,7 +1622,10 @@
           <td>${customer.points || 0}</td>
           <td>${customer.tier || '-'}</td>
           <td>${formatDateTime(customer.created_at, { dateOnly: true })}</td>
-          <td><button class="button-outline" onclick="loadCustomerHistory(${customer.id})">Lịch sử</button></td>
+          <td>
+            <button class="button-outline" onclick="loadCustomerHistory(${customer.id})">Lịch sử</button>
+            ${canEditCustomer() ? `<button class="button-outline" onclick="editCustomer(${customer.id})">Sửa</button>` : ''}
+          </td>
         </tr>
       `).join('');
     } catch (err) {
@@ -1644,6 +1661,63 @@
     } catch (err) {
       console.error(err);
       alert(err.message || 'Không thể tải lịch sử khách hàng.');
+    }
+  }
+
+  function canEditCustomer() {
+    return state.user && ['admin', 'manager'].includes(state.user.role);
+  }
+
+  function hideCustomerEditor() {
+    document.getElementById('customerEditBox').classList.add('hidden');
+    state.editCustomerId = null;
+    document.getElementById('customerEditMessage').classList.add('hidden');
+  }
+
+  async function editCustomer(customerId) {
+    if (!customerId) return;
+    try {
+      const res = await apiFetch(`/customers/${customerId}/history`, { method: 'GET' });
+      const payload = await res.json();
+      const customer = payload.customer || {};
+      state.editCustomerId = customer.id;
+      document.getElementById('editCustomerName').value = customer.name || '';
+      document.getElementById('editCustomerPhone').value = customer.phone || '';
+      document.getElementById('editCustomerPoints').value = customer.points != null ? customer.points : 0;
+      document.getElementById('editCustomerTier').value = customer.tier || 'Thành viên';
+      document.getElementById('customerEditMessage').classList.add('hidden');
+      document.getElementById('customerEditBox').classList.remove('hidden');
+      window.scrollTo({ top: document.getElementById('customerEditBox').offsetTop - 100, behavior: 'smooth' });
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Không thể tải thông tin khách hàng.');
+    }
+  }
+
+  async function saveCustomerEdit() {
+    if (!state.editCustomerId) return;
+    const points = Number(document.getElementById('editCustomerPoints').value);
+    const tier = document.getElementById('editCustomerTier').value;
+    if (Number.isNaN(points) || points < 0) {
+      return alert('Điểm khách hàng phải là số nguyên lớn hơn hoặc bằng 0.');
+    }
+    try {
+      await apiFetch(`/customers/${state.editCustomerId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ points, tier })
+      });
+      document.getElementById('customerEditMessage').textContent = 'Cập nhật khách hàng thành công.';
+      document.getElementById('customerEditMessage').classList.remove('hidden');
+      document.getElementById('customerEditMessage').style.color = '#047857';
+      loadCustomers();
+      if (!document.getElementById('customerHistoryBox').classList.contains('hidden')) {
+        loadCustomerHistory(state.editCustomerId);
+      }
+      setTimeout(() => hideCustomerEditor(), 1200);
+    } catch (err) {
+      document.getElementById('customerEditMessage').textContent = err.message || 'Lưu thông tin khách hàng thất bại.';
+      document.getElementById('customerEditMessage').classList.remove('hidden');
+      document.getElementById('customerEditMessage').style.color = '#b91c1c';
     }
   }
 

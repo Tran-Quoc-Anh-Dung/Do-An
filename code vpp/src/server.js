@@ -1021,6 +1021,78 @@ app.get('/customers', authenticateToken, async (req, res) => {
   }
 });
 
+async function handleCustomerUpdate(req, res) {
+  console.log('[DEBUG] update customer body', {
+    body: req.body,
+    pointsType: typeof req.body?.points,
+    tierType: typeof req.body?.tier,
+    tierValue: req.body?.tier
+  });
+  const customerId = Number(req.params.id);
+  if (Number.isNaN(customerId) || customerId <= 0) {
+    return res.status(400).send('ID khách hàng không hợp lệ.');
+  }
+  const { points } = req.body;
+  let tier = req.body?.tier;
+  if (points == null || Number.isNaN(Number(points)) || Number(points) < 0) {
+    return res.status(400).send('Điểm khách hàng không hợp lệ.');
+  }
+  if (tier == null) {
+    return res.status(400).send('Hạng khách hàng không hợp lệ.');
+  }
+  tier = String(tier).trim();
+  if (!tier) {
+    return res.status(400).send('Hạng khách hàng không hợp lệ.');
+  }
+
+  const normalizedTier = tier;
+  const allowedTiers = ['Thành viên', 'Bạc', 'Vàng', 'Bạch kim', 'VIP'];
+  if (!allowedTiers.includes(normalizedTier)) {
+    // Permit some common variants and normalize them automatically
+    const tierMap = {
+      'Thanh vien': 'Thành viên',
+      'Thanh viên': 'Thành viên',
+      'bac': 'Bạc',
+      'bạc': 'Bạc',
+      'vàng': 'Vàng',
+      'vang': 'Vàng',
+      'bach kim': 'Bạch kim',
+      'bạch kim': 'Bạch kim',
+      'bach kim': 'Bạch kim',
+      'vip': 'VIP'
+    };
+    const normalizedAscii = normalizedTier
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/gi, ' ')
+      .trim()
+      .toLowerCase();
+    const compactAscii = normalizedAscii.replace(/[^a-z0-9]+/gi, '');
+    const key = normalizedAscii || compactAscii;
+    const mapped = tierMap[key] || tierMap[normalizedTier.toLowerCase()] || tierMap[compactAscii] || (compactAscii === 'bc' ? 'Bạc' : undefined);
+    if (mapped) {
+      req.body.tier = mapped;
+    } else {
+      return res.status(400).send('Hạng khách hàng không hợp lệ.');
+    }
+  }
+
+  try {
+    const customers = await query('SELECT id FROM customers WHERE id = ? LIMIT 1', [customerId]);
+    if (customers.length === 0) {
+      return res.status(404).send('Khách hàng không tồn tại.');
+    }
+    await query('UPDATE customers SET points = ?, tier = ? WHERE id = ?', [Number(points), req.body.tier, customerId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể cập nhật khách hàng.');
+  }
+}
+
+app.put('/customers/:id', authenticateToken, authorizeRoles(['admin', 'manager']), handleCustomerUpdate);
+app.post('/customers/:id', authenticateToken, authorizeRoles(['admin', 'manager']), handleCustomerUpdate);
+
 app.get('/customers/:id/history', authenticateToken, async (req, res) => {
   const customerId = Number(req.params.id);
   if (Number.isNaN(customerId) || customerId <= 0) {

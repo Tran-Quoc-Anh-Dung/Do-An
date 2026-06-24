@@ -210,6 +210,8 @@
                 <div style="display:flex; flex-direction:column; gap:8px;">
                   <input id="customerName" type="text" placeholder="Tên khách (tùy chọn)" style="padding:8px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
                   <input id="customerPhone" type="text" placeholder="Số điện thoại (tùy chọn)" style="padding:8px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
+                  <input id="customerCompany" type="text" placeholder="Tên công ty (GTGT)" style="padding:8px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
+                  <input id="customerTaxCode" type="text" placeholder="Mã số thuế (GTGT)" style="padding:8px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
                 </div>
               </div>
               
@@ -224,6 +226,21 @@
                   <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
                     <input type="radio" name="checkoutPaymentMethod" value="transfer" style="cursor:pointer;">
                     <span style="font-size:14px;">Chuyển khoản</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Invoice Type Selection -->
+              <div style="margin-top:16px; padding:12px; background:#f8fafc; border-radius:8px;">
+                <p style="margin:0 0 12px 0; font-weight:600; font-size:14px;">Loại hóa đơn:</p>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="radio" name="checkoutInvoiceType" value="normal" checked style="cursor:pointer;">
+                    <span style="font-size:14px;">Hóa đơn thường</span>
+                  </label>
+                  <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="radio" name="checkoutInvoiceType" value="gtgt" style="cursor:pointer;">
+                    <span style="font-size:14px;">Hóa đơn GTGT</span>
                   </label>
                 </div>
               </div>
@@ -269,6 +286,11 @@
       <div id="ordersSection" class="section hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Danh sách đơn hàng</h2><div><button class="button-outline" onclick="loadOrders()">Tải lại</button></div></div>
         <div class="card"><table class="table"><thead><tr><th>Ngày</th><th>Mã hóa đơn</th><th>SL</th><th>Giá</th><th>Thành tiền</th><th>Nhân viên</th><th>Hành động</th></tr></thead><tbody id="orderTable"></tbody></table></div>
+      </div>
+
+      <div id="gtgtSection" class="section hidden">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Hóa đơn GTGT</h2><div><button class="button-outline" onclick="loadGtgtSection()">Tải lại</button></div></div>
+        <div class="card"><table class="table"><thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Điện thoại</th><th>Công ty</th><th>Mã số thuế</th><th>Hành động</th></tr></thead><tbody id="gtgtTable"></tbody></table></div>
       </div>
 
       <div id="usersSection" class="section hidden">
@@ -554,7 +576,7 @@
 </style>
 
 <script>
-  const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, editCustomerId: null, reportData: [], customerDiscount: 0, customerTier: null, currentShift: null, shifts: [], inventoryProducts: [], suppliers: [] };
+  const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, editCustomerId: null, reportData: [], customerDiscount: 0, customerTier: null, currentShift: null, shifts: [], inventoryProducts: [], suppliers: [], gtgtRequests: [] };
 
   function getActiveDiscountPercent() {
     return Number(state.customerDiscount || 0);
@@ -565,6 +587,126 @@
     // Mapping: Thành viên=1%, Bạc=2%, Vàng=3%, Bạch kim=4%, VIP=5%
     const map = { 'Thành viên': 1, 'Bạc': 2, 'Vàng': 3, 'Bạch kim': 4, 'VIP': 5 };
     return map[tier] || 0;
+  }
+
+  function getStoredGtgtRequests() {
+    try {
+      return JSON.parse(localStorage.getItem('gtgtRequests') || '[]');
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveGtgtRequests(requests) {
+    localStorage.setItem('gtgtRequests', JSON.stringify(requests));
+  }
+
+  function addGtgtRequest(request) {
+    const requests = getStoredGtgtRequests();
+    requests.unshift(request);
+    saveGtgtRequests(requests);
+    state.gtgtRequests = requests;
+  }
+
+  async function loadGtgtRequests() {
+    try {
+      const res = await apiFetch('/gtgt-requests', { method: 'GET' });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        state.gtgtRequests = data;
+        saveGtgtRequests(data);
+        return;
+      }
+    } catch (err) {
+      console.error('Không thể tải GTGT từ server:', err);
+    }
+    state.gtgtRequests = getStoredGtgtRequests();
+  }
+
+  async function loadGtgtSection() {
+    await loadGtgtRequests();
+    renderGtgtSection();
+  }
+
+  function renderGtgtSection() {
+    const container = document.getElementById('gtgtTable');
+    if (!container) return;
+    if (!state.gtgtRequests || state.gtgtRequests.length === 0) {
+      container.innerHTML = '<tr><td colspan="6">Chưa có yêu cầu Hóa đơn GTGT.</td></tr>';
+      return;
+    }
+
+    container.innerHTML = state.gtgtRequests.map((request, index) => {
+      const statusLabel = request.issued ? 'Đã xuất' : 'Chờ xử lý';
+      return `
+        <tr>
+          <td>${escapeHtml(request.orderNumber || 'N/A')}</td>
+          <td>${escapeHtml(request.customerName || '-')}</td>
+          <td>${escapeHtml(request.customerPhone || '-')}</td>
+          <td>${escapeHtml(request.customerCompany || '-')}</td>
+          <td>${escapeHtml(request.customerTaxCode || '-')}</td>
+          <td style="white-space:nowrap;">
+            <button class="button-outline" style="margin-right:8px;" onclick="viewGtgtInvoice('${escapeHtml(request.orderNumber)}')">Xuất GTGT</button>
+            <button class="button-outline" onclick="removeGtgtRequest(${index})">Xóa</button>
+            <div style="margin-top:6px; font-size:12px; color:#6b7280;">${statusLabel}</div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function removeGtgtRequest(index) {
+    const requests = getStoredGtgtRequests();
+    if (index < 0 || index >= requests.length) return;
+    requests.splice(index, 1);
+    saveGtgtRequests(requests);
+    state.gtgtRequests = requests;
+    renderGtgtSection();
+  }
+
+  function markGtgtRequestIssued(orderNumber) {
+    const requests = getStoredGtgtRequests();
+    const index = requests.findIndex(req => req.orderNumber === orderNumber);
+    if (index === -1) return;
+    requests[index].issued = true;
+    saveGtgtRequests(requests);
+    state.gtgtRequests = requests;
+    renderGtgtSection();
+  }
+
+  async function viewGtgtInvoice(orderNumber) {
+    try {
+      const res = await apiFetch('/orders', { method: 'GET' });
+      const orders = await res.json();
+      const requested = state.gtgtRequests.find(req => req.orderNumber === orderNumber);
+      if (!requested) return alert('Không tìm thấy yêu cầu GTGT.');
+      const orderItems = orders.filter(item => (item.order_number || `#${item.id}`) === orderNumber);
+      if (!orderItems || orderItems.length === 0) return alert('Không tìm thấy đơn hàng tương ứng.');
+      const order = orderItems[0];
+      const totalAmount = order.total_after_discount != null ? Number(order.total_after_discount) : orderItems.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
+      showInvoice({
+        orderNumber: orderNumber,
+        createdAt: formatDateTime(order.created_at),
+        sellerName: order.seller_full_name || order.seller_name || '-',
+        customerName: requested.customerName || order.customer_name || 'Khách lẻ',
+        customerPhone: requested.customerPhone || order.customer_phone || '-',
+        customerCompany: requested.customerCompany || order.customer_company || '-',
+        customerTaxCode: requested.customerTaxCode || order.customer_tax_code || '-',
+        paymentMethod: order.payment_method || 'Tiền mặt',
+        invoiceType: 'Hóa đơn GTGT',
+        gtgtFormLink: `${window.location.origin}/gtgt_form.html?orderNumber=${encodeURIComponent(orderNumber)}`,
+        items: orderItems.map(item => ({ product_name: item.product_name || 'Sản phẩm', price: Number(item.price || 0), quantity: Number(item.quantity || 0), discountPercent: Number(item.discount_percent || 0) })),
+        totalAmount: totalAmount,
+        cashReceived: order.payment_cash_received != null ? Number(order.payment_cash_received) : null,
+        cashChange: order.payment_cash_change != null ? Number(order.payment_cash_change) : null,
+        pointsEarned: 0,
+        currentPoints: 0
+      });
+      markGtgtRequestIssued(orderNumber);
+    } catch (err) {
+      console.error(err);
+      alert('Không thể tải thông tin GTGT.');
+    }
   }
 
   async function applyCustomerPhoneDiscount() {
@@ -761,6 +903,7 @@
       { id:'products', label:'Sản phẩm', role: ['admin', 'manager'] },
       { id:'inventory', label:'Nhà cung cấp', role: ['admin', 'manager'] },
       { id:'orders', label:'Đơn hàng' },
+      { id:'gtgt', label:'Hóa đơn GTGT' },
       { id:'reports', label:'Báo cáo', role: ['admin', 'manager'] },
       { id:'customers', label:'Tích điểm' }
     ];
@@ -780,13 +923,14 @@
     if (section === 'pos' && !canOpenPos()) {
       return alert('Vui lòng mở ca trước khi vào POS.');
     }
-    const sections = ['dashboard','pos','products','orders','users','reports','customers','profile','inventory'];
+    const sections = ['dashboard','pos','products','orders','gtgt','users','reports','customers','profile','inventory'];
     sections.forEach(id => document.getElementById(id + 'Section').classList.toggle('hidden', id !== section));
     sections.forEach(id => document.getElementById('tab-' + id) && document.getElementById('tab-' + id).classList.toggle('active', id === section));
     if (section === 'dashboard') loadDashboard();
     if (section === 'pos') loadProductList();
     if (section === 'products') loadProductList();
     if (section === 'orders') loadOrders();
+    if (section === 'gtgt') loadGtgtSection();
     if (section === 'users') loadUsers();
     if (section === 'reports') loadReport();
     if (section === 'customers') loadCustomers();
@@ -1342,12 +1486,15 @@
     bankBranch: 'VietinBank CN DAK NONG'
   };
 
-  const pendingTransferOrder = { paymentMethod: null, customerName: null, customerPhone: null, totalAmount: 0 };
+  const pendingTransferOrder = { paymentMethod: null, customerName: null, customerPhone: null, customerCompany: null, customerTaxCode: null, invoiceType: 'normal', totalAmount: 0 };
 
   function resetPendingTransferOrder() {
     pendingTransferOrder.paymentMethod = null;
     pendingTransferOrder.customerName = null;
     pendingTransferOrder.customerPhone = null;
+    pendingTransferOrder.customerCompany = null;
+    pendingTransferOrder.customerTaxCode = null;
+    pendingTransferOrder.invoiceType = 'normal';
     pendingTransferOrder.totalAmount = 0;
   }
 
@@ -1356,8 +1503,11 @@
     if (state.cart.length === 0) return alert('Giỏ hàng trống.');
 
     const paymentMethod = document.querySelector('input[name="checkoutPaymentMethod"]:checked').value;
+    const invoiceType = document.querySelector('input[name="checkoutInvoiceType"]:checked')?.value || 'normal';
     const customerName = document.getElementById('customerName').value.trim();
     const customerPhone = document.getElementById('customerPhone').value.trim();
+    const customerCompany = document.getElementById('customerCompany') ? document.getElementById('customerCompany').value.trim() : '';
+    const customerTaxCode = document.getElementById('customerTaxCode') ? document.getElementById('customerTaxCode').value.trim() : '';
     const rawTotal = state.cart.reduce((sum, item) => {
       const price = Number(item.price || 0);
       const itemDiscount = Number(item.discountPercent || 0);
@@ -1372,18 +1522,22 @@
       pendingTransferOrder.paymentMethod = paymentMethod;
       pendingTransferOrder.customerName = customerName || null;
       pendingTransferOrder.customerPhone = customerPhone || null;
+      pendingTransferOrder.customerCompany = customerCompany || null;
+      pendingTransferOrder.customerTaxCode = customerTaxCode || null;
       pendingTransferOrder.totalAmount = totalAmount;
+      pendingTransferOrder.invoiceType = invoiceType;
       showTransferModal(totalAmount);
       return;
     }
 
     const roundedTotal = roundPaymentAmount(totalAmount);
-
     const cashReceived = Number(document.getElementById('cashReceived').value || 0);
-    if (cashReceived < roundedTotal) return alert('Tiền khách đưa phải lớn hơn hoặc bằng tổng tiền.');
+    if (cashReceived < roundedTotal) {
+      return alert('Tiền khách đưa phải lớn hơn hoặc bằng tổng tiền.');
+    }
     const cashChange = cashReceived - roundedTotal;
 
-    await processOrder(paymentMethod, customerName, customerPhone, roundedTotal, cashReceived, cashChange, 0);
+    await processOrder(paymentMethod, customerName, customerPhone, roundedTotal, cashReceived, cashChange, 0, invoiceType, customerCompany, customerTaxCode);
   }
 
   function showTransferModal(totalAmount) {
@@ -1409,21 +1563,24 @@
       return alert('Không có đơn chuyển khoản đang chờ xác nhận.');
     }
 
-    const { paymentMethod, customerName, customerPhone, totalAmount } = { ...pendingTransferOrder };
+    const { paymentMethod, customerName, customerPhone, customerCompany, customerTaxCode, totalAmount, invoiceType } = { ...pendingTransferOrder };
     closeTransferModal();
-    await processOrder(paymentMethod, customerName, customerPhone, totalAmount);
+    await processOrder(paymentMethod, customerName, customerPhone, totalAmount, null, null, 0, invoiceType, customerCompany, customerTaxCode);
   }
 
-  async function processOrder(paymentMethod, customerName, customerPhone, totalAmount, cashReceived = null, cashChange = null, discountPercent = 0) {
+  async function processOrder(paymentMethod, customerName, customerPhone, totalAmount, cashReceived = null, cashChange = null, discountPercent = 0, invoiceType = 'normal', customerCompany = null, customerTaxCode = null) {
     try {
       const res = await apiFetch('/orders', {
         method: 'POST',
         body: JSON.stringify({
           cart: state.cart,
           paymentMethod,
+          invoiceType,
           customer: {
             name: customerName || null,
-            phone: customerPhone || null
+            phone: customerPhone || null,
+            company: customerCompany || null,
+            taxCode: customerTaxCode || null
           },
           payment: {
             cashReceived: cashReceived != null ? cashReceived : undefined,
@@ -1435,13 +1592,18 @@
       });
       const result = await res.json();
 
+      const gtgtFormLink = `${window.location.origin}/gtgt_form.html?orderNumber=${encodeURIComponent(result.orderNumber)}`;
+
       showInvoice({
         orderNumber: result.orderNumber,
         sellerName: state.user.username,
         customerName: customerName || 'Khách lẻ',
         customerPhone: customerPhone || '-',
+        customerCompany: customerCompany || '-',
+        customerTaxCode: customerTaxCode || '-',
         paymentMethod: paymentMethod === 'transfer' ? 'Chuyển khoản' : 'Tiền mặt',
-        qrText: null,
+        invoiceType: invoiceType === 'gtgt' ? 'Hóa đơn GTGT' : 'Hóa đơn thường',
+        gtgtFormLink,
         items: state.cart,
         totalAmount: totalAmount,
         cashReceived: cashReceived,
@@ -1450,6 +1612,10 @@
         currentPoints: result.currentPoints || 0,
         createdAt: formatDateTime(new Date())
       });
+
+      if (invoiceType === 'gtgt') {
+        loadGtgtSection();
+      }
 
       if (result.pointsEarned != null && result.currentPoints != null) {
         const info = document.getElementById('customerPointsInfo');
@@ -1494,6 +1660,8 @@
             <p style="margin:0 0 8px 0; color:#666;">Khách hàng:</p>
             <p style="margin:0; font-weight:600;">${escapeHtml(data.customerName)}</p>
             <p style="margin:4px 0 0 0; font-size:13px; color:#666;">ĐT: ${escapeHtml(data.customerPhone)}</p>
+            ${data.customerCompany ? `<p style="margin:4px 0 0 0; font-size:13px; color:#666;">Công ty: ${escapeHtml(data.customerCompany)}</p>` : ''}
+            ${data.customerTaxCode ? `<p style="margin:4px 0 0 0; font-size:13px; color:#666;">MST: ${escapeHtml(data.customerTaxCode)}</p>` : ''}
           </div>
           <div>
             <p style="margin:0 0 8px 0; color:#666;">Điểm thưởng:</p>
@@ -1551,14 +1719,12 @@
         </div>
         </div>
 
-        <div id="invoiceQrBlock" style="display:${data.qrText ? 'block' : 'none'}; margin-bottom:20px; padding:20px; background:#fff7ed; border-radius:12px; text-align:center;">
-          <p style="margin:0 0 12px 0; font-weight:600; color:#c2410c;">Quét QR để thanh toán chuyển khoản</p>
+        <div id="invoiceQrBlock" style="display:${data.gtgtFormLink ? 'block' : 'none'}; margin-bottom:20px; padding:20px; background:#fff7ed; border-radius:12px; text-align:center;">
+          <p style="margin:0 0 12px 0; font-weight:600; color:#c2410c;">Quét QR để truy cập trang nhập thông tin GTGT</p>
           <div style="display:flex; justify-content:center; margin-bottom:12px;">
-            <img src="${data.qrText ? generateQrDataUrl(data.qrText) : ''}" alt="QR chuyển khoản" style="width:220px; height:220px; object-fit:contain; border:1px solid #f3e0d8; border-radius:16px; background:white;">
+            <img src="${data.gtgtFormLink ? generateQrDataUrl(data.gtgtFormLink) : ''}" alt="QR" style="width:220px; height:220px; object-fit:contain; border:1px solid #f3e0d8; border-radius:16px; background:white;">
           </div>
-          <p style="margin:0; font-size:13px; color:#444;">Số tài khoản: <strong>${escapeHtml(transferPaymentSettings.accountNumber)}</strong></p>
-          <p style="margin:4px 0 0 0; font-size:13px; color:#444;">Chủ tài khoản: <strong>${escapeHtml(transferPaymentSettings.accountName)}</strong></p>
-          <p style="margin:4px 0 0 0; font-size:13px; color:#444;">Ngân hàng: <strong>${escapeHtml(transferPaymentSettings.bankBranch)}</strong></p>
+          ${data.gtgtFormLink ? `<p style="margin:0; font-size:13px; color:#444;">Quét QR để truy cập trang nhập thông tin GTGT cho hóa đơn này.</p>` : ''}
         </div>
         <div style="text-align:center; margin-top:20px; padding-top:20px; border-top:1px solid #e5e7eb; color:#999; font-size:12px;">
           <p style="margin:0;">Cảm ơn quý khách đã mua hàng! 🙏</p>
@@ -1661,19 +1827,20 @@
         customerName: order.customer_name || 'Khách lẻ',
         customerPhone: order.customer_phone || '-',
         paymentMethod: order.payment_method || 'Tiền mặt',
+        invoiceType: order.invoice_type === 'gtgt' ? 'Hóa đơn GTGT' : 'Hóa đơn thường',
         cashReceived: order.payment_cash_received != null ? Number(order.payment_cash_received) : null,
         cashChange: order.payment_cash_change != null ? Number(order.payment_cash_change) : null,
         discountPercent: order.discount_percent != null ? Number(order.discount_percent) : 0,
         totalAmount: totalAmount,
         pointsEarned: 0,
         currentPoints: 0,
+        gtgtFormLink: `${window.location.origin}/gtgt_form.html?orderNumber=${encodeURIComponent(normalizeOrderNumber(order.order_number || `#${order.id}`))}`,
         items: orderItems.map(item => ({
           product_name: item.product_name || 'Sản phẩm',
           price: Number(item.price || 0),
           quantity: Number(item.quantity || 1),
           discountPercent: Number(item.discount_percent || 0)
-        })),
-        qrText: null
+        }))
       });
     } catch (err) {
       console.error(err);

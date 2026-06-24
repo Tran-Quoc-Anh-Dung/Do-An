@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gửi thông tin hóa đơn GTGT</title>
+  <style>
+    body { margin:0; font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:#f3f4f6; color:#111827; }
+    .page { max-width:520px; margin:32px auto; padding:24px; background:#ffffff; border-radius:18px; box-shadow:0 20px 60px rgba(15,23,42,.08); }
+    h1 { margin:0 0 16px; font-size:24px; color:#111827; }
+    p { margin:0 0 16px; line-height:1.6; color:#4b5563; }
+    label { display:block; margin-bottom:8px; font-size:14px; font-weight:600; color:#374151; }
+    input { width:100%; padding:12px 14px; margin-bottom:18px; border:1px solid #d1d5db; border-radius:12px; font-size:15px; color:#111827; background:#f9fafb; }
+    button { width:100%; border:none; border-radius:12px; padding:14px; font-size:15px; font-weight:700; color:#ffffff; background:#2563eb; cursor:pointer; }
+    button:disabled { background:#93c5fd; cursor:default; }
+    .note { font-size:13px; color:#6b7280; margin-top:-10px; margin-bottom:18px; }
+    .alert { border-radius:12px; padding:14px 16px; margin-bottom:18px; font-size:14px; }
+    .alert-success { background:#dcfce7; color:#166534; }
+    .alert-error { background:#fee2e2; color:#991b1b; }
+    .footer { margin-top:22px; font-size:13px; color:#6b7280; text-align:center; }
+    a { color:#2563eb; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Nhập thông tin hóa đơn GTGT</h1>
+    <p>Vui lòng điền thông tin khách hàng để hoàn tất yêu cầu GTGT cho mã hóa đơn.</p>
+    <div id="message"></div>
+    <form id="gtgtForm">
+      <label for="orderNumber">Mã đơn</label>
+      <input id="orderNumber" name="orderNumber" readonly />
+      <label for="customerName">Tên khách hàng</label>
+      <input id="customerName" name="customerName" placeholder="Tên khách hàng hoặc tổ chức" required />
+      <label for="customerPhone">Số điện thoại</label>
+      <input id="customerPhone" name="customerPhone" placeholder="Số điện thoại liên hệ" />
+      <label for="customerCompany">Tên công ty</label>
+      <input id="customerCompany" name="customerCompany" placeholder="Tên công ty (GTGT)" />
+      <label for="customerTaxCode">Mã số thuế</label>
+      <input id="customerTaxCode" name="customerTaxCode" placeholder="Mã số thuế (GTGT)" />
+      <button id="submitButton" type="submit">Gửi yêu cầu GTGT</button>
+    </form>
+    <div class="footer">
+      <p>Nếu muốn trở lại giao diện bán hàng, bấm <a href="/index.html">vào đây</a>.</p>
+    </div>
+  </div>
+  <script>
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+
+    function showMessage(text, type) {
+      const message = document.getElementById('message');
+      message.innerHTML = text ? `<div class="alert ${type === 'success' ? 'alert-success' : 'alert-error'}">${text}</div>` : '';
+    }
+
+    function setFormEnabled(enabled) {
+      const elements = document.querySelectorAll('#gtgtForm input, #submitButton');
+      elements.forEach(el => el.disabled = !enabled);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const orderNumber = getQueryParam('orderNumber');
+      const orderInput = document.getElementById('orderNumber');
+      if (!orderNumber) {
+        showMessage('Mã đơn không được tìm thấy. Vui lòng mở lại liên kết từ hóa đơn.', 'error');
+        setFormEnabled(false);
+        return;
+      }
+      orderInput.value = orderNumber;
+    });
+
+    document.getElementById('gtgtForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      setFormEnabled(false);
+      showMessage('', null);
+
+      const payload = {
+        orderNumber: document.getElementById('orderNumber').value.trim(),
+        customerName: document.getElementById('customerName').value.trim(),
+        customerPhone: document.getElementById('customerPhone').value.trim(),
+        customerCompany: document.getElementById('customerCompany').value.trim(),
+        customerTaxCode: document.getElementById('customerTaxCode').value.trim()
+      };
+
+      if (!payload.customerName) {
+        showMessage('Tên khách hàng là bắt buộc.', 'error');
+        setFormEnabled(true);
+        return;
+      }
+
+      try {
+        const response = await fetch('/gtgt-requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || 'Không thể gửi yêu cầu GTGT.');
+        }
+
+        showMessage('Yêu cầu GTGT đã gửi thành công. Chúng tôi sẽ cập nhật vào tab Hóa đơn GTGT.', 'success');
+      } catch (err) {
+        showMessage(err.message || 'Lỗi khi gửi yêu cầu GTGT.', 'error');
+        setFormEnabled(true);
+      }
+    });
+  </script>
+</body>
+</html>

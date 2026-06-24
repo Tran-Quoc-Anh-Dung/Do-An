@@ -85,12 +85,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Diagnostic: quick handler to verify POST reachability (temporary)
-app.post('/_diag_products_bulk_delete', (req, res) => {
-  console.log('Received diagnostic bulk-delete POST, body:', req.body);
-  res.json({ ok: true, received: req.body });
-});
-
+// Helper function - MUST be defined before routes that use it
 function query(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.query(sql, params, (err, result) => {
@@ -100,6 +95,76 @@ function query(sql, params = []) {
   });
 }
 
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).send("Unauthorized");
+  }
+  const token = authHeader.split(" ")[1];
+  jwt.verify(token, AUTH_SECRET, (err, payload) => {
+    if (err) {
+      return res.status(401).send("Invalid token");
+    }
+    req.user = payload;
+    next();
+  });
+}
+
+// Diagnostic: quick handler to verify POST reachability (temporary)
+app.post('/_diag_products_bulk_delete', (req, res) => {
+  console.log('Received diagnostic bulk-delete POST, body:', req.body);
+  res.json({ ok: true, received: req.body });
+});
+
+// GTGT Requests Routes - EARLY PLACEMENT before auth/other routes
+console.log('[STARTUP] About to register GTGT POST route');
+app.post('/gtgt-requests', async (req, res) => {
+  try {
+    console.log('[GTGT-POST] Received payload:', req.body);
+    const orderNumber = String(req.body.orderNumber || '').trim();
+    const customerName = String(req.body.customerName || '').trim() || null;
+    const customerPhone = String(req.body.customerPhone || '').trim() || null;
+    const customerCompany = String(req.body.customerCompany || '').trim() || null;
+    const customerTaxCode = String(req.body.customerTaxCode || '').trim() || null;
+
+    if (!orderNumber) {
+      return res.status(400).send('Mã đơn là bắt buộc.');
+    }
+
+    const existingOrder = await query('SELECT id FROM orders WHERE order_number = ? LIMIT 1', [orderNumber]);
+    if (existingOrder.length === 0) {
+      return res.status(404).send('Không tìm thấy hóa đơn.');
+    }
+
+    await query(
+      `INSERT INTO gtgt_requests (order_number, customer_name, customer_phone, customer_company, customer_tax_code)
+       VALUES (?, ?, ?, ?, ?)`,
+      [orderNumber, customerName, customerPhone, customerCompany, customerTaxCode]
+    );
+
+    console.log('[GTGT-POST] Success:', orderNumber);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[GTGT-POST] Error:', err);
+    res.status(500).send('Không thể lưu yêu cầu GTGT.');
+  }
+});
+
+console.log('[STARTUP] About to register GTGT GET route');
+app.get('/gtgt-requests', authenticateToken, async (req, res) => {
+  try {
+    const requests = await query(
+      `SELECT id, order_number, customer_name, customer_phone, customer_company, customer_tax_code, status, created_at
+       FROM gtgt_requests
+       ORDER BY created_at DESC
+       LIMIT 200`
+    );
+    res.json(requests);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải yêu cầu GTGT.');
+  }
+});
 
 async function ensureColumn(table, column, definition) {
   const columns = await query(`SHOW COLUMNS FROM \`${table}\` LIKE ?`, [column]);
@@ -315,8 +380,21 @@ async function ensureDatabase() {
   await ensureColumn("orders", "customer_id", "customer_id INT DEFAULT NULL");
   await ensureColumn("orders", "customer_name", "customer_name VARCHAR(150) DEFAULT NULL");
   await ensureColumn("orders", "customer_phone", "customer_phone VARCHAR(40) DEFAULT NULL");
+  await ensureColumn("orders", "customer_company", "customer_company VARCHAR(255) DEFAULT NULL");
+  await ensureColumn("orders", "customer_tax_code", "customer_tax_code VARCHAR(80) DEFAULT NULL");
+  await ensureColumn("orders", "invoice_type", "invoice_type VARCHAR(40) DEFAULT NULL");
   await ensureColumn("orders", "created_at", "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
   await ensureColumn("orders", "order_number", "order_number VARCHAR(50) DEFAULT NULL");
+  await query(`CREATE TABLE IF NOT EXISTS gtgt_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_number VARCHAR(50) NOT NULL,
+    customer_name VARCHAR(150) DEFAULT NULL,
+    customer_phone VARCHAR(40) DEFAULT NULL,
+    customer_company VARCHAR(255) DEFAULT NULL,
+    customer_tax_code VARCHAR(80) DEFAULT NULL,
+    status ENUM('pending','issued') NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
 
   const users = await query("SELECT COUNT(*) AS total FROM users");
   if (users[0].total === 0) {
@@ -459,21 +537,6 @@ function createToken(user) {
     AUTH_SECRET,
     { expiresIn: "12h" }
   );
-}
-
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).send("Unauthorized");
-  }
-  const token = authHeader.split(" ")[1];
-  jwt.verify(token, AUTH_SECRET, (err, payload) => {
-    if (err) {
-      return res.status(401).send("Invalid token");
-    }
-    req.user = payload;
-    next();
-  });
 }
 
 function authorizeRoles(roles = []) {
@@ -1465,7 +1528,7 @@ app.delete('/categories/:id', authenticateToken, authorizeRoles(['admin', 'manag
 app.get('/orders', async (req, res) => {
   try {
     const orders = await query(
-      `SELECT id, product_id, product_name, price, quantity, seller_id, seller_name, payment_method, payment_cash_received, payment_cash_change, discount_percent, total_after_discount, customer_id, customer_name, customer_phone, order_number, created_at
+      `SELECT id, product_id, product_name, price, quantity, seller_id, seller_name, payment_method, payment_cash_received, payment_cash_change, discount_percent, total_after_discount, customer_id, customer_name, customer_phone, customer_company, customer_tax_code, invoice_type, order_number, created_at
        FROM orders ORDER BY created_at DESC LIMIT 200`
     );
     res.json(orders);
@@ -1476,23 +1539,6 @@ app.get('/orders', async (req, res) => {
 });
 
 app.get('/shifts/current', authenticateToken, async (req, res) => {
-  try {
-    const shifts = await query(
-      `SELECT id, user_id, status, opened_at, closed_at, created_at
-       FROM shifts
-       WHERE user_id = ? AND status = 'OPEN'
-       ORDER BY opened_at DESC
-       LIMIT 1`,
-      [req.user.id]
-    );
-    res.json(shifts.length > 0 ? shifts[0] : null);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Lỗi tải ca hiện tại.');
-  }
-});
-
-app.get('/shifts', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
   try {
     const status = String(req.query.status || '').trim().toUpperCase();
     let sql = `SELECT id, user_id, status, opened_at, closed_at, created_at FROM shifts`;
@@ -1735,10 +1781,12 @@ app.get('/customers/:id/history', authenticateToken, async (req, res) => {
 });
 
 app.post('/orders', authenticateToken, async (req, res) => {
-  const { cart, customer = {}, paymentMethod, payment = {}, discountPercent = 0, totalAfterDiscount = null } = req.body;
+  const { cart, customer = {}, paymentMethod, payment = {}, discountPercent = 0, totalAfterDiscount = null, invoiceType = 'normal' } = req.body;
   const paymentCashReceived = payment && payment.cashReceived != null ? Number(payment.cashReceived) : null;
   const paymentCashChange = payment && payment.cashChange != null ? Number(payment.cashChange) : null;
   const discountPct = discountPercent != null ? Number(discountPercent) : 0;
+  const customerCompany = customer.company ? String(customer.company).trim() : null;
+  const customerTaxCode = customer.taxCode ? String(customer.taxCode).trim() : null;
   if (!Array.isArray(cart) || cart.length === 0) {
     return res.status(400).send('Giỏ hàng không hợp lệ.');
   }
@@ -1793,13 +1841,16 @@ app.post('/orders', authenticateToken, async (req, res) => {
         computedTotalAfter,
         customerId,
         name || null,
-        phone || null
+        phone || null,
+        customerCompany,
+        customerTaxCode,
+        invoiceType || null
       ];
     });
 
     // Insert orders including payment cash fields if available
     await query(
-      `INSERT INTO orders (product_id, product_name, price, quantity, seller_id, seller_name, order_number, payment_method, payment_cash_received, payment_cash_change, discount_percent, total_after_discount, customer_id, customer_name, customer_phone)
+      `INSERT INTO orders (product_id, product_name, price, quantity, seller_id, seller_name, order_number, payment_method, payment_cash_received, payment_cash_change, discount_percent, total_after_discount, customer_id, customer_name, customer_phone, customer_company, customer_tax_code, invoice_type)
        VALUES ?`,
       [orderRecords]
     );

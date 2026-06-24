@@ -582,6 +582,22 @@
     return Number(state.customerDiscount || 0);
   }
 
+  function normalizeUserRole(role) {
+    return role ? String(role).trim().toLowerCase() : '';
+  }
+
+  function isAdmin() {
+    return state.user && normalizeUserRole(state.user.role) === 'admin';
+  }
+
+  function isManager() {
+    return state.user && normalizeUserRole(state.user.role) === 'manager';
+  }
+
+  function isSeller() {
+    return state.user && normalizeUserRole(state.user.role) === 'seller';
+  }
+
   // Determine discount percent by customer tier
   function getTierDiscount(tier) {
     // Mapping: Thành viên=1%, Bạc=2%, Vàng=3%, Bạch kim=4%, VIP=5%
@@ -803,6 +819,7 @@
       try {
         const response = await apiFetch('/auth/me', { method: 'GET' });
         state.user = await response.json();
+        if (state.user) state.user.role = normalizeUserRole(state.user.role);
         showApp();
         return;
       } catch (err) {
@@ -817,7 +834,8 @@
     document.getElementById('appSection').classList.remove('hidden');
     document.getElementById('logoutButton').classList.remove('hidden');
     document.getElementById('profileButton').classList.remove('hidden');
-    if (state.user.role !== 'admin') {
+    if (state.user) state.user.role = normalizeUserRole(state.user.role);
+    if (!isAdmin()) {
       document.getElementById('shiftStatus').classList.remove('hidden');
     } else {
       document.getElementById('shiftStatus').classList.add('hidden');
@@ -896,7 +914,11 @@
       const response = await fetch('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
       if (!response.ok) throw new Error(await response.text());
       const data = await response.json();
-      state.token = data.token; state.user = data.user; localStorage.setItem('authToken', state.token); showApp();
+      state.token = data.token;
+      state.user = data.user;
+      if (state.user) state.user.role = normalizeUserRole(state.user.role);
+      localStorage.setItem('authToken', state.token);
+      showApp();
     } catch (err) { alert(err.message || 'Đăng nhập thất bại.'); }
   }
 
@@ -1199,7 +1221,7 @@
             ${priceHtml}
           </div>
           <div class="actions">
-            ${state.user && state.user.role === 'admin' ? `<button class="button-outline" onclick="event.stopPropagation(); setProductDiscount(${product.id})" ${product.stock <= 0 ? 'disabled style="opacity:.65;cursor:not-allowed;"' : ''}>Giảm giá</button>` : ''}
+            ${isAdmin() ? `<button class="button-outline" onclick="event.stopPropagation(); setProductDiscount(${product.id})" ${product.stock <= 0 ? 'disabled style="opacity:.65;cursor:not-allowed;"' : ''}>Giảm giá</button>` : ''}
             <button class="button" onclick="event.stopPropagation(); addToCart(${product.id})" ${product.stock <= 0 ? 'disabled style="opacity:.65;cursor:not-allowed;"' : ''}>${product.stock > 0 ? 'Thêm vào giỏ' : 'Hết hàng'}</button>
           </div>
         </div>
@@ -1385,7 +1407,7 @@
   }
 
   function setProductDiscount(productId) {
-    if (!state.user || state.user.role !== 'admin') {
+    if (!isAdmin()) {
       return alert('Chỉ quản trị viên mới được phép đặt giảm giá sản phẩm.');
     }
     const product = state.products.find(item => item.id === productId);

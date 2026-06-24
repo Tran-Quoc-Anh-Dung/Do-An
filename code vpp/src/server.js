@@ -121,11 +121,11 @@ console.log('[STARTUP] About to register GTGT POST route');
 app.post('/gtgt-requests', async (req, res) => {
   try {
     console.log('[GTGT-POST] Received payload:', req.body);
-    const orderNumber = String(req.body.orderNumber || '').trim();
-    const customerName = String(req.body.customerName || '').trim() || null;
-    const customerPhone = String(req.body.customerPhone || '').trim() || null;
-    const customerCompany = String(req.body.customerCompany || '').trim() || null;
-    const customerTaxCode = String(req.body.customerTaxCode || '').trim() || null;
+    const orderNumber = String(req.body.orderNumber || req.body.order_number || req.body.order || '').trim();
+    const customerName = String(req.body.customerName || req.body.customer_name || '').trim() || null;
+    const customerPhone = String(req.body.customerPhone || req.body.customer_phone || '').trim() || null;
+    const customerCompany = String(req.body.customerCompany || req.body.customer_company || '').trim() || null;
+    const customerTaxCode = String(req.body.customerTaxCode || req.body.customer_tax_code || '').trim() || null;
 
     if (!orderNumber) {
       return res.status(400).send('Mã đơn là bắt buộc.');

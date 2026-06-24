@@ -49,6 +49,10 @@
       return params.get(name);
     }
 
+    function getOrderNumberFromUrl() {
+      return getQueryParam('orderNumber') || getQueryParam('order_number') || getQueryParam('order') || undefined;
+    }
+
     function showMessage(text, type) {
       const message = document.getElementById('message');
       message.innerHTML = text ? `<div class="alert ${type === 'success' ? 'alert-success' : 'alert-error'}">${text}</div>` : '';
@@ -60,7 +64,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      const orderNumber = getQueryParam('orderNumber');
+      const orderNumber = getOrderNumberFromUrl();
       const orderInput = document.getElementById('orderNumber');
       if (!orderNumber) {
         showMessage('Mã đơn không được tìm thấy. Vui lòng mở lại liên kết từ hóa đơn.', 'error');

@@ -504,7 +504,7 @@
         <div style="background:white; border-radius:16px; padding:32px; max-width:520px; width:95%; margin:20px auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
           <h2 style="margin-top:0; font-size:22px; text-align:center;">Thanh toán chuyển khoản</h2>
           <div style="display:flex; justify-content:center; margin:20px 0;">
-            <img id="transferQrImage" src="" alt="QR chuyển khoản" style="width:260px; height:260px; object-fit:contain; border:1px solid #e5e7eb; border-radius:20px; background:white;">
+            <img id="transferQrImage" src="transfer-qr.png" alt="QR chuyển khoản" style="width:260px; height:260px; object-fit:contain; border:1px solid #e5e7eb; border-radius:20px; background:white;">
           </div>
           <div style="display:grid; gap:10px; margin-bottom:16px;">
             <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Số tài khoản</span><strong id="transferAccountNumber">107873372407</strong></div>
@@ -1526,7 +1526,7 @@
   const transferPaymentSettings = {
     accountNumber: '107873372407',
     accountName: 'TRAN QUOC ANH DUNG',
-    bankBranch: 'VietinBank CN DAK NONG'
+    bankBranch: 'VietinBank CN DAK NONG - HOI SO'
   };
 
   const pendingTransferOrder = { paymentMethod: null, customerName: null, customerPhone: null, customerCompany: null, customerTaxCode: null, invoiceType: 'normal', totalAmount: 0 };
@@ -1584,9 +1584,7 @@
   }
 
   function showTransferModal(totalAmount) {
-    const qrText = `VietQR|${transferPaymentSettings.accountNumber}|${transferPaymentSettings.accountName}|${transferPaymentSettings.bankBranch}|${totalAmount.toFixed(0)}`;
     const modal = document.getElementById('transferQrModal');
-    document.getElementById('transferQrImage').src = generateQrDataUrl(qrText);
     document.getElementById('transferAccountNumber').textContent = transferPaymentSettings.accountNumber;
     document.getElementById('transferAccountName').textContent = transferPaymentSettings.accountName;
     document.getElementById('transferBankBranch').textContent = transferPaymentSettings.bankBranch;

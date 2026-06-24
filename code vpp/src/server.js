@@ -1588,19 +1588,35 @@ app.get('/customers', authenticateToken, async (req, res) => {
   }
 });
 
-async function handleCustomerUpdate(req, res) {
-  console.log('[DEBUG] update customer body', {
-    body: req.body,
-    pointsType: typeof req.body?.points,
-    tierType: typeof req.body?.tier,
-    tierValue: req.body?.tier
-  });
+app.get('/customers/:id', authenticateToken, async (req, res) => {
   const customerId = Number(req.params.id);
   if (Number.isNaN(customerId) || customerId <= 0) {
     return res.status(400).send('ID khách hàng không hợp lệ.');
   }
+  try {
+    const customers = await query('SELECT id, name, phone, points, tier, created_at FROM customers WHERE id = ? LIMIT 1', [customerId]);
+    if (customers.length === 0) {
+      return res.status(404).send('Khách hàng không tồn tại.');
+    }
+    res.json(customers[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải thông tin khách hàng.');
+  }
+});
+
+async function handleCustomerUpdate(req, res) {
+  const customerId = Number(req.params.id);
+  if (Number.isNaN(customerId) || customerId <= 0) {
+    return res.status(400).send('ID khách hàng không hợp lệ.');
+  }
+  const name = String(req.body?.name || '').trim();
+  const phone = String(req.body?.phone || '').trim();
   const { points } = req.body;
   let tier = req.body?.tier;
+  if (!name) {
+    return res.status(400).send('Tên khách hàng không được để trống.');
+  }
   if (points == null || Number.isNaN(Number(points)) || Number(points) < 0) {
     return res.status(400).send('Điểm khách hàng không hợp lệ.');
   }
@@ -1649,7 +1665,7 @@ async function handleCustomerUpdate(req, res) {
     if (customers.length === 0) {
       return res.status(404).send('Khách hàng không tồn tại.');
     }
-    await query('UPDATE customers SET points = ?, tier = ? WHERE id = ?', [Number(points), req.body.tier, customerId]);
+    await query('UPDATE customers SET name = ?, phone = ?, points = ?, tier = ? WHERE id = ?', [name, phone || null, Number(points), req.body.tier, customerId]);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -1681,7 +1697,8 @@ app.get('/customers/:id/history', authenticateToken, async (req, res) => {
          MIN(created_at) AS created_at
        FROM orders
        WHERE customer_id = ?
-       ORDER BY created_at DESC
+       GROUP BY order_number, seller_name, payment_method
+       ORDER BY MIN(created_at) DESC
        LIMIT 1000`,
       [customerId]
     );
@@ -1760,6 +1777,7 @@ app.post('/orders', authenticateToken, async (req, res) => {
     }
 
     const orderRecords = cart.map((item) => {
+      const itemDiscount = Number(item.discountPercent || 0);
       return [
         item.product_id || null,
         item.product_name || null,
@@ -1771,7 +1789,7 @@ app.post('/orders', authenticateToken, async (req, res) => {
         method,
         paymentCashReceived,
         paymentCashChange,
-        discountPct,
+        itemDiscount,
         computedTotalAfter,
         customerId,
         name || null,

@@ -373,8 +373,8 @@
         <div id="customerEditBox" class="card hidden" style="margin-bottom:20px;">
           <h3>Chỉnh sửa thông tin khách hàng</h3>
           <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;">
-            <div class="form-control"><label for="editCustomerName">Tên khách</label><input id="editCustomerName" type="text" readonly></div>
-            <div class="form-control"><label for="editCustomerPhone">Số điện thoại</label><input id="editCustomerPhone" type="text" readonly></div>
+            <div class="form-control"><label for="editCustomerName">Tên khách</label><input id="editCustomerName" type="text"></div>
+            <div class="form-control"><label for="editCustomerPhone">Số điện thoại</label><input id="editCustomerPhone" type="text"></div>
             <div class="form-control"><label for="editCustomerPoints">Điểm</label><input id="editCustomerPoints" type="number" min="0"></div>
             <div class="form-control"><label for="editCustomerTier">Hạng</label><select id="editCustomerTier"><option value="Thành viên">Thành viên</option><option value="Bạc">Bạc</option><option value="Vàng">Vàng</option><option value="Bạch kim">Bạch kim</option><option value="VIP">VIP</option></select></div>
           </div>
@@ -457,10 +457,12 @@
           <h3>Gán sản phẩm cho nhà cung cấp</h3>
           <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
             <div class="form-control"><label for="assignSupplier">Chọn nhà cung cấp</label><select id="assignSupplier"></select></div>
-            <div class="form-control"><label for="assignProducts">Chọn sản phẩm (Ctrl+Click để chọn nhiều)</label><select id="assignProducts" multiple style="min-height: 100px;"></select></div>
+            <div class="form-control"><label for="assignProductSearch">Tìm sản phẩm</label><input id="assignProductSearch" type="text" placeholder="Nhập mã hoặc tên sản phẩm" oninput="filterAssignProducts()"></div>
+            <div class="form-control"><label for="assignProducts">Chọn sản phẩm (Ctrl+Click để chọn nhiều)</label><select id="assignProducts" multiple style="min-height: 160px;"></select></div>
           </div>
-          <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
+          <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
             <button class="button" onclick="assignProductsToSupplier()">Gán sản phẩm</button>
+            <button class="button-outline" type="button" onclick="filterAssignProducts()">Lọc danh sách</button>
           </div>
           <div id="assignMessage" class="notification hidden"></div>
         </div>
@@ -554,6 +556,10 @@
 <script>
   const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, editCustomerId: null, reportData: [], customerDiscount: 0, customerTier: null, currentShift: null, shifts: [], inventoryProducts: [], suppliers: [] };
 
+  function getActiveDiscountPercent() {
+    return Number(state.customerDiscount || 0);
+  }
+
   // Determine discount percent by customer tier
   function getTierDiscount(tier) {
     // Mapping: Thành viên=1%, Bạc=2%, Vàng=3%, Bạch kim=4%, VIP=5%
@@ -569,7 +575,6 @@
       const res = await apiFetch(`/customers?search=${encodeURIComponent(phone)}`, { method: 'GET' });
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
-        // find exact phone match
         const found = data.find(c => (c.phone || '').toString() === phone.toString());
         const customer = found || data[0];
         if (customer && customer.tier) {
@@ -930,6 +935,35 @@
   }
   // Sample import functionality removed to avoid seeding demo data in production.
 
+  function getStoredProductDiscounts() {
+    try {
+      return JSON.parse(localStorage.getItem('productDiscounts') || '{}');
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveStoredProductDiscount(productId, discountPercent, price) {
+    const stored = getStoredProductDiscounts();
+    if (discountPercent > 0) {
+      stored[productId] = { discountPercent: Number(discountPercent), price: Number(price) };
+    } else {
+      delete stored[productId];
+    }
+    localStorage.setItem('productDiscounts', JSON.stringify(stored));
+  }
+
+  function applyStoredProductDiscounts(products) {
+    const stored = getStoredProductDiscounts();
+    return products.map(product => {
+      const entry = stored[product.id];
+      if (entry && Number(entry.price) === Number(product.price)) {
+        return { ...product, discountPercent: Number(entry.discountPercent || 0) };
+      }
+      return { ...product, discountPercent: 0 };
+    });
+  }
+
   async function loadProductList() {
     try {
       const filterSelect = document.getElementById('filterCategory');
@@ -938,7 +972,7 @@
       const res = await apiFetch(url, { method: 'GET' });
       const data = await res.json();
       const products = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
-      state.products = products.map(product => ({ ...product, image: resolveProductImage(product) }));
+      state.products = applyStoredProductDiscounts(products.map(product => ({ ...product, image: resolveProductImage(product) })));
       renderPOSProducts();
       renderProductTable();
       // Low stock alert
@@ -983,7 +1017,14 @@
       return match && catMatch;
     });
     const grid = document.getElementById('posProductGrid');
-    grid.innerHTML = filtered.length === 0 ? '<div class="small-card">Không tìm thấy sản phẩm.</div>' : filtered.map(product => `
+    grid.innerHTML = filtered.length === 0 ? '<div class="small-card">Không tìm thấy sản phẩm.</div>' : filtered.map(product => {
+        const cartItem = state.cart.find(item => item.product_id === product.id);
+      const discountPercent = cartItem ? Number(cartItem.discountPercent || 0) : Number(product.discountPercent || 0);
+      const discountedPrice = discountPercent > 0 ? +(product.price * (1 - discountPercent / 100)) : product.price;
+      const priceHtml = discountPercent > 0
+        ? `<div style="font-size:18px; font-weight:700; color:#dc2626;">${formatCurrency(discountedPrice)}</div><div style="font-size:14px; color:#6b7280; text-decoration:line-through;">${formatCurrency(product.price)}</div>`
+        : `<div class="price">${formatCurrency(product.price)}</div>`;
+      return `
       <div class="product-card" onclick="showProductDetails(${product.id})">
         <img src="${product.image || '/assets/real-products/fallback.jpg'}" alt="${product.name}" onerror="this.onerror=null;this.src='/assets/real-products/fallback.jpg'">
         <div>
@@ -992,13 +1033,17 @@
           <p>${product.description || 'Văn phòng phẩm chất lượng.'}</p>
         </div>
         <div class="product-footer">
-          <div class="price">${formatCurrency(product.price)}</div>
+          <div>
+            ${priceHtml}
+          </div>
           <div class="actions">
+            <button class="button-outline" onclick="event.stopPropagation(); setProductDiscount(${product.id})" ${product.stock <= 0 ? 'disabled style="opacity:.65;cursor:not-allowed;"' : ''}>Giảm giá</button>
             <button class="button" onclick="event.stopPropagation(); addToCart(${product.id})" ${product.stock <= 0 ? 'disabled style="opacity:.65;cursor:not-allowed;"' : ''}>${product.stock > 0 ? 'Thêm vào giỏ' : 'Hết hàng'}</button>
           </div>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 
   function renderProductTable() {
@@ -1172,8 +1217,27 @@
       if (existing.quantity < product.stock) existing.quantity += 1;
       else return alert('Số lượng vượt quá tồn kho.');
     } else {
-      state.cart.push({ product_id: productId, product_name: product.name, price: product.price, quantity: 1 });
+      state.cart.push({ product_id: productId, product_name: product.name, price: product.price, quantity: 1, discountPercent: Number(product.discountPercent || 0) });
     }
+    renderCart();
+  }
+
+  function setProductDiscount(productId) {
+    const product = state.products.find(item => item.id === productId);
+    if (!product) return;
+    const current = Number(product.discountPercent || 0);
+    const entered = prompt('Nhập phần trăm giảm giá cho sản phẩm này (0-99):', current.toString());
+    if (entered === null) return;
+    const percent = Number(entered);
+    if (Number.isNaN(percent) || percent < 0 || percent > 99) return alert('Nhập phần trăm giảm giá hợp lệ 0-99.');
+
+    product.discountPercent = percent;
+    const existingCartItem = state.cart.find(item => item.product_id === productId);
+    if (existingCartItem) {
+      existingCartItem.discountPercent = percent;
+    }
+    saveStoredProductDiscount(productId, percent, product.price);
+    renderPOSProducts();
     renderCart();
   }
 
@@ -1198,34 +1262,57 @@
     if (state.cart.length === 0) {
       cartItems.innerHTML = '<div class="small-card">Giỏ hàng trống.</div>';
       document.getElementById('cartTotal').textContent = '0đ';
+      document.getElementById('cartDiscountInfo').style.display = 'none';
       updateCashChange();
       return;
     }
+    const totalBeforeDiscount = state.cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
     let total = 0;
     cartItems.innerHTML = state.cart.map(item => {
-      const subtotal = item.price * item.quantity;
+      const originalPrice = Number(item.price || 0);
+      const itemDiscount = Number(item.discountPercent || 0);
+      const discountPercent = itemDiscount > 0 ? itemDiscount : getActiveDiscountPercent();
+      const discountedPrice = discountPercent > 0 ? +(originalPrice * (1 - discountPercent / 100)) : originalPrice;
+      const subtotal = discountedPrice * item.quantity;
       total += subtotal;
+      const discountLabel = itemDiscount > 0
+        ? `<div style="color:#059669; margin-top:6px; font-size:13px;">Áp dụng giảm giá ${itemDiscount}% cho sản phẩm này</div>`
+        : (discountPercent > 0 ? `<div style="color:#059669; margin-top:6px; font-size:13px;">Ưu đãi hạng ${state.customerTier || ''}: ${discountPercent}%</div>` : '');
       return `
         <div class="card" style="margin-bottom:12px; padding:16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-            <div><strong>${item.product_name}</strong><div style="color:${item.quantity > 1 ? '#6b7280' : '#6b7280'}">${item.quantity} x ${formatCurrency(item.price)}</div></div>
+            <div>
+              <strong>${item.product_name}</strong>
+              <div style="color:#6b7280; margin-top:6px; line-height:1.4;">
+                ${item.quantity} x ${discountPercent > 0 ? `<span style="font-weight:700; color:#111;">${formatCurrency(discountedPrice)}</span> <span style="text-decoration:line-through; color:#9ca3af; font-size:0.95rem;">${formatCurrency(originalPrice)}</span>` : formatCurrency(originalPrice)}
+              </div>
+              ${discountLabel}
+            </div>
             <div style="display:flex; gap:8px; align-items:center;"><button class="button-outline" onclick="updateCartQuantity(${item.product_id}, -1)">-</button><button class="button-outline" onclick="updateCartQuantity(${item.product_id}, 1)">+</button><button class="button-outline" onclick="removeCartItem(${item.product_id})">×</button></div>
           </div>
           <div style="margin-top:12px; font-weight:700;">Thành tiền: ${formatCurrency(subtotal)}</div>
         </div>
       `;
     }).join('');
-    // Apply customer discount if any
-    const discountPercent = Number(state.customerDiscount || 0);
-    const discountAmount = +(total * (discountPercent / 100));
-    const discountedTotal = +(total - discountAmount);
-    // Apply rounding rules to payable amount
-    const roundedTotal = roundPaymentAmount(discountedTotal);
-    document.getElementById('cartTotal').textContent = formatCurrency(roundedTotal);
+    const discountTotal = state.cart.reduce((sum, item) => {
+      const originalPrice = Number(item.price || 0);
+      const quantity = Number(item.quantity || 0);
+      const itemDiscount = Number(item.discountPercent || 0);
+      const appliedDiscount = itemDiscount > 0 ? itemDiscount : getActiveDiscountPercent();
+      const discountedPrice = appliedDiscount > 0 ? +(originalPrice * (1 - appliedDiscount / 100)) : originalPrice;
+      return sum + ((originalPrice - discountedPrice) * quantity);
+    }, 0);
+    const roundedTotal = roundPaymentAmount(total);
+    const cartTotalEl = document.getElementById('cartTotal');
+    if (discountTotal > 0) {
+      cartTotalEl.innerHTML = `<div style="font-weight:700;">${formatCurrency(roundedTotal)}</div><div style="text-decoration:line-through; color:#6b7280; font-size:0.95rem;">${formatCurrency(totalBeforeDiscount)}</div>`;
+    } else {
+      cartTotalEl.textContent = formatCurrency(roundedTotal);
+    }
     const discountEl = document.getElementById('cartDiscountInfo');
-    if (discountPercent > 0) {
+    if (discountTotal > 0) {
       discountEl.style.display = 'block';
-      discountEl.textContent = `Ưu đãi hạng ${state.customerTier || ''}: -${discountPercent}% (${formatCurrency(discountAmount)})`;
+      discountEl.textContent = `Giảm giá tổng: -${formatCurrency(discountTotal)}`;
     } else {
       discountEl.style.display = 'none';
       discountEl.textContent = '';
@@ -1234,10 +1321,14 @@
   }
 
   function updateCashChange() {
-    const totalAmountRaw = state.cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
-    const discountPercent = Number(state.customerDiscount || 0);
-    const discounted = +(totalAmountRaw - (totalAmountRaw * (discountPercent / 100)));
-    const totalAmount = roundPaymentAmount(discounted);
+    const totalAmountRaw = state.cart.reduce((sum, item) => {
+      const price = Number(item.price || 0);
+      const itemDiscount = Number(item.discountPercent || 0);
+      const appliedDiscount = itemDiscount > 0 ? itemDiscount : getActiveDiscountPercent();
+      const discountedPrice = appliedDiscount > 0 ? +(price * (1 - appliedDiscount / 100)) : price;
+      return sum + discountedPrice * Number(item.quantity || 0);
+    }, 0);
+    const totalAmount = roundPaymentAmount(totalAmountRaw);
     const cashReceived = Number(document.getElementById('cashReceived').value || 0);
     const cashChange = cashReceived - totalAmount;
     document.getElementById('cashChange').textContent = formatCurrency(Math.max(cashChange, 0));
@@ -1267,9 +1358,15 @@
     const paymentMethod = document.querySelector('input[name="checkoutPaymentMethod"]:checked').value;
     const customerName = document.getElementById('customerName').value.trim();
     const customerPhone = document.getElementById('customerPhone').value.trim();
-    const rawTotal = state.cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
-    const discountPercent = Number(state.customerDiscount || 0);
-    const totalAmount = +(rawTotal - (rawTotal * (discountPercent / 100)));
+    const rawTotal = state.cart.reduce((sum, item) => {
+      const price = Number(item.price || 0);
+      const itemDiscount = Number(item.discountPercent || 0);
+      const appliedDiscount = itemDiscount > 0 ? itemDiscount : getActiveDiscountPercent();
+      const discountedPrice = appliedDiscount > 0 ? +(price * (1 - appliedDiscount / 100)) : price;
+      return sum + discountedPrice * Number(item.quantity || 0);
+    }, 0);
+    const totalAmount = rawTotal;
+    const discountPercent = 0;
 
     if (paymentMethod === 'transfer') {
       pendingTransferOrder.paymentMethod = paymentMethod;
@@ -1286,7 +1383,7 @@
     if (cashReceived < roundedTotal) return alert('Tiền khách đưa phải lớn hơn hoặc bằng tổng tiền.');
     const cashChange = cashReceived - roundedTotal;
 
-    await processOrder(paymentMethod, customerName, customerPhone, roundedTotal, cashReceived, cashChange, discountPercent);
+    await processOrder(paymentMethod, customerName, customerPhone, roundedTotal, cashReceived, cashChange, 0);
   }
 
   function showTransferModal(totalAmount) {
@@ -1416,11 +1513,18 @@
           </thead>
           <tbody>
             ${data.items.map((item, idx) => {
-              const itemTotal = Number(item.price || 0) * Number(item.quantity || 0);
+              const price = Number(item.price || 0);
+              const quantity = Number(item.quantity || 0);
+              const discountPercent = Number(item.discountPercent || 0);
+              const discountedPrice = discountPercent > 0 ? +(price * (1 - discountPercent / 100)) : price;
+              const itemTotal = discountedPrice * quantity;
               return `
                 <tr style="border-bottom:1px solid #e5e7eb;">
                   <td style="padding:8px;">${escapeHtml(item.product_name || item.name || 'N/A')}</td>
-                  <td style="padding:8px; text-align:right;">${Number(item.price || 0).toLocaleString('vi-VN')}đ</td>
+                  <td style="padding:8px; text-align:right;">
+                    ${price.toLocaleString('vi-VN')}đ
+                    ${discountPercent > 0 ? `<div style="font-size:12px; color:#059669;">Giảm ${discountPercent}% → ${discountedPrice.toLocaleString('vi-VN')}đ</div>` : ''}
+                  </td>
                   <td style="padding:8px; text-align:center;">${item.quantity || 1}</td>
                   <td style="padding:8px; text-align:right; font-weight:600;">${itemTotal.toLocaleString('vi-VN')}đ</td>
                 </tr>
@@ -1566,7 +1670,8 @@
         items: orderItems.map(item => ({
           product_name: item.product_name || 'Sản phẩm',
           price: Number(item.price || 0),
-          quantity: Number(item.quantity || 1)
+          quantity: Number(item.quantity || 1),
+          discountPercent: Number(item.discount_percent || 0)
         })),
         qrText: null
       });
@@ -1781,9 +1886,8 @@
   async function editCustomer(customerId) {
     if (!customerId) return;
     try {
-      const res = await apiFetch(`/customers/${customerId}/history`, { method: 'GET' });
-      const payload = await res.json();
-      const customer = payload.customer || {};
+      const res = await apiFetch(`/customers/${customerId}`, { method: 'GET' });
+      const customer = await res.json();
       state.editCustomerId = customer.id;
       document.getElementById('editCustomerName').value = customer.name || '';
       document.getElementById('editCustomerPhone').value = customer.phone || '';
@@ -1802,13 +1906,18 @@
     if (!state.editCustomerId) return;
     const points = Number(document.getElementById('editCustomerPoints').value);
     const tier = document.getElementById('editCustomerTier').value;
+    const name = String(document.getElementById('editCustomerName').value || '').trim();
+    const phone = String(document.getElementById('editCustomerPhone').value || '').trim();
+    if (!name) {
+      return alert('Tên khách hàng không được để trống.');
+    }
     if (Number.isNaN(points) || points < 0) {
       return alert('Điểm khách hàng phải là số nguyên lớn hơn hoặc bằng 0.');
     }
     try {
       await apiFetch(`/customers/${state.editCustomerId}`, {
         method: 'PUT',
-        body: JSON.stringify({ points, tier })
+        body: JSON.stringify({ name, phone, points, tier })
       });
       document.getElementById('customerEditMessage').textContent = 'Cập nhật khách hàng thành công.';
       document.getElementById('customerEditMessage').classList.remove('hidden');
@@ -2013,7 +2122,7 @@
   }
 
   function formatCurrency(value) {
-    return Number(value).toLocaleString('vi-VN') + ' đ';
+    return Number(value).toLocaleString('vi-VN') + '\u00A0đ';
   }
 
   // Round payable amount according to rule:
@@ -2118,7 +2227,10 @@
       
       // Fill assign products select with all products
       const assignProductsSelect = document.getElementById('assignProducts');
-      assignProductsSelect.innerHTML = products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+      assignProductsSelect.innerHTML = renderAssignProductOptions(products);
+      if (document.getElementById('assignProductSearch').value.trim()) {
+        filterAssignProducts();
+      }
       // Load inventory logs
       document.getElementById('inventoryTable').innerHTML = logs.map(log => `
         <tr>
@@ -2242,16 +2354,17 @@
     const assignSelect = document.getElementById('assignProducts');
     const selectedOptions = Array.from(assignSelect.selectedOptions);
     const productIds = selectedOptions.map(opt => Number(opt.value));
-    
+
     if (!supplierId) {
       showAssignMessage('Vui lòng chọn nhà cung cấp.', false);
       return;
     }
+
     if (productIds.length === 0) {
       showAssignMessage('Vui lòng chọn ít nhất một sản phẩm.', false);
       return;
     }
-    
+
     try {
       const res = await apiFetch('/api/assign-products', {
         method: 'POST',
@@ -2259,7 +2372,9 @@
       });
       showAssignMessage(`Đã gán ${productIds.length} sản phẩm cho nhà cung cấp.`, true);
       document.getElementById('assignSupplier').value = '';
+      document.getElementById('assignProductSearch').value = '';
       assignSelect.selectedIndex = -1;
+      filterAssignProducts();
       loadInventory();
     } catch (err) {
       showAssignMessage(err.message || 'Lỗi gán sản phẩm.', false);
@@ -2271,6 +2386,29 @@
     msg.textContent = text;
     msg.style.color = success ? '#10b981' : '#ef4444';
     msg.classList.remove('hidden');
+  }
+
+  function renderAssignProductOptions(products) {
+    if (!Array.isArray(products) || products.length === 0) {
+      return '<option value="">Không có sản phẩm</option>';
+    }
+    return products.map(p => `<option value="${p.id}">${p.code ? `${p.code} - ` : ''}${p.name}</option>`).join('');
+  }
+
+  function filterAssignProducts() {
+    const query = document.getElementById('assignProductSearch').value.trim().toLowerCase();
+    const assignSelect = document.getElementById('assignProducts');
+    let filtered = state.inventoryProducts;
+    if (query) {
+      filtered = filtered.filter(p => {
+        const text = `${p.code || ''} ${p.barcode || ''} ${p.name || ''}`.toLowerCase();
+        return text.includes(query);
+      });
+    }
+    assignSelect.innerHTML = renderAssignProductOptions(filtered);
+    if (filtered.length === 0) {
+      assignSelect.innerHTML = '<option value="">Không có sản phẩm phù hợp</option>';
+    }
   }
 
   function showAssignMessage(text, success) {

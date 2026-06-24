@@ -334,7 +334,8 @@ async function ensureDatabase() {
   await query(`CREATE TABLE IF NOT EXISTS shifts (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    status ENUM('OPEN','CLOSED') NOT NULL DEFAULT 'OPEN',
+    status ENUM('PENDING','OPEN','CLOSED') NOT NULL DEFAULT 'PENDING',
+    starting_cash DECIMAL(10,2) DEFAULT NULL,
     opened_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     closed_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -373,6 +374,7 @@ async function ensureDatabase() {
   await ensureColumn("orders", "seller_id", "seller_id INT DEFAULT NULL");
   await ensureColumn("orders", "seller_name", "seller_name VARCHAR(120) DEFAULT NULL");
   await ensureColumn("orders", "payment_cash_received", "payment_cash_received DECIMAL(10,2) DEFAULT NULL");
+  await ensureColumn("shifts", "starting_cash", "starting_cash DECIMAL(10,2) DEFAULT NULL");
   await ensureColumn("orders", "payment_cash_change", "payment_cash_change DECIMAL(10,2) DEFAULT NULL");
   await ensureColumn("orders", "discount_percent", "discount_percent DECIMAL(5,2) DEFAULT NULL");
   await ensureColumn("orders", "total_after_discount", "total_after_discount DECIMAL(10,2) DEFAULT NULL");
@@ -1541,12 +1543,28 @@ app.get('/orders', async (req, res) => {
 app.get('/shifts/current', authenticateToken, async (req, res) => {
   try {
     const status = String(req.query.status || '').trim().toUpperCase();
-    let sql = `SELECT id, user_id, status, opened_at, closed_at, created_at FROM shifts`;
+    const userId = req.query.userId ? Number(req.query.userId) : null;
     const params = [];
+    let sql = `SELECT id, user_id, status, starting_cash, opened_at, closed_at, created_at FROM shifts`;
+
+    const conditions = [];
     if (status) {
-      sql += ' WHERE status = ?';
+      conditions.push('status = ?');
       params.push(status);
     }
+
+    if (req.user.role !== 'admin') {
+      conditions.push('user_id = ?');
+      params.push(req.user.id);
+    } else if (userId && Number.isInteger(userId) && userId > 0) {
+      conditions.push('user_id = ?');
+      params.push(userId);
+    }
+
+    if (conditions.length) {
+      sql += ' WHERE ' + conditions.join(' AND ');
+    }
+
     sql += ' ORDER BY opened_at DESC';
     const shifts = await query(sql, params);
     res.json(shifts);
@@ -1556,13 +1574,11 @@ app.get('/shifts/current', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/shifts/open', authenticateToken, authorizeRoles(['seller','manager','admin']), async (req, res) => {
+app.post('/shifts/open', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
   try {
+    // Only admin can create a pending shift for a user
     let targetUserId = req.user.id;
     if (req.body && req.body.userId) {
-      if (req.user.role !== 'admin') {
-        return res.status(403).send('Không có quyền mở ca cho người khác.');
-      }
       targetUserId = Number(req.body.userId);
       if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
         return res.status(400).send('ID người dùng không hợp lệ.');
@@ -1576,15 +1592,44 @@ app.post('/shifts/open', authenticateToken, authorizeRoles(['seller','manager','
     if (activeShift.length > 0) {
       return res.status(400).send('Nhân viên đã có ca đang mở.');
     }
+
+    // create a PENDING shift that the user must accept (enter starting cash)
     const result = await query(
       'INSERT INTO shifts (user_id, status, opened_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
-      [targetUserId, 'OPEN']
+      [targetUserId, 'PENDING']
     );
-    const [shift] = await query('SELECT id, user_id, status, opened_at, closed_at, created_at FROM shifts WHERE id = ? LIMIT 1', [result.insertId]);
+    const [shift] = await query('SELECT id, user_id, status, starting_cash, opened_at, closed_at, created_at FROM shifts WHERE id = ? LIMIT 1', [result.insertId]);
     res.json(shift);
   } catch (err) {
     console.error(err);
     res.status(500).send('Không thể mở ca.');
+  }
+});
+
+// Endpoint for the target user (or admin) to start a pending shift by providing startingCash
+app.post('/shifts/start', authenticateToken, authorizeRoles(['seller','manager','admin']), async (req, res) => {
+  try {
+    let targetUserId = req.user.id;
+    if (req.body && req.body.userId) {
+      // only admin can start a shift for someone else
+      if (req.user.role !== 'admin') return res.status(403).send('Không có quyền bắt đầu ca cho người khác.');
+      targetUserId = Number(req.body.userId);
+      if (!Number.isInteger(targetUserId) || targetUserId <= 0) return res.status(400).send('ID người dùng không hợp lệ.');
+    }
+
+    const startingCash = Number(req.body && req.body.startingCash ? req.body.startingCash : 0);
+    if (isNaN(startingCash) || startingCash < 0) return res.status(400).send('Tiền đầu ca phải lớn hơn hoặc bằng 0.');
+
+    const pending = await query('SELECT id FROM shifts WHERE user_id = ? AND status = ? ORDER BY created_at DESC LIMIT 1', [targetUserId, 'PENDING']);
+    if (!pending || pending.length === 0) return res.status(400).send('Không tìm thấy ca đang chờ mở.');
+
+    const shiftId = pending[0].id;
+    await query('UPDATE shifts SET status = ?, starting_cash = ?, opened_at = CURRENT_TIMESTAMP WHERE id = ?', ['OPEN', startingCash, shiftId]);
+    const [shift] = await query('SELECT id, user_id, status, starting_cash, opened_at, closed_at, created_at FROM shifts WHERE id = ? LIMIT 1', [shiftId]);
+    res.json(shift);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể bắt đầu ca.');
   }
 });
 
@@ -1601,14 +1646,25 @@ app.post('/shifts/close', authenticateToken, authorizeRoles(['seller','manager',
       }
     }
 
-    const shifts = await query(
-      'SELECT id FROM shifts WHERE user_id = ? AND status = ? LIMIT 1',
+    const openShifts = await query(
+      'SELECT id FROM shifts WHERE user_id = ? AND status = ?',
       [targetUserId, 'OPEN']
     );
-    if (shifts.length === 0) {
+    if (openShifts.length === 0) {
       return res.status(400).send('Không có ca đang mở để đóng.');
     }
-    await query('UPDATE shifts SET status = ?, closed_at = CURRENT_TIMESTAMP WHERE id = ?', ['CLOSED', shifts[0].id]);
+
+    const shiftIds = openShifts.map(shift => shift.id);
+    const placeholders = shiftIds.map(() => '?').join(',');
+    await query(`UPDATE shifts SET status = ?, closed_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`, ['CLOSED', ...shiftIds]);
+
+    if (req.user.role === 'manager' && !req.body?.userId) {
+      await query(
+        'UPDATE shifts SET status = ?, closed_at = CURRENT_TIMESTAMP WHERE status = ? AND user_id != ? AND user_id IN (SELECT id FROM users WHERE role = ?)',
+        ['CLOSED', 'OPEN', targetUserId, 'seller']
+      );
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);

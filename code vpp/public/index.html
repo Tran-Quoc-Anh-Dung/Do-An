@@ -1199,7 +1199,7 @@
             ${priceHtml}
           </div>
           <div class="actions">
-            <button class="button-outline" onclick="event.stopPropagation(); setProductDiscount(${product.id})" ${product.stock <= 0 ? 'disabled style="opacity:.65;cursor:not-allowed;"' : ''}>Giảm giá</button>
+            ${state.user && state.user.role === 'admin' ? `<button class="button-outline" onclick="event.stopPropagation(); setProductDiscount(${product.id})" ${product.stock <= 0 ? 'disabled style="opacity:.65;cursor:not-allowed;"' : ''}>Giảm giá</button>` : ''}
             <button class="button" onclick="event.stopPropagation(); addToCart(${product.id})" ${product.stock <= 0 ? 'disabled style="opacity:.65;cursor:not-allowed;"' : ''}>${product.stock > 0 ? 'Thêm vào giỏ' : 'Hết hàng'}</button>
           </div>
         </div>
@@ -1385,6 +1385,9 @@
   }
 
   function setProductDiscount(productId) {
+    if (!state.user || state.user.role !== 'admin') {
+      return alert('Chỉ quản trị viên mới được phép đặt giảm giá sản phẩm.');
+    }
     const product = state.products.find(item => item.id === productId);
     if (!product) return;
     const current = Number(product.discountPercent || 0);

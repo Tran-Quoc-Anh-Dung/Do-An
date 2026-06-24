@@ -42,6 +42,27 @@ async function loadSummary(){
   }catch(e){ console.error(e); }
 }
 
+function todayISO(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+let realtimeIntervalId = null;
+function manageRealtimeRefresh(){
+  // refresh summary every 10s when both filters are set to today
+  const start = q('filter-start').value;
+  const end = q('filter-end').value;
+  const isTodayRange = start === todayISO() && end === todayISO();
+  if (isTodayRange && !realtimeIntervalId){
+    realtimeIntervalId = setInterval(() => { loadSummary().catch(()=>{}); }, 10000);
+  } else if (!isTodayRange && realtimeIntervalId){
+    clearInterval(realtimeIntervalId); realtimeIntervalId = null;
+  }
+}
+
 let salesChart=null, productsChart=null;
 
 async function loadProducts(){
@@ -114,4 +135,24 @@ q('btn-apply').addEventListener('click', ()=> applyAll());
 });
 
 // init
-loadFilters().then(()=>applyAll());
+// set default dates to today
+function setDefaultDatesToToday(){
+  const t = todayISO();
+  const startEl = q('filter-start');
+  const endEl = q('filter-end');
+  if (startEl && !startEl.value) startEl.value = t;
+  if (endEl && !endEl.value) endEl.value = t;
+}
+
+loadFilters().then(()=>{
+  setDefaultDatesToToday();
+  applyAll().then(()=>{
+    manageRealtimeRefresh();
+  });
+});
+
+// re-evaluate realtime refresh when user changes filters
+['filter-start','filter-end'].forEach(id=>{
+  const el = q(id);
+  if (el) el.addEventListener('change', manageRealtimeRefresh);
+});

@@ -771,12 +771,25 @@ app.get('/public/reports/summary', async (req, res) => {
        ${monthlyWhere}`, monthlyParams
     );
 
+    // daily summary: if start/end provided use those, otherwise default to today
+    let dailyWhere = '';
+    const dailyParams = [];
+    if (start || end) {
+      dailyWhere = where; // uses created_at filters from earlier
+      dailyParams.push(...params);
+    } else {
+      // default to today's date
+      dailyWhere = 'WHERE DATE(created_at) = CURRENT_DATE()';
+      if (product_id) { dailyWhere += ' AND product_id = ?'; dailyParams.push(Number(product_id)); }
+      if (seller_id) { dailyWhere += ' AND seller_id = ?'; dailyParams.push(Number(seller_id)); }
+    }
+
     const dailySummaryRows = await query(
       `SELECT
          COUNT(DISTINCT order_number) AS daily_orders,
          COALESCE(SUM(price * quantity), 0) AS daily_revenue
        FROM orders
-       ${where}`, params
+       ${dailyWhere}`, dailyParams
     );
 
     const r = rows[0] || { order_count: 0, total_revenue: 0, avg_order_value: 0 };
@@ -1135,9 +1148,10 @@ app.get('/api/staff_public', async (req, res) => {
 app.get('/inventory', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
   try {
     const logs = await query(
-      `SELECT l.id, l.product_id, p.name AS product_name, l.quantity_change, l.reason, l.created_at, u.full_name AS created_by_user
+      `SELECT l.id, l.product_id, p.name AS product_name, s.name AS supplier_name, l.quantity_change, l.reason, l.created_at, u.full_name AS created_by_user
        FROM inventory_logs l
        LEFT JOIN products p ON l.product_id = p.id
+       LEFT JOIN suppliers s ON p.supplier_id = s.id
        LEFT JOIN users u ON l.created_by = u.id
        ORDER BY l.created_at DESC LIMIT 200`
     );
@@ -1214,9 +1228,10 @@ app.get('/api/categories', async (req, res) => {
 app.get('/api/products', async (req, res) => {
   try {
     const soldOnly = String(req.query.sold || '').toLowerCase() === '1' || String(req.query.sold || '').toLowerCase() === 'true';
+    const searchValue = String(req.query.search || '').trim();
     if (soldOnly) {
       const products = await query(
-        `SELECT DISTINCT p.id, p.name, p.description, p.category, p.price, p.stock, p.image, p.code, p.barcode
+        `SELECT DISTINCT p.id, p.name, p.description, p.category, p.price, p.stock, p.image, p.code, p.barcode, p.supplier_id
          FROM products p
          LEFT JOIN orders o ON o.product_id = p.id
          WHERE (p.stock IS NOT NULL AND p.stock > 0) OR o.product_id IS NOT NULL
@@ -1225,9 +1240,15 @@ app.get('/api/products', async (req, res) => {
       return res.json(products);
     }
 
-    const products = await query(
-      `SELECT id, name, description, category, price, stock, image, code, barcode FROM products ORDER BY name ASC`
-    );
+    let sql = `SELECT id, name, description, category, price, stock, image, code, barcode, supplier_id FROM products`;
+    const params = [];
+    if (searchValue) {
+      sql += ' WHERE code LIKE ? OR barcode LIKE ? OR name LIKE ?';
+      const term = `%${searchValue}%`;
+      params.push(term, term, term);
+    }
+    sql += ' ORDER BY name ASC';
+    const products = await query(sql, params);
     res.json(products);
   } catch (err) {
     console.error(err);
@@ -1244,6 +1265,53 @@ app.get('/api/suppliers', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send('Lỗi tải nhà cung cấp.');
+  }
+});
+
+app.post('/api/suppliers', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim();
+    const phone = String(req.body.phone || '').trim() || null;
+    const email = String(req.body.email || '').trim() || null;
+    const address = String(req.body.address || '').trim() || null;
+    if (!name) {
+      return res.status(400).send('Tên nhà cung cấp là bắt buộc.');
+    }
+    const result = await query(
+      'INSERT INTO suppliers (name, phone, email, address, status) VALUES (?, ?, ?, ?, ?)',
+      [name, phone, email, address, 'ACTIVE']
+    );
+    res.status(201).json({ id: result.insertId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể thêm nhà cung cấp.');
+  }
+});
+
+app.post('/api/assign-products', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const supplierId = Number(req.body.supplierId);
+    const productIds = Array.isArray(req.body.productIds) ? req.body.productIds.map(Number) : [];
+    
+    if (!supplierId || productIds.length === 0) {
+      return res.status(400).send('Nhà cung cấp và sản phẩm là bắt buộc.');
+    }
+    
+    // Check if supplier exists
+    const suppliers = await query('SELECT id FROM suppliers WHERE id = ? LIMIT 1', [supplierId]);
+    if (suppliers.length === 0) {
+      return res.status(404).send('Nhà cung cấp không tồn tại.');
+    }
+    
+    // Update all products with the new supplier_id
+    for (const productId of productIds) {
+      await query('UPDATE products SET supplier_id = ? WHERE id = ?', [supplierId, productId]);
+    }
+    
+    res.status(200).json({ success: true, updatedCount: productIds.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi gán sản phẩm.');
   }
 });
 
@@ -1268,7 +1336,7 @@ app.delete('/users/:id', authenticateToken, authorizeRoles(['admin']), async (re
 app.get('/products', async (req, res) => {
   try {
     const categoryFilter = req.query.category ? String(req.query.category).trim() : '';
-    let sql = `SELECT id, name, description, category, price, stock, image, code, barcode FROM products`;
+    let sql = `SELECT id, name, description, category, price, stock, image, code, barcode, supplier_id FROM products`;
     const params = [];
     if (categoryFilter) {
       sql += ' WHERE category = ?';
@@ -1613,12 +1681,28 @@ app.get('/customers/:id/history', authenticateToken, async (req, res) => {
          MIN(created_at) AS created_at
        FROM orders
        WHERE customer_id = ?
-       GROUP BY order_number, seller_name, payment_method
        ORDER BY created_at DESC
-       LIMIT 200`,
+       LIMIT 1000`,
       [customerId]
     );
-    const historyWithPoints = history.map(row => ({
+    const grouped = {};
+    history.forEach(row => {
+      const orderNumber = String(row.order_number || '');
+      const parts = orderNumber.split('-');
+      const key = parts.length === 4 && /^\d+$/.test(parts[3]) ? parts.slice(0, 3).join('-') : orderNumber;
+      if (!grouped[key]) {
+        grouped[key] = {
+          order_number: key,
+          total_amount: 0,
+          points_earned: 0,
+          payment_method: row.payment_method,
+          seller_name: row.seller_name,
+          created_at: row.created_at
+        };
+      }
+      grouped[key].total_amount += Number(row.total_amount || 0);
+    });
+    const historyWithPoints = Object.values(grouped).map(row => ({
       order_number: row.order_number,
       total_amount: Number(row.total_amount || 0),
       points_earned: Math.floor(Number(row.total_amount || 0) / 10000),
@@ -1675,8 +1759,7 @@ app.post('/orders', authenticateToken, async (req, res) => {
       }
     }
 
-    const orderRecords = cart.map((item, index) => {
-      const uniqueOrderNumber = `${baseOrderNumber}-${index + 1}`;
+    const orderRecords = cart.map((item) => {
       return [
         item.product_id || null,
         item.product_name || null,
@@ -1684,7 +1767,7 @@ app.post('/orders', authenticateToken, async (req, res) => {
         item.quantity || 1,
         sellerId,
         sellerName,
-        uniqueOrderNumber,
+        baseOrderNumber,
         method,
         paymentCashReceived,
         paymentCashChange,

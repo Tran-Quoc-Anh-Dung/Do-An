@@ -264,15 +264,11 @@
           <h3>Tồn kho theo danh mục</h3>
           <table class="table"><thead><tr><th>Danh mục</th><th>Số sản phẩm</th><th>Tổng tồn kho</th></tr></thead><tbody id="inventorySummaryTable"></tbody></table>
         </div>
-        <div class="card" id="inventoryLogsCard">
-          <h3>Lịch sử</h3>
-          <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Số lượng thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTableProducts"></tbody></table>
-        </div>
       </div>
 
       <div id="ordersSection" class="section hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Danh sách đơn hàng</h2><div><button class="button-outline" onclick="loadOrders()">Tải lại</button></div></div>
-        <div class="card"><table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>SL</th><th>Giá</th><th>Thành tiền</th><th>Nhân viên</th><th>Hành động</th></tr></thead><tbody id="orderTable"></tbody></table></div>
+        <div class="card"><table class="table"><thead><tr><th>Ngày</th><th>Mã hóa đơn</th><th>SL</th><th>Giá</th><th>Thành tiền</th><th>Nhân viên</th><th>Hành động</th></tr></thead><tbody id="orderTable"></tbody></table></div>
       </div>
 
       <div id="usersSection" class="section hidden">
@@ -427,7 +423,12 @@
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Quản lý Nhà cung cấp</h2></div>
         <div class="card" style="margin-bottom:20px;">
           <h3>Nhập/Xuất hàng</h3>
-          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
+          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+            <div class="form-control"><label for="invSupplier">Nhà cung cấp</label><select id="invSupplier" onchange="filterProductsBySupplier()"><option value="">-- Tất cả NCC --</option></select></div>
+            <div class="form-control"><label for="invProductCode">Mã sản phẩm</label><input id="invProductCode" type="text" placeholder="Nhập mã hoặc barcode"></div>
+            <div class="form-control" style="align-self:end;">
+              <button class="button" style="width:100%;" onclick="searchInventoryProductByCode()">Tìm sản phẩm</button>
+            </div>
             <div class="form-control"><label for="invProduct">Sản phẩm</label><select id="invProduct"></select></div>
             <div class="form-control"><label for="invQuantity">Số lượng</label><input id="invQuantity" type="number" min="1" value="1"></div>
           </div>
@@ -437,10 +438,36 @@
           </div>
           <div id="inventoryMessage" class="notification hidden"></div>
         </div>
-        
+
+        <div class="card" style="margin-bottom:20px;">
+          <h3>Thêm nhà cung cấp</h3>
+          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
+            <div class="form-control"><label for="supplierName">Tên nhà cung cấp</label><input id="supplierName" type="text" placeholder="Tên nhà cung cấp"></div>
+            <div class="form-control"><label for="supplierPhone">Điện thoại</label><input id="supplierPhone" type="text" placeholder="Số điện thoại"></div>
+            <div class="form-control"><label for="supplierEmail">Email</label><input id="supplierEmail" type="email" placeholder="Email (tùy chọn)"></div>
+            <div class="form-control"><label for="supplierAddress">Địa chỉ</label><input id="supplierAddress" type="text" placeholder="Địa chỉ (tùy chọn)"></div>
+          </div>
+          <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
+            <button class="button" onclick="createSupplier()">Thêm nhà cung cấp</button>
+          </div>
+          <div id="supplierMessage" class="notification hidden"></div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <h3>Gán sản phẩm cho nhà cung cấp</h3>
+          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
+            <div class="form-control"><label for="assignSupplier">Chọn nhà cung cấp</label><select id="assignSupplier"></select></div>
+            <div class="form-control"><label for="assignProducts">Chọn sản phẩm (Ctrl+Click để chọn nhiều)</label><select id="assignProducts" multiple style="min-height: 100px;"></select></div>
+          </div>
+          <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
+            <button class="button" onclick="assignProductsToSupplier()">Gán sản phẩm</button>
+          </div>
+          <div id="assignMessage" class="notification hidden"></div>
+        </div>
+
         <div class="card">
           <h3>Lịch sử</h3>
-          <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Số lượng thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
+          <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Nhà cung cấp</th><th>Số lượng thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
         </div>
       </div>
         </div>
@@ -525,7 +552,7 @@
 </style>
 
 <script>
-  const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, editCustomerId: null, reportData: [], customerDiscount: 0, customerTier: null, currentShift: null, shifts: [] };
+  const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, editCustomerId: null, reportData: [], customerDiscount: 0, customerTier: null, currentShift: null, shifts: [], inventoryProducts: [], suppliers: [] };
 
   // Determine discount percent by customer tier
   function getTierDiscount(tier) {
@@ -1050,6 +1077,7 @@
         <tr>
           <td>${formatDateTime(log.created_at)}</td>
           <td>${log.product_name || '-'}</td>
+          <td>${log.supplier_name || '-'}</td>
           <td>${log.quantity_change != null ? log.quantity_change : '-'}</td>
           <td>${log.reason || '-'}</td>
           <td>${log.created_by_user || '-'}</td>
@@ -1057,7 +1085,7 @@
       `).join('');
     } catch (err) {
       console.error(err);
-      document.getElementById('inventoryTable').innerHTML = '<tr><td colspan="5">Không thể tải lịch sử.</td></tr>';
+      document.getElementById('inventoryTable').innerHTML = '<tr><td colspan="6">Không thể tải lịch sử.</td></tr>';
     }
   }
 
@@ -1503,16 +1531,27 @@
     return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(text)}`;
   }
 
-  async function viewOrderInvoice(orderId) {
+  function normalizeOrderNumber(orderNumber) {
+    if (!orderNumber) return orderNumber;
+    const parts = String(orderNumber).split('-');
+    if (parts.length === 4 && /^\d+$/.test(parts[3])) {
+      return parts.slice(0, 3).join('-');
+    }
+    return orderNumber;
+  }
+
+  async function viewOrderInvoice(orderNumber) {
     try {
-      // Fetch latest orders to ensure we have payment fields populated
       const res = await apiFetch('/orders', { method: 'GET' });
       const orders = await res.json();
-      const order = orders.find(item => item.id === orderId);
-      if (!order) return alert('Không tìm thấy đơn hàng.');
+      const normalizedKey = normalizeOrderNumber(orderNumber);
+      const orderItems = orders.filter(item => normalizeOrderNumber(item.order_number || `#${item.id}`) === normalizedKey);
+      if (!orderItems || orderItems.length === 0) return alert('Không tìm thấy đơn hàng.');
 
+      const order = orderItems[0];
+      const totalAmount = order.total_after_discount != null ? Number(order.total_after_discount) : orderItems.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
       showInvoice({
-        orderNumber: order.order_number || `#${order.id}`,
+        orderNumber: normalizeOrderNumber(order.order_number || `#${order.id}`),
         createdAt: formatDateTime(order.created_at),
         sellerName: order.seller_full_name || order.seller_name || '-',
         customerName: order.customer_name || 'Khách lẻ',
@@ -1521,14 +1560,14 @@
         cashReceived: order.payment_cash_received != null ? Number(order.payment_cash_received) : null,
         cashChange: order.payment_cash_change != null ? Number(order.payment_cash_change) : null,
         discountPercent: order.discount_percent != null ? Number(order.discount_percent) : 0,
-        totalAmount: order.total_after_discount != null ? Number(order.total_after_discount) : (Number(order.price || 0) * Number(order.quantity || 1)),
+        totalAmount: totalAmount,
         pointsEarned: 0,
         currentPoints: 0,
-        items: [{
-          product_name: order.product_name || 'Sản phẩm',
-          price: Number(order.price || 0),
-          quantity: Number(order.quantity || 1)
-        }],
+        items: orderItems.map(item => ({
+          product_name: item.product_name || 'Sản phẩm',
+          price: Number(item.price || 0),
+          quantity: Number(item.quantity || 1)
+        })),
         qrText: null
       });
     } catch (err) {
@@ -1542,15 +1581,41 @@
       const res = await apiFetch('/orders', { method: 'GET' });
       const orders = await res.json();
       state.orders = orders;
-      document.getElementById('orderTable').innerHTML = orders.map(order => `
+      const groupedOrders = Object.values(orders.reduce((aggregate, order) => {
+        const key = order.order_number || `#${order.id}`;
+        if (!aggregate[key]) {
+          aggregate[key] = {
+            id: order.id,
+            order_number: key,
+            created_at: order.created_at,
+            seller_name: order.seller_full_name || order.seller_name || '-',
+            payment_cash_received: order.payment_cash_received,
+            payment_cash_change: order.payment_cash_change,
+            payment_method: order.payment_method,
+            discount_percent: order.discount_percent,
+            total_after_discount: order.total_after_discount,
+            customer_name: order.customer_name,
+            customer_phone: order.customer_phone,
+            items: [],
+            totalQuantity: 0,
+            totalAmount: 0
+          };
+        }
+        aggregate[key].items.push(order);
+        aggregate[key].totalQuantity += Number(order.quantity || 0);
+        aggregate[key].totalAmount += Number(order.price || 0) * Number(order.quantity || 0);
+        return aggregate;
+      }, {}));
+
+      document.getElementById('orderTable').innerHTML = groupedOrders.map(order => `
         <tr>
           <td>${formatDateTime(order.created_at)}</td>
-          <td>${order.product_name}</td>
-          <td>${order.quantity}</td>
-          <td>${formatCurrency(order.price)}</td>
-          <td>${formatCurrency(order.price * order.quantity)}</td>
-          <td>${order.seller_full_name || order.seller_name || order.seller_name || '-'}</td>
-          <td><button class="button-outline" onclick="viewOrderInvoice(${order.id})">Xem</button></td>
+          <td>${escapeHtml(normalizeOrderNumber(order.order_number))}</td>
+          <td>${order.totalQuantity}</td>
+          <td>${formatCurrency(order.items.reduce((sum, item) => sum + Number(item.price || 0), 0))}</td>
+          <td>${formatCurrency(order.totalAmount)}</td>
+          <td>${escapeHtml(order.seller_name)}</td>
+          <td><button class="button-outline" onclick="viewOrderInvoice('${normalizeOrderNumber(order.order_number)}')">Xem</button></td>
         </tr>
       `).join('');
     } catch (err) {
@@ -2019,21 +2084,47 @@
   // Inventory functions
   async function loadInventory() {
     try {
-      const [productsRes, logsRes] = await Promise.all([
+      const [productsRes, logsRes, suppliersRes] = await Promise.all([
         apiFetch('/products', { method: 'GET' }),
-        apiFetch('/inventory', { method: 'GET' })
+        apiFetch('/inventory', { method: 'GET' }),
+        apiFetch('/api/suppliers', { method: 'GET' })
       ]);
       const products = await productsRes.json();
       const logs = await logsRes.json();
+      const suppliers = await suppliersRes.json();
       
-      // Fill product select
-      const prodSelect = document.getElementById('invProduct');
-      prodSelect.innerHTML = products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+      // Store products and suppliers for filtering
+      state.inventoryProducts = products;
+      state.suppliers = suppliers;
+      
+      // Fill supplier select
+      const supplierSelect = document.getElementById('invSupplier');
+      const currentSupplierId = supplierSelect.value;
+      supplierSelect.innerHTML = '<option value="">-- Tất cả NCC --</option>' + 
+        suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+      
+      // Maintain previously selected supplier if it still exists
+      if (currentSupplierId) {
+        supplierSelect.value = currentSupplierId;
+      }
+      
+      // Fill product select with filtering based on selected supplier
+      filterProductsBySupplier();
+      
+      // Fill assign supplier select
+      const assignSupplierSelect = document.getElementById('assignSupplier');
+      assignSupplierSelect.innerHTML = '<option value="">-- Chọn nhà cung cấp --</option>' + 
+        suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+      
+      // Fill assign products select with all products
+      const assignProductsSelect = document.getElementById('assignProducts');
+      assignProductsSelect.innerHTML = products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
       // Load inventory logs
       document.getElementById('inventoryTable').innerHTML = logs.map(log => `
         <tr>
           <td>${formatDateTime(log.created_at)}</td>
           <td>${log.product_name || '-'}</td>
+          <td>${log.supplier_name || '-'}</td>
           <td>${log.quantity_change}</td>
           <td>${log.reason || '-'}</td>
           <td>${log.created_by_user || '-'}</td>
@@ -2042,6 +2133,51 @@
     } catch (err) {
       console.error(err);
       alert('Không thể tải thông tin tồn kho.');
+    }
+  }
+
+  function filterProductsBySupplier() {
+    const supplierId = Number(document.getElementById('invSupplier').value) || null;
+    const prodSelect = document.getElementById('invProduct');
+    let filteredProducts = state.inventoryProducts;
+    
+    if (supplierId) {
+      filteredProducts = state.inventoryProducts.filter(p => Number(p.supplier_id) === supplierId);
+    }
+    
+    prodSelect.innerHTML = filteredProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    if (filteredProducts.length === 0) {
+      prodSelect.innerHTML = '<option value="">Không có sản phẩm</option>';
+    }
+  }
+
+  async function searchInventoryProductByCode() {
+    const codeValue = document.getElementById('invProductCode').value.trim();
+    const supplierId = Number(document.getElementById('invSupplier').value) || null;
+    if (!codeValue) {
+      showInventoryMessage('Vui lòng nhập mã sản phẩm để tìm.', false);
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/products?search=${encodeURIComponent(codeValue)}`, { method: 'GET' });
+      let products = await res.json();
+      
+      // Filter theo NCC nếu được chọn
+      if (supplierId && Array.isArray(products)) {
+        products = products.filter(p => Number(p.supplier_id) === supplierId);
+      }
+      
+      const prodSelect = document.getElementById('invProduct');
+      if (!Array.isArray(products) || products.length === 0) {
+        prodSelect.innerHTML = '<option value="">Không tìm thấy sản phẩm</option>';
+        showInventoryMessage('Không tìm thấy sản phẩm với mã này.', false);
+        return;
+      }
+      prodSelect.innerHTML = products.map(p => `<option value="${p.id}">${p.code || p.barcode || p.name}</option>`).join('');
+      showInventoryMessage('Đã tìm thấy sản phẩm.', true);
+    } catch (err) {
+      console.error(err);
+      showInventoryMessage('Lỗi tìm sản phẩm.', false);
     }
   }
 
@@ -2077,6 +2213,71 @@
     } catch (err) {
       showInventoryMessage(err.message || 'Xuất hàng thất bại.', false);
     }
+  }
+
+  async function createSupplier() {
+    const name = document.getElementById('supplierName').value.trim();
+    const phone = document.getElementById('supplierPhone').value.trim();
+    const email = document.getElementById('supplierEmail').value.trim();
+    const address = document.getElementById('supplierAddress').value.trim();
+    if (!name) {
+      showSupplierMessage('Tên nhà cung cấp là bắt buộc.', false);
+      return;
+    }
+    try {
+      await apiFetch('/api/suppliers', { method: 'POST', body: JSON.stringify({ name, phone, email, address }) });
+      showSupplierMessage('Thêm nhà cung cấp thành công.', true);
+      document.getElementById('supplierName').value = '';
+      document.getElementById('supplierPhone').value = '';
+      document.getElementById('supplierEmail').value = '';
+      document.getElementById('supplierAddress').value = '';
+      loadInventory();
+    } catch (err) {
+      showSupplierMessage(err.message || 'Thêm nhà cung cấp thất bại.', false);
+    }
+  }
+
+  async function assignProductsToSupplier() {
+    const supplierId = document.getElementById('assignSupplier').value;
+    const assignSelect = document.getElementById('assignProducts');
+    const selectedOptions = Array.from(assignSelect.selectedOptions);
+    const productIds = selectedOptions.map(opt => Number(opt.value));
+    
+    if (!supplierId) {
+      showAssignMessage('Vui lòng chọn nhà cung cấp.', false);
+      return;
+    }
+    if (productIds.length === 0) {
+      showAssignMessage('Vui lòng chọn ít nhất một sản phẩm.', false);
+      return;
+    }
+    
+    try {
+      const res = await apiFetch('/api/assign-products', {
+        method: 'POST',
+        body: JSON.stringify({ supplierId, productIds })
+      });
+      showAssignMessage(`Đã gán ${productIds.length} sản phẩm cho nhà cung cấp.`, true);
+      document.getElementById('assignSupplier').value = '';
+      assignSelect.selectedIndex = -1;
+      loadInventory();
+    } catch (err) {
+      showAssignMessage(err.message || 'Lỗi gán sản phẩm.', false);
+    }
+  }
+
+  function showSupplierMessage(text, success) {
+    const msg = document.getElementById('supplierMessage');
+    msg.textContent = text;
+    msg.style.color = success ? '#10b981' : '#ef4444';
+    msg.classList.remove('hidden');
+  }
+
+  function showAssignMessage(text, success) {
+    const msg = document.getElementById('assignMessage');
+    msg.textContent = text;
+    msg.style.color = success ? '#10b981' : '#ef4444';
+    msg.classList.remove('hidden');
   }
 
   function showInventoryMessage(text, success) {

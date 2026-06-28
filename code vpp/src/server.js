@@ -126,6 +126,7 @@ app.post('/gtgt-requests', async (req, res) => {
     const customerPhone = String(req.body.customerPhone || req.body.customer_phone || '').trim() || null;
     const customerCompany = String(req.body.customerCompany || req.body.customer_company || '').trim() || null;
     const customerTaxCode = String(req.body.customerTaxCode || req.body.customer_tax_code || '').trim() || null;
+    const customerEmail = String(req.body.customerEmail || req.body.customer_email || '').trim() || null;
 
     if (!orderNumber) {
       return res.status(400).send('Mã đơn là bắt buộc.');
@@ -137,9 +138,9 @@ app.post('/gtgt-requests', async (req, res) => {
     }
 
     await query(
-      `INSERT INTO gtgt_requests (order_number, customer_name, customer_phone, customer_company, customer_tax_code)
-       VALUES (?, ?, ?, ?, ?)`,
-      [orderNumber, customerName, customerPhone, customerCompany, customerTaxCode]
+      `INSERT INTO gtgt_requests (order_number, customer_name, customer_phone, customer_company, customer_tax_code, customer_email)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [orderNumber, customerName, customerPhone, customerCompany, customerTaxCode, customerEmail]
     );
 
     console.log('[GTGT-POST] Success:', orderNumber);
@@ -154,7 +155,7 @@ console.log('[STARTUP] About to register GTGT GET route');
 app.get('/gtgt-requests', authenticateToken, async (req, res) => {
   try {
     const requests = await query(
-      `SELECT id, order_number, customer_name, customer_phone, customer_company, customer_tax_code, status, created_at
+      `SELECT id, order_number, customer_name, customer_phone, customer_company, customer_tax_code, customer_email, status, created_at
        FROM gtgt_requests
        ORDER BY created_at DESC
        LIMIT 200`
@@ -163,6 +164,22 @@ app.get('/gtgt-requests', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send('Lỗi tải yêu cầu GTGT.');
+  }
+});
+
+// Mark GTGT request as issued
+// Allow marking GTGT issued without auth for local/dev usage
+app.post('/gtgt-requests/:orderNumber/issue', async (req, res) => {
+  try {
+    const orderNumber = String(req.params.orderNumber || '').trim();
+    if (!orderNumber) return res.status(400).send('Mã đơn không hợp lệ.');
+    const existing = await query('SELECT id FROM gtgt_requests WHERE order_number = ? LIMIT 1', [orderNumber]);
+    if (existing.length === 0) return res.status(404).send('Không tìm thấy yêu cầu GTGT.');
+    await query("UPDATE gtgt_requests SET status = 'issued' WHERE order_number = ?", [orderNumber]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[GTGT-ISSUE] Error:', err);
+    res.status(500).send('Không thể cập nhật trạng thái GTGT.');
   }
 });
 
@@ -417,9 +434,13 @@ async function ensureDatabase() {
     customer_phone VARCHAR(40) DEFAULT NULL,
     customer_company VARCHAR(255) DEFAULT NULL,
     customer_tax_code VARCHAR(80) DEFAULT NULL,
+    customer_email VARCHAR(120) DEFAULT NULL,
     status ENUM('pending','issued') NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+
+  // Ensure customer_email column exists for GTGT requests
+  await ensureColumn('gtgt_requests', 'customer_email', 'customer_email VARCHAR(120) DEFAULT NULL');
 
   const users = await query("SELECT COUNT(*) AS total FROM users");
   if (users[0].total === 0) {

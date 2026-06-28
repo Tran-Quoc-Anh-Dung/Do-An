@@ -35,13 +35,13 @@
       <input id="customerPhone" name="customerPhone" placeholder="Số điện thoại liên hệ" />
       <label for="customerCompany">Tên công ty</label>
       <input id="customerCompany" name="customerCompany" placeholder="Tên công ty (GTGT)" />
+      <label for="customerEmail">Email</label>
+      <input id="customerEmail" name="customerEmail" placeholder="Email liên hệ (ví dụ: a@b.com)" />
       <label for="customerTaxCode">Mã số thuế</label>
       <input id="customerTaxCode" name="customerTaxCode" placeholder="Mã số thuế (GTGT)" />
       <button id="submitButton" type="submit">Gửi yêu cầu GTGT</button>
     </form>
-    <div class="footer">
-      <p>Nếu muốn trở lại giao diện bán hàng, bấm <a href="/index.html">vào đây</a>.</p>
-    </div>
+    
   </div>
   <script>
     function getQueryParam(name) {
@@ -83,7 +83,8 @@
         orderNumber: document.getElementById('orderNumber').value.trim(),
         customerName: document.getElementById('customerName').value.trim(),
         customerPhone: document.getElementById('customerPhone').value.trim(),
-        customerCompany: document.getElementById('customerCompany').value.trim(),
+         customerCompany: document.getElementById('customerCompany').value.trim(),
+        customerEmail: document.getElementById('customerEmail').value.trim(),
         customerTaxCode: document.getElementById('customerTaxCode').value.trim()
       };
 

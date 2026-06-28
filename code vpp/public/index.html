@@ -435,7 +435,7 @@
 
       <div id="gtgtSection" class="section hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Hóa đơn GTGT</h2><div><button class="button-outline" onclick="loadGtgtSection()">Tải lại</button></div></div>
-        <div class="card"><table class="table"><thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Điện thoại</th><th>Công ty</th><th>Mã số thuế</th><th>Hành động</th></tr></thead><tbody id="gtgtTable"></tbody></table></div>
+        <div class="card"><table class="table"><thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Điện thoại</th><th>Email</th><th>Công ty</th><th>Mã số thuế</th><th>Hành động</th></tr></thead><tbody id="gtgtTable"></tbody></table></div>
       </div>
 
       <div id="usersSection" class="section hidden">
@@ -810,10 +810,11 @@ Số lượng tồn kho</label>
       customerName: request.customerName || request.customer_name || null,
       customerPhone: request.customerPhone || request.customer_phone || null,
       customerCompany: request.customerCompany || request.customer_company || null,
+      customerEmail: request.customerEmail || request.customer_email || null,
       customerTaxCode: request.customerTaxCode || request.customer_tax_code || null,
       status: request.status || null,
       createdAt: request.createdAt || request.created_at || null,
-      issued: request.issued != null ? request.issued : false
+      issued: request.issued != null ? request.issued : (request.status === 'issued')
     };
   }
 
@@ -830,6 +831,19 @@ Số lượng tồn kho</label>
       const data = await res.json();
       if (Array.isArray(data)) {
         const normalized = data.map(normalizeGtgtRequest);
+        // Merge any local-issued flags so UI preserves local exports
+        try {
+          const local = getStoredGtgtRequests();
+          if (Array.isArray(local) && local.length > 0) {
+            for (const l of local) {
+              if (!l || !l.orderNumber) continue;
+              if (l.issued) {
+                const idx = normalized.findIndex(r => (r.orderNumber || r.order_number) === l.orderNumber || r.order_number === l.orderNumber);
+                if (idx !== -1) normalized[idx].issued = true;
+              }
+            }
+          }
+        } catch (e) {}
         state.gtgtRequests = normalized;
         saveGtgtRequests(normalized);
         return;
@@ -862,6 +876,7 @@ Số lượng tồn kho</label>
           <td>${escapeHtml(orderNumber)}</td>
           <td>${escapeHtml(normalized.customerName || '-')}</td>
           <td>${escapeHtml(normalized.customerPhone || '-')}</td>
+          <td>${escapeHtml(normalized.customerEmail || '-')}</td>
           <td>${escapeHtml(normalized.customerCompany || '-')}</td>
           <td>${escapeHtml(normalized.customerTaxCode || '-')}</td>
           <td style="white-space:nowrap;">
@@ -891,6 +906,15 @@ Số lượng tồn kho</label>
     saveGtgtRequests(requests);
     state.gtgtRequests = requests;
     renderGtgtSection();
+
+    // Attempt to persist issuance to server when authenticated
+    (async () => {
+      try {
+        await apiFetch(`/gtgt-requests/${encodeURIComponent(orderNumber)}/issue`, { method: 'POST' });
+      } catch (err) {
+        console.warn('Không thể cập nhật trạng thái GTGT lên server:', err);
+      }
+    })();
   }
 
   function numberToVietnameseText(amount) {
@@ -992,6 +1016,7 @@ Số lượng tồn kho</label>
         customerName: requested.customerName || order.customer_name || 'Khách lẻ',
         customerPhone: requested.customerPhone || order.customer_phone || '-',
         customerCompany: requested.customerCompany || order.customer_company || '-',
+        customerEmail: requested.customerEmail || order.customer_email || '-',
         customerTaxCode: requested.customerTaxCode || order.customer_tax_code || '-',
         paymentMethod: order.payment_method || 'Tiền mặt',
         invoiceType: 'Hóa đơn GTGT',

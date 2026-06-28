@@ -205,9 +205,8 @@
         <div class="pos-topbar">
           <h2>POS - Bán hàng</h2>
           <div class="form-grid pos-toolbar">
-            <div class="form-control"><label for="searchProduct">Tìm kiếm sản phẩm</label><input id="searchProduct" type="text" placeholder="Nhập tên, mã, danh mục" oninput="applyProductFilter()"></div>
-            <div class="form-control"><label for="filterCategory">Lọc danh mục</label><select id="filterCategory" onchange="applyProductFilter()"></select></div>
             <div class="form-control"><label for="barcodeScanner">Quét mã vạch</label><input id="barcodeScanner" type="text" placeholder="Scan barcode tại đây" autocomplete="off"></div>
+            <div class="form-control"><label for="filterCategory">Lọc danh mục</label><select id="filterCategory" onchange="applyProductFilter()"></select></div>
           </div>
         </div>
         <div class="pos-layout">
@@ -219,10 +218,13 @@
               </div>
               <div id="productDetailContent" style="margin-top:16px;"></div>
             </div>
-            <div id="barcodePreview" class="card hidden" style="margin-bottom:20px; display:grid; grid-template-columns: 120px 1fr; gap:16px; align-items:center;">
+            <div id="barcodePreview" class="card hidden" style="margin-bottom:20px; display:grid; grid-template-columns: 120px 1fr; gap:16px; align-items:center; position:relative;">
               <img id="barcodePreviewImage" src="" alt="Ảnh sản phẩm" style="width:120px; height:120px; object-fit:cover; border-radius:14px; background:#f3f4f6;">
               <div>
-                <h3 id="barcodePreviewName" style="margin:0 0 8px 0;">Sản phẩm</h3>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                  <h3 id="barcodePreviewName" style="margin:0 0 8px 0;">Sản phẩm</h3>
+                  <button type="button" onclick="hideBarcodePreview()" style="background:transparent; border:none; color:#374151; font-size:18px; cursor:pointer; line-height:1; padding:4px;">×</button>
+                </div>
                 <div id="barcodePreviewPrice" style="font-weight:700; margin-bottom:8px;">0đ</div>
                 <div id="barcodePreviewInfo" style="color: var(--muted); font-size:14px;"></div>
               </div>
@@ -1378,13 +1380,11 @@ Số lượng tồn kho</label>
   }
 
   function renderPOSProducts() {
-    const query = document.getElementById('searchProduct').value.trim().toLowerCase();
     const category = document.getElementById('filterCategory').value;
     const filtered = state.products.filter(product => {
-      const match = product.name.toLowerCase().includes(query) || (product.code || '').toLowerCase().includes(query) || (product.category || '').toLowerCase().includes(query);
       const showAll = !category || category === 'all' || category === 'no-orders';
       const catMatch = showAll || (product.category || 'Khác') === category;
-      return match && catMatch;
+      return catMatch;
     });
     const grid = document.getElementById('posProductGrid');
     grid.innerHTML = filtered.length === 0 ? '<div class="small-card">Không tìm thấy sản phẩm.</div>' : filtered.map(product => {
@@ -1417,13 +1417,11 @@ Số lượng tồn kho</label>
   }
 
   function renderProductTable() {
-    const query = document.getElementById('searchProduct').value.trim().toLowerCase();
     const category = document.getElementById('filterCategory').value;
     const filtered = state.products.filter(product => {
-      const match = product.name.toLowerCase().includes(query) || (product.code || '').toLowerCase().includes(query) || (product.category || '').toLowerCase().includes(query);
       const showAll = !category || category === 'all' || category === 'no-orders';
       const catMatch = showAll || (product.category || 'Khác') === category;
-      return match && catMatch;
+      return catMatch;
     });
 
     const grouped = filtered.reduce((acc, product) => {
@@ -1652,7 +1650,11 @@ Số lượng tồn kho</label>
       try {
         product = await fetchProductByBarcode(barcode);
       } catch (localErr) {
-        // Not found in database, try Open Food Facts
+        // Not found in database, only admin may create new products from a barcode scan
+        if (!isAdmin()) {
+          showAlert('Chỉ admin mới được thêm sản phẩm mới từ barcode chưa có trong kho.', true);
+          return;
+        }
         console.log('Không tìm thấy trong kho dữ liệu, tìm trên Open Food Facts...');
         showAlert('Đang tìm kiếm từ Open Food Facts...');
         product = await fetchProductFromOpenFoodFacts(barcode);
@@ -1691,6 +1693,11 @@ Số lượng tồn kho</label>
         input.focus();
       }
     }
+  }
+
+  function hideBarcodePreview() {
+    const preview = document.getElementById('barcodePreview');
+    if (preview) preview.classList.add('hidden');
   }
 
   // Fetch product info from Open Food Facts API
@@ -1856,13 +1863,6 @@ Số lượng tồn kho</label>
         event.preventDefault();
         const raw = barcodeInput.value.trim();
         if (raw) handleBarcodeScan(raw);
-      }
-    });
-    // Only auto-focus if popup is not visible
-    barcodeInput.addEventListener('blur', () => {
-      const popup = document.getElementById('pricePopup');
-      if (popup && popup.style.display !== 'block') {
-        setTimeout(() => barcodeInput.focus(), 100);
       }
     });
   }

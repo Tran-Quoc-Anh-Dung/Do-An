@@ -666,7 +666,7 @@
           <div style="display:grid; gap:10px; margin-bottom:16px;">
             <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Số tài khoản</span><strong id="transferAccountNumber">107873372407</strong></div>
             <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Chủ TK</span><strong id="transferAccountName">TRAN QUOC ANH DUNG</strong></div>
-            <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Ngân hàng</span><strong id="transferBankBranch">VietinBank CN DAK NONG - HOI SO</strong></div>
+            <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Ngân hàng</span><strong id="transferBankBranch">VietinBank CN DAK NONG</strong></div>
             <div style="display:flex; justify-content:space-between; font-size:14px;"><span>Số tiền</span><strong id="transferAmountDisplay"></strong></div>
           </div>
           <div style="display:flex; gap:12px; justify-content:flex-end; flex-wrap:wrap;">
@@ -806,7 +806,7 @@ Số lượng tồn kho</label>
     if (!request || typeof request !== 'object') return request;
     return {
       ...request,
-      orderNumber: request.orderNumber || request.order_number || request.order_number || request.orderNumber,
+      orderNumber: request.orderNumber || request.order_number || null,
       customerName: request.customerName || request.customer_name || null,
       customerPhone: request.customerPhone || request.customer_phone || null,
       customerCompany: request.customerCompany || request.customer_company || null,
@@ -863,7 +863,7 @@ Số lượng tồn kho</label>
     const container = document.getElementById('gtgtTable');
     if (!container) return;
     if (!state.gtgtRequests || state.gtgtRequests.length === 0) {
-      container.innerHTML = '<tr><td colspan="6">Chưa có yêu cầu Hóa đơn GTGT.</td></tr>';
+      container.innerHTML = '<tr><td colspan="7">Chưa có yêu cầu Hóa đơn GTGT.</td></tr>';
       return;
     }
 
@@ -881,6 +881,7 @@ Số lượng tồn kho</label>
           <td>${escapeHtml(normalized.customerTaxCode || '-')}</td>
           <td style="white-space:nowrap;">
             <button class="button-outline" style="margin-right:8px;" onclick="viewGtgtInvoice('${escapeHtml(orderNumber)}')">Xuất GTGT</button>
+            <button class="button-outline" style="margin-right:8px;" onclick="sendGtgtEmail('${escapeHtml(orderNumber)}')">Gửi email</button>
             <button class="button-outline" onclick="removeGtgtRequest(${index})">Xóa</button>
             <div style="margin-top:6px; font-size:12px; color:#6b7280;">${statusLabel}</div>
           </td>
@@ -915,6 +916,27 @@ Số lượng tồn kho</label>
         console.warn('Không thể cập nhật trạng thái GTGT lên server:', err);
       }
     })();
+  }
+
+  async function sendGtgtEmail(orderNumber) {
+    try {
+      const requests = getStoredGtgtRequests().map(normalizeGtgtRequest);
+      const req = requests.find(r => (r.orderNumber || r.order_number) === orderNumber || r.order_number === orderNumber);
+      let email = req && req.customerEmail ? req.customerEmail : '';
+      if (!email) {
+        email = prompt('Nhập email người nhận:');
+        if (!email) return alert('Email bị bỏ trống.');
+      }
+      const res = await apiFetch('/gtgt-send-email', {
+        method: 'POST',
+        body: JSON.stringify({ orderNumber, email })
+      });
+      await res.json();
+      alert('Email đã được gửi.');
+    } catch (err) {
+      console.error(err);
+      alert('Không thể gửi email: ' + (err.message || err));
+    }
   }
 
   function numberToVietnameseText(amount) {

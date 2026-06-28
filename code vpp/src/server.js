@@ -10,6 +10,7 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const db = require("./database");
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -110,6 +111,60 @@ function authenticateToken(req, res, next) {
   });
 }
 
+// Email transporter (configured via env)
+let mailTransporter = null;
+async function getMailer() {
+  if (mailTransporter) return mailTransporter;
+  const host = process.env.SMTP_HOST;
+  const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) {
+    console.warn('[MAIL] SMTP not configured (SMTP_HOST/SMTP_USER/SMTP_PASS). Creating Ethereal test account...');
+    // Create a test account automatically (Ethereal)
+    try {
+      const testAccount = nodemailer.createTestAccount ? await nodemailer.createTestAccount() : null;
+      if (testAccount) {
+        mailTransporter = nodemailer.createTransport({
+          host: testAccount.smtp.host,
+          port: testAccount.smtp.port,
+          secure: testAccount.smtp.secure,
+          auth: { user: testAccount.user, pass: testAccount.pass }
+        });
+        console.log('[MAIL] Created Ethereal test account:', testAccount.user);
+        console.log('[MAIL] Preview URL will be logged after sending an email.');
+        return mailTransporter;
+      }
+    } catch (e) {
+      console.warn('[MAIL] Could not create Ethereal test account:', e);
+      return null;
+    }
+  }
+  mailTransporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
+  return mailTransporter;
+}
+
+async function sendInvoiceEmail(orderNumber, toEmail) {
+  try {
+    if (!toEmail || typeof toEmail !== 'string') return;
+    const transporter = await getMailer();
+    if (!transporter) return;
+    const origin = process.env.APP_ORIGIN || `http://localhost:${PORT}`;
+    const invoiceUrl = `${origin.replace(/\/$/, '')}/gtgt_form.html?orderNumber=${encodeURIComponent(orderNumber)}`;
+    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+    const info = await transporter.sendMail({
+      from,
+      to: toEmail,
+      subject: `Hóa đơn GTGT - ${orderNumber}`,
+      text: `Kính gửi khách hàng,\n\nQuý khách có thể xem/ tải hóa đơn GTGT của mã đơn ${orderNumber} tại đường dẫn:\n${invoiceUrl}\n\nTrân trọng.`,
+      html: `<p>Kính gửi khách hàng,</p><p>Quý khách có thể xem/tải hóa đơn GTGT của mã đơn <strong>${orderNumber}</strong> tại đường dẫn bên dưới:</p><p><a href="${invoiceUrl}">${invoiceUrl}</a></p><p>Trân trọng.</p>`
+    });
+    console.log('[MAIL] Sent invoice email', info && info.messageId);
+  } catch (err) {
+    console.error('[MAIL] Error sending invoice email:', err);
+  }
+}
+
 // Diagnostic: quick handler to verify POST reachability (temporary)
 app.post('/_diag_products_bulk_delete', (req, res) => {
   console.log('Received diagnostic bulk-delete POST, body:', req.body);
@@ -126,7 +181,7 @@ app.post('/gtgt-requests', async (req, res) => {
     const customerPhone = String(req.body.customerPhone || req.body.customer_phone || '').trim() || null;
     const customerCompany = String(req.body.customerCompany || req.body.customer_company || '').trim() || null;
     const customerTaxCode = String(req.body.customerTaxCode || req.body.customer_tax_code || '').trim() || null;
-    const customerEmail = String(req.body.customerEmail || req.body.customer_email || '').trim() || null;
+    const customerEmail = String(req.body.customerEmail || req.body.customer_email || req.body.email || '').trim() || null;
 
     if (!orderNumber) {
       return res.status(400).send('Mã đơn là bắt buộc.');
@@ -154,12 +209,38 @@ app.post('/gtgt-requests', async (req, res) => {
 console.log('[STARTUP] About to register GTGT GET route');
 app.get('/gtgt-requests', authenticateToken, async (req, res) => {
   try {
-    const requests = await query(
-      `SELECT id, order_number, customer_name, customer_phone, customer_company, customer_tax_code, customer_email, status, created_at
+    const rows = await query(
+      `SELECT id,
+              order_number,
+              customer_name,
+              customer_phone,
+              customer_company,
+              customer_tax_code,
+              customer_email,
+              status,
+              created_at
        FROM gtgt_requests
        ORDER BY created_at DESC
        LIMIT 200`
     );
+    const requests = rows.map(row => ({
+      id: row.id,
+      orderNumber: row.order_number,
+      order_number: row.order_number,
+      customerName: row.customer_name,
+      customer_name: row.customer_name,
+      customerPhone: row.customer_phone,
+      customer_phone: row.customer_phone,
+      customerCompany: row.customer_company,
+      customer_company: row.customer_company,
+      customerTaxCode: row.customer_tax_code,
+      customer_tax_code: row.customer_tax_code,
+      customerEmail: row.customer_email,
+      customer_email: row.customer_email,
+      status: row.status,
+      createdAt: row.created_at,
+      created_at: row.created_at
+    }));
     res.json(requests);
   } catch (err) {
     console.error(err);
@@ -176,10 +257,74 @@ app.post('/gtgt-requests/:orderNumber/issue', async (req, res) => {
     const existing = await query('SELECT id FROM gtgt_requests WHERE order_number = ? LIMIT 1', [orderNumber]);
     if (existing.length === 0) return res.status(404).send('Không tìm thấy yêu cầu GTGT.');
     await query("UPDATE gtgt_requests SET status = 'issued' WHERE order_number = ?", [orderNumber]);
+    // Try to fetch the request to get customer email and send invoice link
+    try {
+      const rows = await query('SELECT customer_email FROM gtgt_requests WHERE order_number = ? LIMIT 1', [orderNumber]);
+      if (rows && rows.length > 0 && rows[0].customer_email) {
+        // fire-and-forget
+        sendInvoiceEmail(orderNumber, rows[0].customer_email);
+      }
+    } catch (e) {
+      console.warn('[GTGT-ISSUE] Could not fetch request for email sending:', e);
+    }
     res.json({ success: true });
   } catch (err) {
     console.error('[GTGT-ISSUE] Error:', err);
     res.status(500).send('Không thể cập nhật trạng thái GTGT.');
+  }
+});
+
+// Dev helper: issue GTGT by POST body (no auth) for testing
+app.post('/dev/gtgt-issue', async (req, res) => {
+  try {
+    const orderNumber = String(req.body.orderNumber || req.body.order_number || '').trim();
+    if (!orderNumber) return res.status(400).send('Mã đơn không hợp lệ.');
+    const existing = await query('SELECT id FROM gtgt_requests WHERE order_number = ? LIMIT 1', [orderNumber]);
+    if (existing.length === 0) return res.status(404).send('Không tìm thấy yêu cầu GTGT.');
+    await query("UPDATE gtgt_requests SET status = 'issued' WHERE order_number = ?", [orderNumber]);
+    try {
+      const rows = await query('SELECT customer_email FROM gtgt_requests WHERE order_number = ? LIMIT 1', [orderNumber]);
+      if (rows && rows.length > 0 && rows[0].customer_email) sendInvoiceEmail(orderNumber, rows[0].customer_email);
+    } catch (e) { console.warn('[DEV-GTGT-ISSUE] email error', e); }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[DEV-GTGT-ISSUE] Error:', err);
+    res.status(500).send('Error');
+  }
+});
+
+// Send invoice email for a GTGT request (accepts { email } in body to override stored email)
+app.post('/gtgt-requests/:orderNumber/send-email', async (req, res) => {
+  try {
+    const orderNumber = String(req.params.orderNumber || '').trim();
+    if (!orderNumber) return res.status(400).send('Mã đơn không hợp lệ.');
+    const rows = await query('SELECT customer_email FROM gtgt_requests WHERE order_number = ? LIMIT 1', [orderNumber]);
+    if (!rows || rows.length === 0) return res.status(404).send('Không tìm thấy yêu cầu GTGT.');
+    const email = (req.body && req.body.email) ? String(req.body.email).trim() : rows[0].customer_email;
+    if (!email) return res.status(400).send('Không có email để gửi.');
+    await sendInvoiceEmail(orderNumber, email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[GTGT-SEND-EMAIL] Error:', err);
+    res.status(500).send('Không thể gửi email.');
+  }
+});
+
+// Simple POST endpoint to send invoice email (no path param) - easier for frontend
+app.post('/gtgt-send-email', async (req, res) => {
+  try {
+    const orderNumber = String(req.body && (req.body.orderNumber || req.body.order_number) || '').trim();
+    const email = req.body && req.body.email ? String(req.body.email).trim() : null;
+    if (!orderNumber) return res.status(400).send('Mã đơn không hợp lệ.');
+    const rows = await query('SELECT customer_email FROM gtgt_requests WHERE order_number = ? LIMIT 1', [orderNumber]);
+    if (!rows || rows.length === 0) return res.status(404).send('Không tìm thấy yêu cầu GTGT.');
+    const sendTo = email || rows[0].customer_email;
+    if (!sendTo) return res.status(400).send('Không có email để gửi.');
+    await sendInvoiceEmail(orderNumber, sendTo);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[GTGT-SEND-EMAIL-POST] Error:', err);
+    res.status(500).send('Không thể gửi email.');
   }
 });
 

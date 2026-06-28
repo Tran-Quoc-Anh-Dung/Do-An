@@ -131,6 +131,26 @@
   </div>
 </div>
 
+<div id="closeShiftModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1002; align-items:center; justify-content:center;">
+  <div style="background:white; border-radius:20px; padding:24px; width:min(480px,calc(100% - 32px)); margin:0 auto;">
+    <h3 style="margin-top:0;">Chốt ca bán hàng</h3>
+    <p style="margin:0 0 16px; color: var(--muted);">Nhập số tiền mặt thực tế khi chốt ca.</p>
+    <div style="margin-bottom:14px;">
+      <label for="closeShiftCashCount" style="display:block; margin-bottom:8px; font-weight:600;">Số tiền mặt chốt ca</label>
+      <input id="closeShiftCashCount" type="number" min="0" step="1000" value="0" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:12px; font-size:16px;">
+    </div>
+    <div style="display:grid; gap:8px; margin-bottom:16px; padding:12px; border:1px solid #e5e7eb; border-radius:14px; background:#f9fafb;">
+      <div style="display:flex; justify-content:space-between; gap:12px;"><span>Doanh thu thanh toán bằng tiền mặt</span><strong id="closeShiftCashRevenue">0đ</strong></div>
+      <div style="display:flex; justify-content:space-between; gap:12px;"><span>Tiền đầu ca</span><strong id="closeShiftStartingCash">0đ</strong></div>
+      <div style="display:flex; justify-content:space-between; gap:12px;"><span>Tổng tiền mặt cuối ca</span><strong id="closeShiftExpectedCash">0đ</strong></div>
+    </div>
+    <div style="display:flex; gap:12px; justify-content:flex-end; flex-wrap:wrap;">
+      <button class="button" onclick="confirmCloseShift()">Xác nhận chốt ca</button>
+      <button class="button-outline" onclick="closeCloseShiftModal()">Hủy</button>
+    </div>
+  </div>
+</div>
+
 <div class="page">
   <section id="authSection" class="card">
     <div class="tabs">
@@ -919,8 +939,48 @@
   }
 
   async function closeShift() {
+    showCloseShiftModal();
+  }
+
+  function getCashRevenueForCurrentShift() {
+    const shiftStart = state.currentShift?.opened_at ? new Date(state.currentShift.opened_at).getTime() : null;
+    if (!shiftStart || Number.isNaN(shiftStart)) return 0;
+
+    return (state.orders || []).reduce((sum, order) => {
+      const orderTime = order?.created_at ? new Date(order.created_at).getTime() : null;
+      const sellerMatches = !state.currentShift?.user_id || Number(order.seller_id) === Number(state.currentShift.user_id);
+      const paymentValue = String(order?.payment_method || '').trim().toLowerCase();
+      const isCashPayment = ['cash', 'tiền mặt', 'tien mat', 'thanh toán tiền mặt'].includes(paymentValue);
+      if (!sellerMatches || !orderTime || Number.isNaN(orderTime) || orderTime < shiftStart || !isCashPayment) {
+        return sum;
+      }
+      const amount = Number(order.total_after_discount != null ? order.total_after_discount : (order.total_amount != null ? order.total_amount : 0)) || 0;
+      return sum + amount;
+    }, 0);
+  }
+
+  function showCloseShiftModal() {
+    if (!state.currentShift || state.currentShift.status !== 'OPEN') return;
+
+    const cashRevenue = getCashRevenueForCurrentShift();
+    const startingCash = Number(state.currentShift?.starting_cash || 0);
+    const expectedCash = cashRevenue + startingCash;
+
+    document.getElementById('closeShiftCashRevenue').textContent = formatCurrency(cashRevenue);
+    document.getElementById('closeShiftStartingCash').textContent = formatCurrency(startingCash);
+    document.getElementById('closeShiftExpectedCash').textContent = formatCurrency(expectedCash);
+    document.getElementById('closeShiftCashCount').value = expectedCash;
+    document.getElementById('closeShiftModal').style.display = 'flex';
+  }
+
+  function closeCloseShiftModal() {
+    document.getElementById('closeShiftModal').style.display = 'none';
+  }
+
+  async function confirmCloseShift() {
     try {
       await apiFetch('/shifts/close', { method: 'POST' });
+      closeCloseShiftModal();
       state.currentShift = null;
       await loadCurrentShift();
       alert('Đã đóng ca.');

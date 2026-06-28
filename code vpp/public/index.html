@@ -407,7 +407,23 @@
       </div>
 
       <div id="ordersSection" class="section hidden">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Danh sách đơn hàng</h2><div><button class="button-outline" onclick="loadOrders()">Tải lại</button></div></div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:16px;"><h2>Danh sách đơn hàng</h2><div><button class="button-outline" onclick="loadOrders()">Tải lại</button></div></div>
+        <div class="card" style="margin-bottom:16px; padding:16px;">
+          <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end;">
+            <div style="display:flex; flex-direction:column; gap:6px; flex:1; min-width:180px;">
+              <label style="font-weight:600;">Từ ngày</label>
+              <input id="orderFilterStart" type="date" style="padding:8px 12px; border:1px solid #d1d5db; border-radius:8px; background:white;">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px; flex:1; min-width:180px;">
+              <label style="font-weight:600;">Đến ngày</label>
+              <input id="orderFilterEnd" type="date" style="padding:8px 12px; border:1px solid #d1d5db; border-radius:8px; background:white;">
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="button" onclick="loadOrders()">Áp dụng</button>
+              <button class="button-outline" onclick="clearOrderFilters()">Xóa</button>
+            </div>
+          </div>
+        </div>
         <div class="card"><table class="table"><thead><tr><th>Ngày</th><th>Mã hóa đơn</th><th>SL</th><th>Giá</th><th>Thành tiền</th><th>Nhân viên</th><th>Hành động</th></tr></thead><tbody id="orderTable"></tbody></table></div>
       </div>
 
@@ -2679,9 +2695,30 @@ Số lượng tồn kho</label>
     }
   }
 
+  function normalizeOrderDate(value) {
+    if (!value) return '';
+    const v = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    const parts = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (parts) {
+      const day = parts[1].padStart(2, '0');
+      const month = parts[2].padStart(2, '0');
+      const year = parts[3];
+      return `${year}-${month}-${day}`;
+    }
+    return v;
+  }
+
   async function loadOrders() {
     try {
-      const res = await apiFetch('/orders', { method: 'GET' });
+      const params = new URLSearchParams();
+      const start = normalizeOrderDate(document.getElementById('orderFilterStart').value);
+      const end = normalizeOrderDate(document.getElementById('orderFilterEnd').value);
+      if (start) params.set('start', start);
+      if (end) params.set('end', end);
+      const url = '/orders' + (params.toString() ? `?${params.toString()}` : '');
+      console.log('loadOrders request URL:', url);
+      const res = await apiFetch(url, { method: 'GET' });
       const orders = await res.json();
       state.orders = orders;
       const groupedOrders = Object.values(orders.reduce((aggregate, order) => {
@@ -2725,6 +2762,12 @@ Số lượng tồn kho</label>
       document.getElementById('orderTable').innerHTML = '<tr><td colspan="7">Không thể tải đơn hàng.</td></tr>';
       console.error(err);
     }
+  }
+
+  function clearOrderFilters() {
+    document.getElementById('orderFilterStart').value = '';
+    document.getElementById('orderFilterEnd').value = '';
+    loadOrders();
   }
 
   function toggleCreateUser() {

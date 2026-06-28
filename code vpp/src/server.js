@@ -1640,10 +1640,25 @@ app.delete('/categories/:id', authenticateToken, authorizeRoles(['admin', 'manag
 
 app.get('/orders', async (req, res) => {
   try {
-    const orders = await query(
-      `SELECT id, product_id, product_name, price, quantity, seller_id, seller_name, payment_method, payment_cash_received, payment_cash_change, discount_percent, total_after_discount, customer_id, customer_name, customer_phone, customer_company, customer_tax_code, invoice_type, order_number, created_at
-       FROM orders ORDER BY created_at DESC LIMIT 200`
-    );
+    const start = String(req.query.start || '').trim();
+    const end = String(req.query.end || '').trim();
+    const params = [];
+    let sql = `SELECT id, product_id, product_name, price, quantity, seller_id, seller_name, payment_method, payment_cash_received, payment_cash_change, discount_percent, total_after_discount, customer_id, customer_name, customer_phone, customer_company, customer_tax_code, invoice_type, order_number, created_at FROM orders`;
+    const conditions = [];
+    if (start) {
+      conditions.push('DATE(created_at) >= ?');
+      params.push(start);
+    }
+    if (end) {
+      conditions.push('DATE(created_at) <= ?');
+      params.push(end);
+    }
+    if (conditions.length > 0) {
+      sql += ` WHERE ${conditions.join(' AND ')}`;
+    }
+    sql += ' ORDER BY created_at DESC LIMIT 200';
+    console.log('[ORDERS FILTER]', { start, end, sql, params });
+    const orders = await query(sql, params);
     res.json(orders);
   } catch (err) {
     console.error(err);

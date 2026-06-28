@@ -405,6 +405,8 @@ async function ensureDatabase() {
   await ensureColumn("orders", "invoice_type", "invoice_type VARCHAR(40) DEFAULT NULL");
   await ensureColumn("orders", "created_at", "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
   await ensureColumn("orders", "order_number", "order_number VARCHAR(50) DEFAULT NULL");
+  await ensureColumn("shifts", "ending_cash", "ending_cash DECIMAL(10,2) DEFAULT NULL");
+  await ensureColumn("shifts", "cash_difference", "cash_difference DECIMAL(10,2) DEFAULT NULL");
   await query(`CREATE TABLE IF NOT EXISTS gtgt_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_number VARCHAR(50) NOT NULL,
@@ -1768,9 +1770,21 @@ app.post('/shifts/close', authenticateToken, authorizeRoles(['seller','manager',
       return res.status(400).send('Không có ca đang mở để đóng.');
     }
 
+    const endingCash = req.body?.ending_cash ? Number(req.body.ending_cash) : null;
+    const cashDifference = req.body?.cash_difference ? Number(req.body.cash_difference) : null;
+
     const shiftIds = openShifts.map(shift => shift.id);
     const placeholders = shiftIds.map(() => '?').join(',');
-    await query(`UPDATE shifts SET status = ?, closed_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`, ['CLOSED', ...shiftIds]);
+    
+    // Update with ending_cash and cash_difference if provided
+    if (endingCash !== null || cashDifference !== null) {
+      await query(
+        `UPDATE shifts SET status = ?, closed_at = CURRENT_TIMESTAMP, ending_cash = ?, cash_difference = ? WHERE id IN (${placeholders})`,
+        ['CLOSED', endingCash, cashDifference, ...shiftIds]
+      );
+    } else {
+      await query(`UPDATE shifts SET status = ?, closed_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`, ['CLOSED', ...shiftIds]);
+    }
 
     if (req.user.role === 'manager' && !req.body?.userId) {
       await query(

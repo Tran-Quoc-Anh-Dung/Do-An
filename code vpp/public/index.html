@@ -132,18 +132,67 @@
 </div>
 
 <div id="closeShiftModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1002; align-items:center; justify-content:center;">
-  <div style="background:white; border-radius:20px; padding:24px; width:min(480px,calc(100% - 32px)); margin:0 auto;">
+  <div style="background:white; border-radius:20px; padding:24px; width:min(560px,calc(100% - 32px)); margin:0 auto; max-height:90vh; overflow-y:auto;">
     <h3 style="margin-top:0;">Chốt ca bán hàng</h3>
     <p style="margin:0 0 16px; color: var(--muted);">Nhập số tiền mặt thực tế khi chốt ca.</p>
-    <div style="margin-bottom:14px;">
-      <label for="closeShiftCashCount" style="display:block; margin-bottom:8px; font-weight:600;">Số tiền mặt chốt ca</label>
-      <input id="closeShiftCashCount" type="number" min="0" step="1000" value="0" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:12px; font-size:16px;">
+    
+    <!-- Denominations section -->
+    <div style="margin-bottom:18px; padding:14px; border:1px solid #e5e7eb; border-radius:14px; background:#f0f4ff;">
+      <div style="font-weight:600; margin-bottom:12px; color: var(--text);">📊 Đếm tiền theo mệnh giá</div>
+      <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px;">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label style="min-width:50px; font-size:14px;">500k:</label>
+          <input id="cashDenom500k" type="number" min="0" value="0" oninput="calculateFromDenominations()" style="width:80px; padding:8px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label style="min-width:50px; font-size:14px;">100k:</label>
+          <input id="cashDenom100k" type="number" min="0" value="0" oninput="calculateFromDenominations()" style="width:80px; padding:8px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label style="min-width:50px; font-size:14px;">50k:</label>
+          <input id="cashDenom50k" type="number" min="0" value="0" oninput="calculateFromDenominations()" style="width:80px; padding:8px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label style="min-width:50px; font-size:14px;">20k:</label>
+          <input id="cashDenom20k" type="number" min="0" value="0" oninput="calculateFromDenominations()" style="width:80px; padding:8px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label style="min-width:50px; font-size:14px;">10k:</label>
+          <input id="cashDenom10k" type="number" min="0" value="0" oninput="calculateFromDenominations()" style="width:80px; padding:8px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label style="min-width:50px; font-size:14px;">5k:</label>
+          <input id="cashDenom5k" type="number" min="0" value="0" oninput="calculateFromDenominations()" style="width:80px; padding:8px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label style="min-width:50px; font-size:14px;">2k:</label>
+          <input id="cashDenom2k" type="number" min="0" value="0" oninput="calculateFromDenominations()" style="width:80px; padding:8px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label style="min-width:50px; font-size:14px;">1k:</label>
+          <input id="cashDenom1k" type="number" min="0" value="0" oninput="calculateFromDenominations()" style="width:80px; padding:8px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+        </div>
+      </div>
+      <div style="margin-top:10px; padding:10px; background:white; border-radius:8px; text-align:right;">
+        <span style="color: var(--muted); font-size:14px;">Tổng từ mệnh giá: </span>
+        <strong id="cashFromDenominations" style="font-size:16px; color: var(--primary);">0đ</strong>
+      </div>
     </div>
+
+    <!-- Manual input section -->
+    <div style="margin-bottom:14px;">
+      <label for="closeShiftCashCount" style="display:block; margin-bottom:8px; font-weight:600;">Hoặc nhập số tiền chốt ca trực tiếp</label>
+      <input id="closeShiftCashCount" type="number" min="0" step="1000" value="0" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:12px; font-size:16px;" oninput="updateCashDifference()">
+    </div>
+
+    <!-- Summary section -->
     <div style="display:grid; gap:8px; margin-bottom:16px; padding:12px; border:1px solid #e5e7eb; border-radius:14px; background:#f9fafb;">
       <div style="display:flex; justify-content:space-between; gap:12px;"><span>Doanh thu thanh toán bằng tiền mặt</span><strong id="closeShiftCashRevenue">0đ</strong></div>
       <div style="display:flex; justify-content:space-between; gap:12px;"><span>Tiền đầu ca</span><strong id="closeShiftStartingCash">0đ</strong></div>
       <div style="display:flex; justify-content:space-between; gap:12px;"><span>Tổng tiền mặt cuối ca</span><strong id="closeShiftExpectedCash">0đ</strong></div>
+      <div style="display:flex; justify-content:space-between; gap:12px; padding-top:8px; border-top:1px solid #d1d5db; padding-bottom: 4px;"><span style="font-weight:600; font-size:15px;">💰 Chênh lệch</span><strong id="closeShiftCashDifference" style="color:#2563eb; font-size:16px;">Đủ: 0đ</strong></div>
     </div>
+
     <div style="display:flex; gap:12px; justify-content:flex-end; flex-wrap:wrap;">
       <button class="button" onclick="confirmCloseShift()">Xác nhận chốt ca</button>
       <button class="button-outline" onclick="closeCloseShiftModal()">Hủy</button>
@@ -1032,17 +1081,95 @@ Số lượng tồn kho</label>
     document.getElementById('closeShiftCashRevenue').textContent = formatCurrency(cashRevenue);
     document.getElementById('closeShiftStartingCash').textContent = formatCurrency(startingCash);
     document.getElementById('closeShiftExpectedCash').textContent = formatCurrency(expectedCash);
+    document.getElementById('closeShiftExpectedCash').setAttribute('data-value', expectedCash);
     document.getElementById('closeShiftCashCount').value = expectedCash;
+    document.getElementById('closeShiftCashDifference').textContent = `Đủ: ${formatCurrency(0)}`;
+    document.getElementById('closeShiftCashDifference').style.color = '#2563eb';
+    
+    // Reset denomination inputs
+    document.getElementById('cashDenom500k').value = 0;
+    document.getElementById('cashDenom100k').value = 0;
+    document.getElementById('cashDenom50k').value = 0;
+    document.getElementById('cashDenom20k').value = 0;
+    document.getElementById('cashDenom10k').value = 0;
+    document.getElementById('cashDenom5k').value = 0;
+    document.getElementById('cashDenom2k').value = 0;
+    document.getElementById('cashDenom1k').value = 0;
+    document.getElementById('cashFromDenominations').textContent = formatCurrency(0);
+    
     document.getElementById('closeShiftModal').style.display = 'flex';
+    // Ensure difference display is updated
+    updateCashDifference();
   }
 
   function closeCloseShiftModal() {
     document.getElementById('closeShiftModal').style.display = 'none';
   }
 
+  function calculateFromDenominations() {
+    const denoms = {
+      500: Number(document.getElementById('cashDenom500k').value || 0),
+      100: Number(document.getElementById('cashDenom100k').value || 0),
+      50: Number(document.getElementById('cashDenom50k').value || 0),
+      20: Number(document.getElementById('cashDenom20k').value || 0),
+      10: Number(document.getElementById('cashDenom10k').value || 0),
+      5: Number(document.getElementById('cashDenom5k').value || 0),
+      2: Number(document.getElementById('cashDenom2k').value || 0),
+      1: Number(document.getElementById('cashDenom1k').value || 0)
+    };
+
+    const total = (denoms[500] * 500000) + 
+                  (denoms[100] * 100000) + 
+                  (denoms[50] * 50000) + 
+                  (denoms[20] * 20000) + 
+                  (denoms[10] * 10000) + 
+                  (denoms[5] * 5000) + 
+                  (denoms[2] * 2000) + 
+                  (denoms[1] * 1000);
+
+    document.getElementById('cashFromDenominations').textContent = formatCurrency(total);
+    document.getElementById('closeShiftCashCount').value = total;
+    updateCashDifference();
+  }
+
+  function updateCashDifference() {
+    // Get expected cash - try data attribute first, then parse from text
+    let expectedCash = Number(document.getElementById('closeShiftExpectedCash').getAttribute('data-value')) || 0;
+    if (expectedCash === 0) {
+      const expectedCashText = document.getElementById('closeShiftExpectedCash').textContent;
+      expectedCash = Number(expectedCashText.replace(/[^\d]/g, '') || 0);
+    }
+    
+    const actualCash = Number(document.getElementById('closeShiftCashCount').value || 0);
+    const difference = actualCash - expectedCash;
+    const diffElement = document.getElementById('closeShiftCashDifference');
+    
+    if (difference < 0) {
+      diffElement.style.color = '#ef4444'; // red for shortage
+      diffElement.textContent = `🔴 Thiếu: ${formatCurrency(Math.abs(difference))}`;
+    } else if (difference > 0) {
+      diffElement.style.color = '#10b981'; // green for surplus
+      diffElement.textContent = `🟢 Thừa: ${formatCurrency(difference)}`;
+    } else {
+      diffElement.style.color = '#2563eb'; // blue for exact
+      diffElement.textContent = `🔵 Đủ: ${formatCurrency(0)}`;
+    }
+  }
+
   async function confirmCloseShift() {
     try {
-      await apiFetch('/shifts/close', { method: 'POST' });
+      const expectedCashText = document.getElementById('closeShiftExpectedCash').textContent;
+      const expectedCash = Number(expectedCashText.replace(/[^\d]/g, '') || 0);
+      const actualCash = Number(document.getElementById('closeShiftCashCount').value || 0);
+      const difference = actualCash - expectedCash;
+      
+      await apiFetch('/shifts/close', { 
+        method: 'POST', 
+        body: JSON.stringify({ 
+          ending_cash: actualCash, 
+          cash_difference: difference 
+        }) 
+      });
       closeCloseShiftModal();
       state.currentShift = null;
       await loadCurrentShift();
@@ -1076,16 +1203,8 @@ Số lượng tồn kho</label>
       return;
     }
 
-    if (state.user.role !== 'admin') {
-      button.classList.remove('hidden');
-      button.textContent = 'Nhập tiền đầu ca';
-      button.disabled = false;
-      return;
-    }
-
-    button.classList.remove('hidden');
-    button.textContent = 'Chờ admin mở ca';
-    button.disabled = true;
+    // Only show button if there's a PENDING shift. Don't show if no shift exists.
+    button.classList.add('hidden');
   }
 
   function onShiftActionClick() {

@@ -1652,7 +1652,7 @@ Số lượng tồn kho</label>
       } catch (localErr) {
         // Not found in database, only admin may create new products from a barcode scan
         if (!isAdmin()) {
-          showAlert('Chỉ admin mới được thêm sản phẩm mới từ barcode chưa có trong kho.', true);
+          showAlert('Sản phẩm không tồn tại trong kho.', true);
           return;
         }
         console.log('Không tìm thấy trong kho dữ liệu, tìm trên Open Food Facts...');

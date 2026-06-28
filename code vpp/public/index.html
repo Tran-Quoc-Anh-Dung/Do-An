@@ -103,6 +103,12 @@
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+  <script>
+    if (window.Chart && window.ChartDataLabels) {
+      Chart.register(ChartDataLabels);
+    }
+  </script>
 </head>
 <body>
 <header>
@@ -491,7 +497,8 @@
           </div>
 
           <div class="card"><h3>Doanh thu theo ngày</h3><div style="position:relative; width:100%; height:280px; margin-bottom:12px;"><canvas id="reportChartSales" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Ngày</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportDailyTable"></tbody></table></div>
-          <div class="card" style="margin-top:20px;"><h3>Doanh thu theo tuần</h3><table class="table"><thead><tr><th>Tuần</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportWeeklyTable"></tbody></table></div>
+          <div class="card" style="margin-top:20px;"><h3>Doanh thu theo tuần</h3><div style="position:relative; width:100%; height:280px; margin-bottom:12px;"><canvas id="reportChartWeekly" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Tuần</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportWeeklyTable"></tbody></table></div>
+          <div class="card" style="margin-top:20px;"><h3>Doanh thu theo tháng</h3><div style="position:relative; width:100%; height:280px; margin-bottom:12px;"><canvas id="reportChartMonthly" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Tháng</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportMonthlyTable"></tbody></table></div>
 
           <div class="card" style="margin-top:20px;"><h3>Sản phẩm bán chạy</h3><div style="position:relative; width:100%; height:280px; margin-bottom:12px;"><canvas id="reportChartProducts" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Sản phẩm</th><th>SL</th><th>Doanh thu</th><th>Tồn kho</th></tr></thead><tbody id="reportProductsTable"></tbody></table></div>
 
@@ -627,12 +634,12 @@
 
         <div class="card" style="margin-bottom:20px;">
           <h3>Gán sản phẩm cho nhà cung cấp</h3>
-          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
+          <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; align-items:start;">
             <div class="form-control"><label for="assignSupplier">Chọn nhà cung cấp</label><select id="assignSupplier"></select></div>
             <div class="form-control"><label for="assignProductSearch">Tìm sản phẩm</label><input id="assignProductSearch" type="text" placeholder="Nhập mã hoặc tên sản phẩm" oninput="filterAssignProducts()"></div>
-            <div class="form-control"><label for="assignProducts">Chọn sản phẩm (Ctrl+Click để chọn nhiều)</label><select id="assignProducts" multiple style="min-height: 160px;"></select></div>
+            <div class="form-control" style="grid-column: 1 / -1;"><label for="assignProducts">Chọn sản phẩm (Ctrl+Click để chọn nhiều)</label><select id="assignProducts" multiple style="min-height:240px; width:100%;"></select></div>
           </div>
-          <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+          <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
             <button class="button" onclick="assignProductsToSupplier()">Gán sản phẩm</button>
             <button class="button-outline" type="button" onclick="filterAssignProducts()">Lọc danh sách</button>
           </div>
@@ -1529,7 +1536,10 @@ Số lượng tồn kho</label>
     try {
       const res = await apiFetch('/categories', { method: 'GET' });
       const list = await res.json();
-      const html = (list.filter(c => c.id && c.id > 0).map(c => `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #eee;"><div>${c.label}</div><div>${state.user && state.user.role === 'admin' ? `<button class=\"button-danger\" onclick=\"deleteCategory(${c.id})\">Xóa</button>` : ''}</div></div>`).join('')) || '<div class="small-card">Chưa có danh mục.</div>';
+      const html = (list.filter(c => c.id && c.id > 0).map(c => {
+        const label = c.label || c.name || c.value || 'Danh mục không tên';
+        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #eee;"><div>${escapeHtml(label)}</div><div>${state.user && state.user.role === 'admin' ? `<button class="button-danger" onclick="deleteCategory(${c.id})">Xóa</button>` : ''}</div></div>`;
+      }).join('')) || '<div class="small-card">Chưa có danh mục.</div>';
       document.getElementById('categoriesList').innerHTML = html;
     } catch (err) { console.error(err); }
   }
@@ -3105,7 +3115,7 @@ Số lượng tồn kho</label>
     }
     // Load all report data
     try {
-      await Promise.all([loadSummary(), loadDailyWeekly(), loadProductsReport(), loadCustomersReport(), loadStaffReport(), loadSalesChart()]);
+      await Promise.all([loadSummary(), loadDailyWeekly(), loadProductsReport(), loadCustomersReport(), loadStaffReport(), loadSalesChart(), loadWeeklyChart(), loadMonthlyChart()]);
     } catch (err) {
       console.error('loadReport error', err);
     }
@@ -3174,6 +3184,20 @@ Số lượng tồn kho</label>
     return params;
   }
 
+  function aggregateMonthlyData(dailyRows) {
+    const byMonth = dailyRows.reduce((acc, row) => {
+      const month = row.date ? String(row.date).slice(0, 7) : null;
+      if (!month) return acc;
+      if (!acc[month]) {
+        acc[month] = { month, orders: 0, total_sales: 0 };
+      }
+      acc[month].orders += Number(row.orders || 0);
+      acc[month].total_sales += Number(row.total_sales || 0);
+      return acc;
+    }, {});
+    return Object.values(byMonth);
+  }
+
   async function loadSummary() {
     try {
       const params = buildFilterParams();
@@ -3191,6 +3215,7 @@ Số lượng tồn kho</label>
       const data = await fetchJSON('/public/reports/sales?' + params.toString());
       const daily = data.daily || [];
       const weekly = data.weekly || [];
+      const monthly = data.monthly || [];
       document.getElementById('reportDailyTable').innerHTML = daily.map(row => `
         <tr>
           <td>${formatDateTime(row.date, { dateOnly: true })}</td>
@@ -3205,10 +3230,17 @@ Số lượng tồn kho</label>
           <td>${formatCurrency(row.total_sales)}</td>
         </tr>
       `).join('');
+      document.getElementById('reportMonthlyTable').innerHTML = monthly.map(row => `
+        <tr>
+          <td>${row.month}</td>
+          <td>${row.orders}</td>
+          <td>${formatCurrency(row.total_sales)}</td>
+        </tr>
+      `).join('');
     } catch (e) { console.error('loadDailyWeekly', e); }
   }
 
-  let salesChart = null, productsChart = null;
+  let salesChart = null, weeklyChart = null, monthlyChart = null, productsChart = null;
 
   async function loadSalesChart() {
     try {
@@ -3218,8 +3250,40 @@ Số lượng tồn kho</label>
       const values = data.daily.map(d => Number(d.total_sales || 0));
       const ctx = document.getElementById('reportChartSales').getContext('2d');
       if (salesChart) salesChart.destroy();
-      salesChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Doanh thu', data: values, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)', fill: true }] }, options: { responsive: true, maintainAspectRatio: false } });
+      salesChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Doanh thu theo ngày', data: values, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)', fill: true }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: 'Doanh thu (VND)' } } }, plugins: { legend: { display: true, position: 'top' } } } });
     } catch (e) { console.error('loadSalesChart', e); }
+  }
+
+  async function loadWeeklyChart() {
+    try {
+      const params = buildFilterParams();
+      const data = await fetchJSON('/public/reports/sales?' + params.toString());
+      const labels = data.weekly.map(d => d.week);
+      const values = data.weekly.map(d => Number(d.total_sales || 0));
+      const ctx = document.getElementById('reportChartWeekly').getContext('2d');
+      if (weeklyChart) weeklyChart.destroy();
+      weeklyChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Doanh thu theo tuần', data: values, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.15)', fill: true, tension: 0.35, pointRadius: 3 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: 'Doanh thu (VND)' } } }, plugins: { legend: { display: true, position: 'top' } } } });
+    } catch (e) { console.error('loadWeeklyChart', e); }
+  }
+
+  async function loadMonthlyChart() {
+    try {
+      const params = buildFilterParams();
+      const data = await fetchJSON('/public/reports/sales?' + params.toString());
+      const monthly = data.monthly && data.monthly.length ? data.monthly : aggregateMonthlyData(data.daily || []);
+      const labels = monthly.map(d => d.month);
+      const values = monthly.map(d => Number(d.total_sales || 0));
+      const ctx = document.getElementById('reportChartMonthly').getContext('2d');
+      if (monthlyChart) monthlyChart.destroy();
+      monthlyChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Doanh thu theo tháng', data: values, borderColor: '#f59e0b', backgroundColor: 'rgba(251,191,36,0.15)', fill: true, tension: 0.35, pointRadius: 3 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: 'Doanh thu (VND)' } } }, plugins: { legend: { display: true, position: 'top' } } } });
+      document.getElementById('reportMonthlyTable').innerHTML = monthly.map(row => `
+        <tr>
+          <td>${row.month}</td>
+          <td>${row.orders}</td>
+          <td>${formatCurrency(row.total_sales)}</td>
+        </tr>
+      `).join('');
+    } catch (e) { console.error('loadMonthlyChart', e); }
   }
 
   async function loadProductsReport() {
@@ -3236,7 +3300,15 @@ Số lượng tồn kho</label>
       const values = byProduct.slice(0,10).map(r => Number(r.total_revenue || 0));
       const ctx = document.getElementById('reportChartProducts').getContext('2d');
       if (productsChart) productsChart.destroy();
-      productsChart = new Chart(ctx, { type: 'pie', data: { labels, datasets: [{ data: values, backgroundColor: labels.map((_,i)=>`hsl(${i*36%360} 70% 50%)`) }] }, options: { responsive: true, maintainAspectRatio: false } });
+      productsChart = new Chart(ctx, { type: 'pie', data: { labels, datasets: [{ data: values, backgroundColor: labels.map((_,i)=>`hsl(${i*36%360} 70% 50%)`) }] }, plugins: [ChartDataLabels], options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'left', align: 'center', labels: { boxWidth: 12, padding: 10 } }, datalabels: { color: '#000000', formatter: (value, context) => {
+            const dataset = context.chart.data.datasets[0];
+            const total = dataset.data.reduce((sum, item) => sum + item, 0);
+            return total ? `${Math.round((value / total) * 100)}%` : '';
+          },
+          font: { weight: 'bold', size: 12 },
+          anchor: 'center',
+          align: 'center'
+        } } } });
     } catch (e) { console.error('loadProductsReport', e); }
   }
 

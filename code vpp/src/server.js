@@ -818,8 +818,17 @@ app.get('/public/reports/sales', async (req, res) => {
        ORDER BY YEARWEEK(created_at, 1) ASC`, params
     );
 
+    const monthly = await query(
+      `SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS orders, COALESCE(SUM(price * quantity), 0) AS total_sales
+       FROM orders
+       ${where}
+       GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+       ORDER BY DATE_FORMAT(created_at, '%Y-%m') ASC`, params
+    );
+
     const weeklyFormatted = weekly.map(row => ({ week: String(row.week), orders: row.orders, total_sales: row.total_sales }));
-    res.json({ daily, weekly: weeklyFormatted });
+    const monthlyFormatted = monthly.map(row => ({ month: String(row.month), orders: row.orders, total_sales: row.total_sales }));
+    res.json({ daily, weekly: weeklyFormatted, monthly: monthlyFormatted });
   } catch (err) {
     console.error(err);
     res.status(500).send('Lỗi tải báo cáo doanh thu.');

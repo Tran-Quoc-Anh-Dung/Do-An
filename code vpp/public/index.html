@@ -200,6 +200,33 @@
   </div>
 </div>
 
+<div id="shiftHistoryModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1002; align-items:center; justify-content:center;">
+  <div style="background:white; border-radius:20px; padding:24px; width:min(700px,calc(100% - 32px)); margin:0 auto; max-height:85vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h3 style="margin:0; font-size:20px;" id="shiftHistoryTitle">Lịch sử chốt ca</h3>
+      <button onclick="closeShiftHistoryModal()" style="background:none; border:none; font-size:24px; cursor:pointer;">✕</button>
+    </div>
+    <div style="display:grid; gap:12px; margin-bottom:16px;">
+      <table class="table" style="width:100%; border-collapse:collapse;">
+        <thead style="background:#f3f4f6;">
+          <tr>
+            <th style="padding:12px; text-align:left; border-bottom:1px solid #e5e7eb;">Ngày chốt</th>
+            <th style="padding:12px; text-align:right; border-bottom:1px solid #e5e7eb;">Tiền đầu ca</th>
+            <th style="padding:12px; text-align:right; border-bottom:1px solid #e5e7eb;">Tiền chốt</th>
+            <th style="padding:12px; text-align:right; border-bottom:1px solid #e5e7eb;">Chênh lệch</th>
+          </tr>
+        </thead>
+        <tbody id="shiftHistoryTable">
+          <tr><td colspan="5" style="padding:20px; text-align:center; color: var(--muted);">Đang tải...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex; gap:12px; justify-content:flex-end;">
+      <button class="button-outline" onclick="closeShiftHistoryModal()">Đóng</button>
+    </div>
+  </div>
+</div>
+
 <div class="page">
   <section id="authSection" class="card">
     <div class="tabs">
@@ -400,6 +427,17 @@
           </div>
           <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="createUser()">Tạo tài khoản</button><button class="button-outline" onclick="toggleCreateUser()">Đóng</button></div>
           <div id="userEditorMessage" class="notification hidden"></div>
+        </div>
+        <div id="editUserBox" class="card hidden" style="margin-bottom:20px;">
+          <h3>Chỉnh sửa tài khoản nhân viên</h3>
+          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;">
+            <div class="form-control"><label for="editStaffUsername">Tên đăng nhập</label><input id="editStaffUsername" type="text"></div>
+            <div class="form-control"><label for="editStaffPassword">Mật khẩu mới <small>(để trống nếu không đổi)</small></label><input id="editStaffPassword" type="password"></div>
+            <div class="form-control"><label for="editStaffFullname">Họ tên</label><input id="editStaffFullname" type="text"></div>
+            <div class="form-control"><label for="editStaffRole">Vai trò</label><select id="editStaffRole"><option value="seller">Nhân viên bán hàng</option><option value="manager">Quản lý cửa hàng</option><option value="admin">Quản trị viên</option></select></div>
+          </div>
+          <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;"><button class="button" onclick="saveUserEdit()">Lưu thay đổi</button><button class="button-outline" onclick="cancelUserEdit()">Hủy</button></div>
+          <div id="editUserMessage" class="notification hidden"></div>
         </div>
         <div class="card"><table class="table"><thead><tr><th>Họ tên</th><th>Tên đăng nhập</th><th>Vai trò</th><th>Ngày tạo</th><th>Ca</th><th>Hành động</th></tr></thead><tbody id="userTable"></tbody></table></div>
       </div>
@@ -699,7 +737,7 @@ Số lượng tồn kho</label>
 </style>
 
 <script>
-  const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, editCustomerId: null, reportData: [], customerDiscount: 0, customerTier: null, currentShift: null, shifts: [], inventoryProducts: [], suppliers: [], gtgtRequests: [] };
+  const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, editCustomerId: null, editUserId: null, users: [], reportData: [], customerDiscount: 0, customerTier: null, currentShift: null, shifts: [], inventoryProducts: [], suppliers: [], gtgtRequests: [] };
   let pendingShiftPromptShown = false;
 
   function getActiveDiscountPercent() {
@@ -2709,10 +2747,52 @@ Số lượng tồn kho</label>
     } catch (err) { alert(err.message || 'Tạo tài khoản thất bại.'); }
   }
 
+  function editUser(userId) {
+    const user = state.users.find(u => u.id === userId);
+    if (!user) return alert('Không tìm thấy tài khoản.');
+    state.editUserId = userId;
+    document.getElementById('editStaffUsername').value = user.username || '';
+    document.getElementById('editStaffPassword').value = '';
+    document.getElementById('editStaffFullname').value = user.full_name || '';
+    document.getElementById('editStaffRole').value = user.role || 'seller';
+    document.getElementById('editUserBox').classList.remove('hidden');
+    document.getElementById('editUserMessage').classList.add('hidden');
+  }
+
+  function cancelUserEdit() {
+    state.editUserId = null;
+    document.getElementById('editUserBox').classList.add('hidden');
+    document.getElementById('editStaffUsername').value = '';
+    document.getElementById('editStaffPassword').value = '';
+    document.getElementById('editStaffFullname').value = '';
+    document.getElementById('editStaffRole').value = 'seller';
+    document.getElementById('editUserMessage').classList.add('hidden');
+  }
+
+  async function saveUserEdit() {
+    if (!state.editUserId) return alert('Không có tài khoản để cập nhật.');
+    const username = document.getElementById('editStaffUsername').value.trim();
+    const password = document.getElementById('editStaffPassword').value.trim();
+    const full_name = document.getElementById('editStaffFullname').value.trim();
+    const role = document.getElementById('editStaffRole').value;
+    if (!username || !role) return alert('Tên đăng nhập và vai trò là bắt buộc.');
+    try {
+      const payload = { username, full_name, role };
+      if (password) payload.password = password;
+      await apiFetch(`/users/${state.editUserId}`, { method: 'PUT', body: JSON.stringify(payload) });
+      alert('Cập nhật tài khoản thành công.');
+      cancelUserEdit();
+      loadUsers();
+    } catch (err) {
+      alert(err.message || 'Cập nhật tài khoản thất bại.');
+    }
+  }
+
   async function loadUsers() {
     try {
       const res = await apiFetch('/users', { method: 'GET' });
       const users = await res.json();
+      state.users = users;
       let shifts = [];
       try {
         if (state.user.role === 'admin') {
@@ -2750,7 +2830,12 @@ Số lượng tồn kho</label>
             <td>${roleLabel(user.role)}</td>
             <td>${formatDateTime(user.created_at, { dateOnly: true })}</td>
             <td>${shiftLabel}</td>
-            <td>${actionButton} <button class="button-danger" onclick="deleteUser(${user.id})">Xóa</button></td>
+            <td style="display:flex; gap:6px; flex-wrap:wrap;">
+              ${actionButton}
+              <button class="button-outline" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="editUser(${user.id})">Sửa</button>
+              <button class="button-outline" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="showShiftHistory(${user.id}, '${(user.full_name || user.username).replace(/'/g, "\\'")}')">📋 Lịch sử</button>
+              <button class="button-danger" onclick="deleteUser(${user.id})">Xóa</button>
+            </td>
           </tr>
         `;
       }).join('');
@@ -2778,6 +2863,68 @@ Số lượng tồn kho</label>
     } catch (err) {
       alert(err.message || 'Không thể đóng ca cho nhân viên.');
     }
+  }
+
+  async function showShiftHistory(userId, userName) {
+    try {
+      document.getElementById('shiftHistoryTitle').textContent = `Lịch sử chốt ca - ${userName}`;
+      document.getElementById('shiftHistoryTable').innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center; color: var(--muted);">Đang tải...</td></tr>';
+      document.getElementById('shiftHistoryModal').style.display = 'flex';
+      
+      const res = await apiFetch(`/shifts/history?user_id=${userId}`, { method: 'GET' });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('API Error:', res.status, errorText);
+        throw new Error(`API Error: ${res.status} - ${errorText}`);
+      }
+      
+      const shifts = await res.json();
+      console.log('Shifts loaded:', shifts);
+      
+      if (!shifts || shifts.length === 0) {
+        document.getElementById('shiftHistoryTable').innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center; color: var(--muted);">Không có lịch sử chốt ca</td></tr>';
+        return;
+      }
+      
+      document.getElementById('shiftHistoryTable').innerHTML = shifts.map(shift => {
+        const closedDate = shift.closed_at_vn || shift.closed_at || 'N/A';
+        const startingCash = Number(shift.starting_cash || 0);
+        const endingCash = Number(shift.ending_cash || 0);
+        const cashDiff = Number(shift.cash_difference || 0);
+        const revenue = Number(shift.revenue || 0);
+        
+        // Calculate revenue from closed shifts
+        let diffColor = '#6b7280';
+        let diffLabel = 'N/A';
+        if (cashDiff < 0) {
+          diffColor = '#ef4444';
+          diffLabel = `Thiếu: ${formatCurrency(Math.abs(cashDiff))}`;
+        } else if (cashDiff > 0) {
+          diffColor = '#10b981';
+          diffLabel = `Thừa: ${formatCurrency(cashDiff)}`;
+        } else if (endingCash !== 0) {
+          diffColor = '#2563eb';
+          diffLabel = `Đủ: ${formatCurrency(0)}`;
+        }
+        
+        return `
+          <tr>
+            <td style="padding:12px; border-bottom:1px solid #e5e7eb;">${closedDate}</td>
+            <td style="padding:12px; border-bottom:1px solid #e5e7eb; text-align:right;">${formatCurrency(startingCash)}</td>
+            <td style="padding:12px; border-bottom:1px solid #e5e7eb; text-align:right;">${formatCurrency(endingCash)}</td>
+            <td style="padding:12px; border-bottom:1px solid #e5e7eb; text-align:right; color:${diffColor}; font-weight:600;">${diffLabel}</td>
+          </tr>
+        `;
+      }).join('');
+    } catch (err) {
+      console.error('Lỗi tải lịch sử ca:', err);
+      document.getElementById('shiftHistoryTable').innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:#ef4444;">Lỗi: ${err.message || 'Không thể tải lịch sử chốt ca.'}</td></tr>`;
+    }
+  }
+
+  function closeShiftHistoryModal() {
+    document.getElementById('shiftHistoryModal').style.display = 'none';
   }
 
   async function deleteUser(id) {

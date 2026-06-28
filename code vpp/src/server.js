@@ -370,6 +370,9 @@ async function ensureDatabase() {
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
   console.log('[DB INIT] orders table ensured');
 
+  await ensureColumn("orders", "shift_id", "shift_id INT DEFAULT NULL");
+  await ensureColumn("orders", "total", "total DECIMAL(10,2) DEFAULT NULL");
+
   await ensureColumn("products", "stock", "stock INT NOT NULL DEFAULT 0");
   await ensureColumn("products", "description", "description TEXT");
   await ensureColumn("products", "code", "code VARCHAR(100) DEFAULT NULL");
@@ -670,6 +673,44 @@ app.get('/users', authenticateToken, authorizeRoles(['admin']), async (req, res)
   } catch (err) {
     console.error(err);
     res.status(500).send('Lỗi tải danh sách nhân viên.');
+  }
+});
+
+app.put('/users/:id', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
+  const userId = Number(req.params.id);
+  if (!userId) {
+    return res.status(400).send('ID người dùng không hợp lệ.');
+  }
+  const { username, full_name, role, password } = req.body;
+  if (!username || !role) {
+    return res.status(400).send('Tên đăng nhập và vai trò là bắt buộc.');
+  }
+  const allowedRoles = ['admin', 'manager', 'seller'];
+  if (!allowedRoles.includes(role)) {
+    return res.status(400).send('Vai trò không hợp lệ.');
+  }
+  try {
+    const existing = await query('SELECT id FROM users WHERE id = ? LIMIT 1', [userId]);
+    if (existing.length === 0) {
+      return res.status(404).send('Người dùng không tồn tại.');
+    }
+    const duplicate = await query('SELECT id FROM users WHERE username = ? AND id != ? LIMIT 1', [username, userId]);
+    if (duplicate.length > 0) {
+      return res.status(409).send('Tên đăng nhập đã tồn tại.');
+    }
+    const updates = ['username = ?', 'role = ?', 'full_name = ?'];
+    const params = [username, role, full_name || null];
+    if (password) {
+      const passwordHash = await bcrypt.hash(password, 10);
+      updates.push('password = ?');
+      params.push(passwordHash);
+    }
+    params.push(userId);
+    await query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Không thể cập nhật tài khoản.');
   }
 });
 
@@ -1644,6 +1685,43 @@ app.get('/shifts/current', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/shifts/history', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
+  try {
+    console.log('[DEBUG] /shifts/history called with query:', req.query, 'user:', req.user);
+    const userId = req.query.user_id ? Number(req.query.user_id) : null;
+    if (!userId || !Number.isInteger(userId) || userId <= 0) {
+      console.log('[DEBUG] Invalid userId:', userId);
+      return res.status(400).send('ID người dùng không hợp lệ.');
+    }
+
+    const shifts = await query(
+      `SELECT 
+        s.id, 
+        s.user_id, 
+        s.status, 
+        s.starting_cash, 
+        s.ending_cash, 
+        s.cash_difference, 
+        s.opened_at, 
+        s.closed_at, 
+        s.created_at,
+        COALESCE(SUM(COALESCE(o.total, o.price * o.quantity)), 0) as revenue
+       FROM shifts s
+       LEFT JOIN orders o ON o.shift_id = s.id
+       WHERE s.user_id = ? AND s.status = ? 
+       GROUP BY s.id
+       ORDER BY s.closed_at DESC 
+       LIMIT 100`,
+      [userId, 'CLOSED']
+    );
+    console.log('[DEBUG] /shifts/history result:', shifts?.length || 0, 'shifts');
+    res.json(shifts);
+  } catch (err) {
+    console.error('[ERROR] /shifts/history:', err);
+    res.status(500).send('Lỗi tải lịch sử ca.');
+  }
+});
+
 app.post('/shifts/open', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
   try {
     console.log('[DEBUG] /shifts/open body:', req.body, 'user:', req.user);
@@ -1989,6 +2067,10 @@ app.post('/orders', authenticateToken, async (req, res) => {
   let currentPoints = null;
 
   try {
+    // Get current shift for this seller
+    const currentShift = await query('SELECT id FROM shifts WHERE user_id = ? AND status = ? LIMIT 1', [sellerId, 'OPEN']);
+    const shiftId = currentShift && currentShift.length > 0 ? currentShift[0].id : null;
+
     if (phone || name) {
       if (phone) {
         const existing = await query('SELECT id, points FROM customers WHERE phone = ? LIMIT 1', [phone]);
@@ -2010,6 +2092,7 @@ app.post('/orders', authenticateToken, async (req, res) => {
 
     const orderRecords = cart.map((item) => {
       const itemDiscount = Number(item.discountPercent || 0);
+      const itemTotal = Number(item.price || 0) * Number(item.quantity || 1);
       return [
         item.product_id || null,
         item.product_name || null,
@@ -2028,13 +2111,15 @@ app.post('/orders', authenticateToken, async (req, res) => {
         phone || null,
         customerCompany,
         customerTaxCode,
-        invoiceType || null
+        invoiceType || null,
+        shiftId,
+        itemTotal
       ];
     });
 
-    // Insert orders including payment cash fields if available
+    // Insert orders including payment cash fields, shift_id and total if available
     await query(
-      `INSERT INTO orders (product_id, product_name, price, quantity, seller_id, seller_name, order_number, payment_method, payment_cash_received, payment_cash_change, discount_percent, total_after_discount, customer_id, customer_name, customer_phone, customer_company, customer_tax_code, invoice_type)
+      `INSERT INTO orders (product_id, product_name, price, quantity, seller_id, seller_name, order_number, payment_method, payment_cash_received, payment_cash_change, discount_percent, total_after_discount, customer_id, customer_name, customer_phone, customer_company, customer_tax_code, invoice_type, shift_id, total)
        VALUES ?`,
       [orderRecords]
     );
@@ -2048,6 +2133,83 @@ app.post('/orders', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send('Lỗi xử lý đơn hàng.');
+  }
+});
+
+// Admin endpoint to fix existing orders with shift_id
+app.post('/admin/fix-orders-shift-id', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
+  try {
+    // Find all orders without shift_id
+    const ordersWithoutShift = await query(
+      `SELECT o.id, o.seller_id, o.created_at FROM orders o WHERE o.shift_id IS NULL LIMIT 1000`
+    );
+    
+    if (!ordersWithoutShift || ordersWithoutShift.length === 0) {
+      return res.json({ success: true, message: 'Không có đơn hàng cần update', updated: 0 });
+    }
+
+    let updated = 0;
+    
+    for (const order of ordersWithoutShift) {
+      // Find the shift that contains this order
+      // Shift opened before order was created and (closed after or still open)
+      const shifts = await query(
+        `SELECT id FROM shifts 
+         WHERE user_id = ? AND status = 'CLOSED' 
+         AND opened_at <= ? AND closed_at >= ?
+         LIMIT 1`,
+        [order.seller_id, order.created_at, order.created_at]
+      );
+      
+      if (shifts && shifts.length > 0) {
+        await query('UPDATE orders SET shift_id = ? WHERE id = ?', [shifts[0].id, order.id]);
+        updated++;
+      }
+    }
+    
+    res.json({ success: true, message: `Cập nhật ${updated} đơn hàng`, updated });
+  } catch (err) {
+    console.error('[ERROR] /admin/fix-orders-shift-id:', err);
+    res.status(500).send('Lỗi cập nhật đơn hàng.');
+  }
+});
+
+// Dev endpoint (no auth) to fix orders - for testing only
+app.post('/dev/fix-orders-shift-id', async (req, res) => {
+  try {
+    // SQL: Update all orders without shift_id by matching with CLOSED shifts
+    const result = await query(`
+      UPDATE orders o
+      SET o.shift_id = (
+        SELECT s.id FROM shifts s
+        WHERE s.user_id = o.seller_id 
+        AND s.status = 'CLOSED'
+        AND s.opened_at <= o.created_at 
+        AND s.closed_at >= o.created_at
+        LIMIT 1
+      )
+      WHERE o.shift_id IS NULL
+      AND o.seller_id IS NOT NULL
+      AND o.created_at IS NOT NULL
+    `);
+    
+    // Count results
+    const counts = await query(`
+      SELECT COUNT(*) as total_orders, 
+             SUM(CASE WHEN shift_id IS NOT NULL THEN 1 ELSE 0 END) as orders_with_shift,
+             SUM(CASE WHEN shift_id IS NULL THEN 1 ELSE 0 END) as orders_without_shift
+      FROM orders
+    `);
+    
+    res.json({ 
+      success: true, 
+      message: 'Đã update orders', 
+      result,
+      counts: counts[0]
+    });
+  } catch (err) {
+    console.error('[ERROR] /dev/fix-orders-shift-id:', err);
+    res.status(500).send('Lỗi cập nhật đơn hàng.');
   }
 });
 

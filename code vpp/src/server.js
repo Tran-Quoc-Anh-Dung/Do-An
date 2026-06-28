@@ -173,6 +173,19 @@ async function ensureColumn(table, column, definition) {
   }
 }
 
+async function ensureEnumValues(table, column, values) {
+  const columns = await query(`SHOW COLUMNS FROM \`${table}\` LIKE ?`, [column]);
+  if (!columns.length) return;
+  const type = columns[0].Type;
+  const matches = type.match(/^enum\((.*)\)$/i);
+  if (!matches) return;
+  const existing = matches[1].split(',').map(item => item.trim().replace(/^'|'$/g, ''));
+  const missing = values.filter(v => !existing.includes(v));
+  if (missing.length === 0) return;
+  const allValues = [...new Set([...existing, ...values])].map(v => `'${v}'`).join(',');
+  await query(`ALTER TABLE \`${table}\` MODIFY \`${column}\` ENUM(${allValues}) NOT NULL DEFAULT '${values[0]}'`);
+}
+
 function normalizeText(value) {
   return String(value || '')
     .toLowerCase()
@@ -375,6 +388,7 @@ async function ensureDatabase() {
   await ensureColumn("orders", "seller_name", "seller_name VARCHAR(120) DEFAULT NULL");
   await ensureColumn("orders", "payment_cash_received", "payment_cash_received DECIMAL(10,2) DEFAULT NULL");
   await ensureColumn("shifts", "starting_cash", "starting_cash DECIMAL(10,2) DEFAULT NULL");
+  await ensureEnumValues('shifts', 'status', ['PENDING', 'OPEN', 'CLOSED']);
   await ensureColumn("orders", "payment_cash_change", "payment_cash_change DECIMAL(10,2) DEFAULT NULL");
   await ensureColumn("orders", "discount_percent", "discount_percent DECIMAL(5,2) DEFAULT NULL");
   await ensureColumn("orders", "total_after_discount", "total_after_discount DECIMAL(10,2) DEFAULT NULL");
@@ -1576,13 +1590,18 @@ app.get('/shifts/current', authenticateToken, async (req, res) => {
 
 app.post('/shifts/open', authenticateToken, authorizeRoles(['admin']), async (req, res) => {
   try {
-    // Only admin can create a pending shift for a user
+    console.log('[DEBUG] /shifts/open body:', req.body, 'user:', req.user);
     let targetUserId = req.user.id;
     if (req.body && req.body.userId) {
       targetUserId = Number(req.body.userId);
       if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
         return res.status(400).send('ID người dùng không hợp lệ.');
       }
+    }
+
+    const startingCash = Number(req.body && req.body.startingCash ? req.body.startingCash : 0);
+    if (isNaN(startingCash) || startingCash < 0) {
+      return res.status(400).send('Tiền đầu ca phải lớn hơn hoặc bằng 0.');
     }
 
     const activeShift = await query(
@@ -1593,15 +1612,15 @@ app.post('/shifts/open', authenticateToken, authorizeRoles(['admin']), async (re
       return res.status(400).send('Nhân viên đã có ca đang mở.');
     }
 
-    // create a PENDING shift that the user must accept (enter starting cash)
     const result = await query(
-      'INSERT INTO shifts (user_id, status, opened_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
-      [targetUserId, 'PENDING']
+      'INSERT INTO shifts (user_id, status, starting_cash, opened_at, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+      [targetUserId, 'OPEN', startingCash]
     );
+
     const [shift] = await query('SELECT id, user_id, status, starting_cash, opened_at, closed_at, created_at FROM shifts WHERE id = ? LIMIT 1', [result.insertId]);
     res.json(shift);
   } catch (err) {
-    console.error(err);
+    console.error('[ERROR] /shifts/open', err);
     res.status(500).send('Không thể mở ca.');
   }
 });
@@ -1609,6 +1628,7 @@ app.post('/shifts/open', authenticateToken, authorizeRoles(['admin']), async (re
 // Endpoint for the target user (or admin) to start a pending shift by providing startingCash
 app.post('/shifts/start', authenticateToken, authorizeRoles(['seller','manager','admin']), async (req, res) => {
   try {
+    console.log('[DEBUG] /shifts/start', { user: req.user, body: req.body });
     let targetUserId = req.user.id;
     if (req.body && req.body.userId) {
       // only admin can start a shift for someone else
@@ -1620,11 +1640,25 @@ app.post('/shifts/start', authenticateToken, authorizeRoles(['seller','manager',
     const startingCash = Number(req.body && req.body.startingCash ? req.body.startingCash : 0);
     if (isNaN(startingCash) || startingCash < 0) return res.status(400).send('Tiền đầu ca phải lớn hơn hoặc bằng 0.');
 
-    const pending = await query('SELECT id FROM shifts WHERE user_id = ? AND status = ? ORDER BY created_at DESC LIMIT 1', [targetUserId, 'PENDING']);
-    if (!pending || pending.length === 0) return res.status(400).send('Không tìm thấy ca đang chờ mở.');
+    const activeShift = await query('SELECT id FROM shifts WHERE user_id = ? AND status = ? LIMIT 1', [targetUserId, 'OPEN']);
+    if (activeShift.length > 0) {
+      return res.status(400).send('Nhân viên đã có ca đang mở.');
+    }
 
-    const shiftId = pending[0].id;
-    await query('UPDATE shifts SET status = ?, starting_cash = ?, opened_at = CURRENT_TIMESTAMP WHERE id = ?', ['OPEN', startingCash, shiftId]);
+    const pending = await query('SELECT id FROM shifts WHERE user_id = ? AND status = ? ORDER BY created_at DESC LIMIT 1', [targetUserId, 'PENDING']);
+    let shiftId;
+
+    if (pending && pending.length > 0) {
+      shiftId = pending[0].id;
+      await query('UPDATE shifts SET status = ?, starting_cash = ?, opened_at = CURRENT_TIMESTAMP WHERE id = ?', ['OPEN', startingCash, shiftId]);
+    } else {
+      const result = await query(
+        'INSERT INTO shifts (user_id, status, starting_cash, opened_at, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+        [targetUserId, 'OPEN', startingCash]
+      );
+      shiftId = result.insertId;
+    }
+
     const [shift] = await query('SELECT id, user_id, status, starting_cash, opened_at, closed_at, created_at FROM shifts WHERE id = ? LIMIT 1', [shiftId]);
     res.json(shift);
   } catch (err) {

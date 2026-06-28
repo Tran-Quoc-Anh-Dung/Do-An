@@ -886,27 +886,24 @@
   async function loadCurrentShift() {
     if (!state.user) return;
     try {
-      // For staff, prefer a pending shift (created by admin) that requires entering starting cash
-      let data = null;
+      let shift = null;
       if (state.user.role !== 'admin') {
-        const pendingRes = await apiFetch('/shifts/current?status=PENDING', { method: 'GET' });
-        const pendingData = await pendingRes.json();
-        const pending = Array.isArray(pendingData) ? (pendingData[0] || null) : pendingData;
-        if (pending) {
-          state.currentShift = pending;
-          const shiftStatus = document.getElementById('shiftStatus');
-          if (shiftStatus) shiftStatus.textContent = formatShiftLabel(state.currentShift);
-          renderMenu();
-          renderShiftActionButton();
-          return;
-        }
         const openRes = await apiFetch('/shifts/current?status=OPEN', { method: 'GET' });
-        data = await openRes.json();
+        const openData = await openRes.json();
+        shift = Array.isArray(openData) ? (openData[0] || null) : openData;
+
+        if (!shift) {
+          const pendingRes = await apiFetch('/shifts/current?status=PENDING', { method: 'GET' });
+          const pendingData = await pendingRes.json();
+          shift = Array.isArray(pendingData) ? (pendingData[0] || null) : pendingData;
+        }
       } else {
         const res = await apiFetch('/shifts/current?status=OPEN', { method: 'GET' });
-        data = await res.json();
+        const data = await res.json();
+        shift = Array.isArray(data) ? (data[0] || null) : data;
       }
-      state.currentShift = Array.isArray(data) ? (data[0] || null) : data;
+
+      state.currentShift = shift;
       const shiftStatus = document.getElementById('shiftStatus');
       if (shiftStatus) shiftStatus.textContent = formatShiftLabel(state.currentShift);
       renderMenu();
@@ -942,7 +939,8 @@
       return;
     }
 
-    // For staff: if there's a pending shift, prompt to enter starting cash; if open, allow closing
+    // For staff: if there's a pending shift, prompt to enter starting cash; if open, allow closing;
+    // if no shift exists, permit opening a new shift directly.
     if (state.currentShift && state.currentShift.status === 'PENDING') {
       button.classList.remove('hidden');
       button.textContent = 'Nhập tiền đầu ca';
@@ -955,8 +953,8 @@
       return;
     }
 
-    // otherwise hide
-    button.classList.add('hidden');
+    button.classList.remove('hidden');
+    button.textContent = 'Mở ca';
   }
 
   function onShiftActionClick() {
@@ -2193,7 +2191,9 @@
         const shiftLabel = shift
           ? (shift.status === 'OPEN'
             ? `Đang mở từ ${formatDateTime(shift.opened_at_ts || shift.opened_at_vn || shift.opened_at)}`
-            : `Đã đóng từ ${formatDateTime(shift.closed_at || shift.opened_at_ts || shift.opened_at_vn || shift.opened_at)}`)
+            : shift.status === 'PENDING'
+              ? `Đang chờ mở từ ${formatDateTime(shift.created_at || shift.opened_at_ts || shift.opened_at_vn || shift.opened_at)}`
+              : `Đã đóng từ ${formatDateTime(shift.closed_at || shift.opened_at_ts || shift.opened_at_vn || shift.opened_at)}`)
           : 'Chưa mở';
         const actionButton = user.role !== 'admin'
           ? shift && shift.status === 'OPEN'

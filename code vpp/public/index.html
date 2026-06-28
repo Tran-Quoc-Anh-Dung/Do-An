@@ -651,6 +651,7 @@ Số lượng tồn kho</label>
 
 <script>
   const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, editCustomerId: null, reportData: [], customerDiscount: 0, customerTier: null, currentShift: null, shifts: [], inventoryProducts: [], suppliers: [], gtgtRequests: [] };
+  let pendingShiftPromptShown = false;
 
   function getActiveDiscountPercent() {
     return Number(state.customerDiscount || 0);
@@ -909,6 +910,7 @@ Số lượng tồn kho</label>
     document.getElementById('logoutButton').classList.remove('hidden');
     document.getElementById('profileButton').classList.remove('hidden');
     if (state.user) state.user.role = normalizeUserRole(state.user.role);
+    state.currentShift = null;
     if (!isAdmin()) {
       document.getElementById('shiftStatus').classList.remove('hidden');
     } else {
@@ -938,8 +940,15 @@ Số lượng tồn kho</label>
   function formatShiftLabel(shift) {
     if (!shift) return 'Chưa có ca mở';
     const opened = formatDateTime(shift.opened_at_ts || shift.opened_at_vn || shift.opened_at);
+    if (shift.status === 'OPEN') {
+      const cashLabel = typeof shift.starting_cash !== 'undefined' ? ` • Tiền đầu ca: ${formatCurrency(shift.starting_cash)}` : '';
+      return `Đã mở ca từ ${opened}${cashLabel}`;
+    }
+    if (shift.status === 'PENDING') {
+      return `Ca chờ mở từ ${opened}`;
+    }
     const cashLabel = typeof shift.starting_cash !== 'undefined' ? ` • Tiền đầu ca: ${formatCurrency(shift.starting_cash)}` : '';
-    return `${shift.status === 'OPEN' ? 'Đã mở ca từ' : 'Ca đã đóng từ'} ${opened}${cashLabel}`;
+    return `Ca đã đóng từ ${opened}${cashLabel}`;
   }
 
   async function loadCurrentShift() {
@@ -947,14 +956,14 @@ Số lượng tồn kho</label>
     try {
       let shift = null;
       if (state.user.role !== 'admin') {
-        const openRes = await apiFetch('/shifts/current?status=OPEN', { method: 'GET' });
-        const openData = await openRes.json();
-        shift = Array.isArray(openData) ? (openData[0] || null) : openData;
+        const pendingRes = await apiFetch('/shifts/current?status=PENDING', { method: 'GET' });
+        const pendingData = await pendingRes.json();
+        shift = Array.isArray(pendingData) ? (pendingData[0] || null) : pendingData;
 
         if (!shift) {
-          const pendingRes = await apiFetch('/shifts/current?status=PENDING', { method: 'GET' });
-          const pendingData = await pendingRes.json();
-          shift = Array.isArray(pendingData) ? (pendingData[0] || null) : pendingData;
+          const openRes = await apiFetch('/shifts/current?status=OPEN', { method: 'GET' });
+          const openData = await openRes.json();
+          shift = Array.isArray(openData) ? (openData[0] || null) : openData;
         }
       } else {
         const res = await apiFetch('/shifts/current?status=OPEN', { method: 'GET' });
@@ -967,6 +976,21 @@ Số lượng tồn kho</label>
       if (shiftStatus) shiftStatus.textContent = formatShiftLabel(state.currentShift);
       renderMenu();
       renderShiftActionButton();
+      if (state.user.role !== 'admin') {
+        if (state.currentShift?.status === 'PENDING') {
+          if (!pendingShiftPromptShown) {
+            pendingShiftPromptShown = true;
+            showShiftModal();
+          }
+        } else if (!state.currentShift && !pendingShiftPromptShown) {
+          pendingShiftPromptShown = true;
+          showShiftModal();
+        } else if (state.currentShift?.status === 'OPEN') {
+          pendingShiftPromptShown = false;
+        }
+      } else if (state.currentShift?.status !== 'PENDING') {
+        pendingShiftPromptShown = false;
+      }
     } catch (err) {
       console.error(err);
     }
@@ -1032,40 +1056,66 @@ Số lượng tồn kho</label>
   function renderShiftActionButton() {
     const button = document.getElementById('shiftActionButton');
     if (!button || !state.user) return;
-    // Admin opens pending shifts from the Staff page; staff cannot self-open
+    // Admin opens pending shifts from the Staff page; staff/manager cannot self-open new shifts.
     if (state.user.role === 'admin') {
       button.classList.add('hidden');
       return;
     }
 
-    // For staff: if there's a pending shift, prompt to enter starting cash; if open, allow closing;
-    // if no shift exists, permit opening a new shift directly.
     if (state.currentShift && state.currentShift.status === 'PENDING') {
       button.classList.remove('hidden');
+      button.disabled = false;
       button.textContent = 'Nhập tiền đầu ca';
       return;
     }
 
     if (state.currentShift && state.currentShift.status === 'OPEN') {
       button.classList.remove('hidden');
+      button.disabled = false;
       button.textContent = 'Chốt ca';
       return;
     }
 
+    if (state.user.role !== 'admin') {
+      button.classList.remove('hidden');
+      button.textContent = 'Nhập tiền đầu ca';
+      button.disabled = false;
+      return;
+    }
+
     button.classList.remove('hidden');
-    button.textContent = 'Mở ca';
+    button.textContent = 'Chờ admin mở ca';
+    button.disabled = true;
   }
 
   function onShiftActionClick() {
     if (state.currentShift && state.currentShift.status === 'OPEN') {
       closeShift();
-    } else {
-      showShiftModal();
+      return;
     }
+
+    if (state.currentShift && state.currentShift.status === 'PENDING') {
+      showShiftModal();
+      return;
+    }
+
+    if (state.user && state.user.role !== 'admin') {
+      showShiftModal();
+      return;
+    }
+
+    alert('Chỉ admin mới được mở ca mới.');
   }
 
   function showShiftModal() {
-    document.getElementById('shiftStartingCash').value = state.currentShift?.starting_cash || 0;
+    const shiftStartingCashInput = document.getElementById('shiftStartingCash');
+    if (state.currentShift && state.currentShift.status === 'PENDING') {
+      shiftStartingCashInput.value = '';
+      shiftStartingCashInput.placeholder = 'Nhập tiền đầu ca';
+    } else {
+      shiftStartingCashInput.value = state.currentShift?.starting_cash || '';
+      shiftStartingCashInput.placeholder = 'Nhập tiền đầu ca';
+    }
     document.getElementById('shiftModal').style.display = 'flex';
   }
 
@@ -1074,8 +1124,15 @@ Số lượng tồn kho</label>
   }
 
   async function confirmOpenShift() {
-    const startingCash = Number(document.getElementById('shiftStartingCash').value || 0);
-    if (isNaN(startingCash) || startingCash < 0) return alert('Tiền đầu ca phải lớn hơn hoặc bằng 0.');
+    const startingCashRaw = document.getElementById('shiftStartingCash').value;
+    if (startingCashRaw === null || String(startingCashRaw).trim() === '') {
+      return alert('Vui lòng nhập tiền đầu ca.');
+    }
+    const startingCash = Number(startingCashRaw);
+    if (isNaN(startingCash) || startingCash <= 0) return alert('Tiền đầu ca phải lớn hơn 0.');
+    if (state.user && state.user.role !== 'admin' && !(state.currentShift && state.currentShift.status === 'PENDING')) {
+      return alert('Chỉ admin mới được mở ca mới. Nhân viên phải chờ ca chờ do admin tạo.');
+    }
     try {
       // start the pending shift for current user
       await apiFetch('/shifts/start', { method: 'POST', body: JSON.stringify({ startingCash }) });
@@ -1090,7 +1147,13 @@ Số lượng tồn kho</label>
   }
 
   function logout() {
-    state.token = null; state.user = null; state.cart = []; localStorage.removeItem('authToken'); showAuth();
+    state.token = null;
+    state.user = null;
+    state.currentShift = null;
+    state.cart = [];
+    pendingShiftPromptShown = false;
+    localStorage.removeItem('authToken');
+    showAuth();
   }
 
   async function login(event) {
@@ -1169,7 +1232,8 @@ Số lượng tồn kho</label>
   function canOpenPos() {
     if (!state.user) return false;
     if (state.user.role === 'admin') return true;
-    return state.currentShift && state.currentShift.status === 'OPEN' && ['seller', 'manager'].includes(state.user.role);
+    const startingCash = Number(state.currentShift?.starting_cash || 0);
+    return state.currentShift && state.currentShift.status === 'OPEN' && startingCash > 0 && ['seller', 'manager'].includes(state.user.role);
   }
 
   async function refreshData() {
@@ -2558,7 +2622,7 @@ Số lượng tồn kho</label>
         const actionButton = user.role !== 'admin'
           ? shift && shift.status === 'OPEN'
             ? `<button class="button-danger" onclick="closeShiftForUser(${user.id})">Đóng ca</button>`
-            : `<button class="button" onclick="openShiftForUser(${user.id})">Mở ca</button>`
+            : `<button class="button" onclick="openShiftForUser(${user.id})">Tạo ca chờ</button>`
           : '-';
         return `
           <tr>
@@ -2579,11 +2643,11 @@ Số lượng tồn kho</label>
 
   async function openShiftForUser(userId) {
     try {
-      await apiFetch('/shifts/open', { method: 'POST', body: JSON.stringify({ userId }) });
-      alert('Mở ca cho nhân viên thành công.');
+      await apiFetch('/shifts/open', { method: 'POST', body: JSON.stringify({ userId, status: 'PENDING' }) });
+      alert('Đã tạo ca chờ cho nhân viên. Nhân viên cần nhập tiền đầu ca để mở POS.');
       loadUsers();
     } catch (err) {
-      alert(err.message || 'Không thể mở ca cho nhân viên.');
+      alert(err.message || 'Không thể tạo ca chờ cho nhân viên.');
     }
   }
 

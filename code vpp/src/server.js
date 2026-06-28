@@ -1653,9 +1653,23 @@ app.post('/shifts/open', authenticateToken, authorizeRoles(['admin']), async (re
       }
     }
 
-    const startingCash = Number(req.body && req.body.startingCash ? req.body.startingCash : 0);
-    if (isNaN(startingCash) || startingCash < 0) {
-      return res.status(400).send('Tiền đầu ca phải lớn hơn hoặc bằng 0.');
+    let status = String(req.body?.status || 'PENDING').trim().toUpperCase();
+    if (!['PENDING', 'OPEN'].includes(status)) {
+      return res.status(400).send('Trạng thái ca không hợp lệ.');
+    }
+
+    let startingCash = null;
+    if (req.body && Object.prototype.hasOwnProperty.call(req.body, 'startingCash')) {
+      startingCash = Number(req.body.startingCash);
+      if (isNaN(startingCash) || startingCash < 0) {
+        return res.status(400).send('Tiền đầu ca phải lớn hơn hoặc bằng 0.');
+      }
+    }
+
+    // If admin is opening a shift for another user, always create a pending shift.
+    if (targetUserId !== req.user.id) {
+      status = 'PENDING';
+      startingCash = null;
     }
 
     const activeShift = await query(
@@ -1666,9 +1680,21 @@ app.post('/shifts/open', authenticateToken, authorizeRoles(['admin']), async (re
       return res.status(400).send('Nhân viên đã có ca đang mở.');
     }
 
+    if (status === 'OPEN') {
+      if (startingCash === null || startingCash <= 0) {
+        return res.status(400).send('Khi mở ca trực tiếp, phải nhập tiền đầu ca lớn hơn 0.');
+      }
+      const result = await query(
+        'INSERT INTO shifts (user_id, status, starting_cash, opened_at, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+        [targetUserId, 'OPEN', startingCash]
+      );
+      const [shift] = await query('SELECT id, user_id, status, starting_cash, opened_at, closed_at, created_at FROM shifts WHERE id = ? LIMIT 1', [result.insertId]);
+      return res.json(shift);
+    }
+
     const result = await query(
-      'INSERT INTO shifts (user_id, status, starting_cash, opened_at, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
-      [targetUserId, 'OPEN', startingCash]
+      'INSERT INTO shifts (user_id, status, starting_cash, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)',
+      [targetUserId, 'PENDING', startingCash]
     );
 
     const [shift] = await query('SELECT id, user_id, status, starting_cash, opened_at, closed_at, created_at FROM shifts WHERE id = ? LIMIT 1', [result.insertId]);
@@ -1692,7 +1718,7 @@ app.post('/shifts/start', authenticateToken, authorizeRoles(['seller','manager',
     }
 
     const startingCash = Number(req.body && req.body.startingCash ? req.body.startingCash : 0);
-    if (isNaN(startingCash) || startingCash < 0) return res.status(400).send('Tiền đầu ca phải lớn hơn hoặc bằng 0.');
+    if (isNaN(startingCash) || startingCash <= 0) return res.status(400).send('Tiền đầu ca phải lớn hơn 0.');
 
     const activeShift = await query('SELECT id FROM shifts WHERE user_id = ? AND status = ? LIMIT 1', [targetUserId, 'OPEN']);
     if (activeShift.length > 0) {

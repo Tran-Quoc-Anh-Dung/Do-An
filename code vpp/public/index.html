@@ -207,6 +207,7 @@
           <div class="form-grid pos-toolbar">
             <div class="form-control"><label for="searchProduct">Tìm kiếm sản phẩm</label><input id="searchProduct" type="text" placeholder="Nhập tên, mã, danh mục" oninput="applyProductFilter()"></div>
             <div class="form-control"><label for="filterCategory">Lọc danh mục</label><select id="filterCategory" onchange="applyProductFilter()"></select></div>
+            <div class="form-control"><label for="barcodeScanner">Quét mã vạch</label><input id="barcodeScanner" type="text" placeholder="Scan barcode tại đây" autocomplete="off"></div>
           </div>
         </div>
         <div class="pos-layout">
@@ -217,6 +218,14 @@
                 <button class="button-outline" onclick="closeProductDetails()">Đóng</button>
               </div>
               <div id="productDetailContent" style="margin-top:16px;"></div>
+            </div>
+            <div id="barcodePreview" class="card hidden" style="margin-bottom:20px; display:grid; grid-template-columns: 120px 1fr; gap:16px; align-items:center;">
+              <img id="barcodePreviewImage" src="" alt="Ảnh sản phẩm" style="width:120px; height:120px; object-fit:cover; border-radius:14px; background:#f3f4f6;">
+              <div>
+                <h3 id="barcodePreviewName" style="margin:0 0 8px 0;">Sản phẩm</h3>
+                <div id="barcodePreviewPrice" style="font-weight:700; margin-bottom:8px;">0đ</div>
+                <div id="barcodePreviewInfo" style="color: var(--muted); font-size:14px;"></div>
+              </div>
             </div>
             <div class="product-grid" id="posProductGrid"></div>
           </div>
@@ -879,6 +888,7 @@
     setStatus(`${state.user.full_name || state.user.username} • ${roleLabel(state.user.role)}`);
     renderMenu();
     renderShiftActionButton();
+    initBarcodeScanner();
     openSection('dashboard');
     refreshData();
   }
@@ -1583,6 +1593,84 @@
     item.quantity += delta;
     if (item.quantity <= 0) state.cart = state.cart.filter(row => row.product_id !== productId);
     renderCart();
+  }
+
+  function renderBarcodePreview(product) {
+    if (!product) {
+      document.getElementById('barcodePreview').classList.add('hidden');
+      return;
+    }
+    document.getElementById('barcodePreviewImage').src = product.image || '/assets/real-products/fallback.jpg';
+    document.getElementById('barcodePreviewName').textContent = product.name || 'Sản phẩm không xác định';
+    document.getElementById('barcodePreviewPrice').textContent = formatCurrency(Number(product.price || 0));
+    document.getElementById('barcodePreviewInfo').textContent = `Barcode: ${product.barcode || product.code || '-'} · Kho: ${product.stock || 0}`;
+    document.getElementById('barcodePreview').classList.remove('hidden');
+  }
+
+  async function fetchProductByBarcode(barcode) {
+    if (!barcode) return null;
+    const res = await fetch(`/api/products/${encodeURIComponent(barcode)}`);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || 'Không tìm thấy sản phẩm.');
+    }
+    return await res.json();
+  }
+
+  async function handleBarcodeScan(barcode) {
+    if (!barcode) return;
+    try {
+      const product = await fetchProductByBarcode(barcode);
+      renderBarcodePreview(product);
+      const existing = state.cart.find(item => item.product_id === product.id || item.barcode === product.barcode);
+      if (existing) {
+        existing.quantity += 1;
+        showAlert('Sản phẩm đã tồn tại trong giỏ, tăng số lượng.');
+      } else {
+        state.cart.push({ product_id: product.id, product_name: product.name, price: product.price, quantity: 1, discountPercent: Number(product.discountPercent || 0), barcode: product.barcode });
+        showAlert('Đã thêm sản phẩm bằng mã vạch vào giỏ hàng.');
+      }
+      renderCart();
+    } catch (err) {
+      showAlert(err.message || 'Lỗi khi tìm sản phẩm theo barcode.', true);
+    } finally {
+      const input = document.getElementById('barcodeScanner');
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+    }
+  }
+
+  function initBarcodeScanner() {
+    const barcodeInput = document.getElementById('barcodeScanner');
+    if (!barcodeInput) return;
+    barcodeInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const raw = barcodeInput.value.trim();
+        if (raw) handleBarcodeScan(raw);
+      }
+    });
+    barcodeInput.addEventListener('blur', () => setTimeout(() => barcodeInput.focus(), 100));
+  }
+
+  function showAlert(message, isError = false) {
+    const temporary = document.createElement('div');
+    temporary.textContent = message;
+    temporary.style.position = 'fixed';
+    temporary.style.bottom = '20px';
+    temporary.style.left = '50%';
+    temporary.style.transform = 'translateX(-50%)';
+    temporary.style.background = isError ? 'rgba(239, 68, 68, 0.95)' : 'rgba(16, 185, 129, 0.95)';
+    temporary.style.color = '#fff';
+    temporary.style.padding = '12px 18px';
+    temporary.style.borderRadius = '14px';
+    temporary.style.zIndex = '1100';
+    temporary.style.boxShadow = '0 16px 40px rgba(0,0,0,0.16)';
+    temporary.style.fontWeight = '700';
+    document.body.appendChild(temporary);
+    setTimeout(() => temporary.remove(), 2800);
   }
 
   function removeCartItem(productId) {

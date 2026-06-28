@@ -322,6 +322,7 @@ async function updateProductFromPayload(productId, payload) {
 }
 
 async function ensureDatabase() {
+  console.log('[DB INIT] ensureDatabase start');
   await query(`CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(120) NOT NULL UNIQUE,
@@ -343,6 +344,7 @@ async function ensureDatabase() {
     image VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+  console.log('[DB INIT] products table ensured');
 
   await query(`CREATE TABLE IF NOT EXISTS shifts (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -354,6 +356,7 @@ async function ensureDatabase() {
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+  console.log('[DB INIT] shifts table ensured');
 
   await query(`CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -365,6 +368,7 @@ async function ensureDatabase() {
     seller_name VARCHAR(120) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+  console.log('[DB INIT] orders table ensured');
 
   await ensureColumn("products", "stock", "stock INT NOT NULL DEFAULT 0");
   await ensureColumn("products", "description", "description TEXT");
@@ -1332,6 +1336,56 @@ app.get('/api/products', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send('Lỗi tải sản phẩm.');
+  }
+});
+
+app.get('/api/products/:barcode', async (req, res) => {
+  try {
+    const barcode = String(req.params.barcode || '').trim();
+    if (!barcode) return res.status(400).send('Barcode không hợp lệ.');
+
+    const products = await query(
+      'SELECT id, name, description, category, price, stock, image, code, barcode, supplier_id FROM products WHERE barcode = ? OR code = ? LIMIT 1',
+      [barcode, barcode]
+    );
+
+    if (products.length === 0) {
+      return res.status(404).send('Không tìm thấy sản phẩm với barcode này.');
+    }
+
+    res.json(products[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tìm sản phẩm theo barcode.');
+  }
+});
+
+// Safe register: ensure we don't register duplicate route handlers
+// If another part of the code already added a handler for this path, skip adding again.
+function registerOnce(path, handler) {
+  try {
+    if (app._router && Array.isArray(app._router.stack)) {
+      const exists = app._router.stack.some(mw => mw.route && mw.route.path === path);
+      if (exists) return;
+    }
+  } catch (e) {
+    // ignore and attempt to register
+  }
+  app.get(path, handler);
+}
+
+// Register a simple JSON-style barcode lookup that returns { found, product }
+registerOnce('/api/products/:barcode', async (req, res) => {
+  try {
+    const barcode = String(req.params.barcode || '').trim();
+    if (!barcode) return res.status(400).json({ found: false, error: 'Barcode không hợp lệ.' });
+
+    const rows = await query('SELECT id, name, price, stock, image, code, barcode FROM products WHERE barcode = ? OR code = ? LIMIT 1', [barcode, barcode]);
+    if (!rows || rows.length === 0) return res.json({ found: false });
+    return res.json({ found: true, product: rows[0] });
+  } catch (err) {
+    console.error('barcode lookup error', err);
+    return res.status(500).json({ found: false, error: 'Lỗi server.' });
   }
 });
 

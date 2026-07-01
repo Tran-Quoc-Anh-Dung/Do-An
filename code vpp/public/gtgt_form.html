@@ -39,7 +39,7 @@
       <input id="customerEmail" name="customerEmail" type="email" placeholder="Email liên hệ (ví dụ: a@b.com)" />
       <label for="customerTaxCode">Mã số thuế</label>
       <input id="customerTaxCode" name="customerTaxCode" placeholder="Mã số thuế (GTGT)" />
-      <button id="submitButton" type="submit">Gửi yêu cầu GTGT</button>
+      <button id="submitButton" type="submit">Gửi yêu cầu</button>
     </form>
     
   </div>
@@ -67,7 +67,7 @@
       const orderNumber = getOrderNumberFromUrl();
       const orderInput = document.getElementById('orderNumber');
       if (!orderNumber) {
-        showMessage('Mã đơn không được tìm thấy. Vui lòng mở lại liên kết từ hóa đơn.', 'error');
+        showMessage('Mã đơn không được tìm thấy.', 'error');
         setFormEnabled(false);
         return;
       }
@@ -106,7 +106,7 @@
           throw new Error(text || 'Không thể gửi yêu cầu GTGT.');
         }
 
-        showMessage('Yêu cầu GTGT đã gửi thành công. Chúng tôi sẽ cập nhật vào tab Hóa đơn GTGT.', 'success');
+        showMessage('Yêu cầu đã gửi thành công.', 'success');
       } catch (err) {
         showMessage(err.message || 'Lỗi khi gửi yêu cầu GTGT.', 'error');
         setFormEnabled(true);

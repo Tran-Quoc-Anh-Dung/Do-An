@@ -10,6 +10,7 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const db = require("./database");
+const PDFDocument = require('pdfkit');
 const nodemailer = require('nodemailer');
 
 const app = express();
@@ -152,18 +153,143 @@ async function sendInvoiceEmail(orderNumber, toEmail) {
     const origin = process.env.APP_ORIGIN || `http://localhost:${PORT}`;
     const invoiceUrl = `${origin.replace(/\/$/, '')}/gtgt_form.html?orderNumber=${encodeURIComponent(orderNumber)}`;
     const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+    const pdfBuffer = await generateGtgtInvoicePdf(orderNumber);
     const info = await transporter.sendMail({
       from,
       to: toEmail,
       subject: `Hóa đơn GTGT - ${orderNumber}`,
-      text: `Kính gửi khách hàng,\n\nQuý khách có thể xem/ tải hóa đơn GTGT của mã đơn ${orderNumber} tại đường dẫn:\n${invoiceUrl}\n\nTrân trọng.`,
-      html: `<p>Kính gửi khách hàng,</p><p>Quý khách có thể xem/tải hóa đơn GTGT của mã đơn <strong>${orderNumber}</strong> tại đường dẫn bên dưới:</p><p><a href="${invoiceUrl}">${invoiceUrl}</a></p><p>Trân trọng.</p>`
+      text: `Kính gửi khách hàng,\n\nHóa đơn GTGT mã ${orderNumber} đã được đính kèm dưới dạng file PDF.\n\nTrân trọng.`,
+      html: `<p>Kính gửi khách hàng,</p><p>Hóa đơn GTGT mã <strong>${orderNumber}</strong> đã được đính kèm dưới dạng file PDF.</p><p>Vui lòng mở file đính kèm để xem nội dung hóa đơn.</p><p>Trân trọng.</p>`,
+      attachments: [
+        {
+          filename: `${orderNumber.replace(/[^a-zA-Z0-9-_\.]/g, '_')}-GTGT.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+          contentDisposition: 'attachment'
+        }
+      ]
     });
     console.log('[MAIL] Sent invoice email', info && info.messageId);
   } catch (err) {
     console.error('[MAIL] Error sending invoice email:', err);
   }
 }
+
+async function getGtgtInvoiceData(orderNumber) {
+  const requestRows = await query(
+    `SELECT customer_name, customer_phone, customer_company, customer_tax_code, customer_email
+       FROM gtgt_requests
+       WHERE order_number = ?
+       LIMIT 1`,
+    [orderNumber]
+  );
+  const request = requestRows && requestRows[0] ? requestRows[0] : {};
+  const orderRows = await query(
+    `SELECT order_number, product_name, price, quantity, discount_percent, payment_method, payment_cash_received, payment_cash_change, total_after_discount, customer_name, customer_phone, customer_company, customer_tax_code, seller_name, created_at
+       FROM orders
+       WHERE order_number = ?`,
+    [orderNumber]
+  );
+  if (!orderRows || orderRows.length === 0) {
+    return null;
+  }
+  const firstRow = orderRows[0];
+  const items = orderRows.map(row => ({
+    name: row.product_name || 'Sản phẩm',
+    price: Number(row.price || 0),
+    quantity: Number(row.quantity || 0) || 1,
+    discountPercent: Number(row.discount_percent || 0),
+    unit: 'Cái'
+  }));
+  const totalAmount = firstRow.total_after_discount != null ? Number(firstRow.total_after_discount) : items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  return {
+    orderNumber,
+    createdAt: firstRow.created_at,
+    sellerName: firstRow.seller_name || 'Người bán',
+    paymentMethod: firstRow.payment_method || 'Tiền mặt',
+    customerName: request.customer_name || firstRow.customer_name || 'Khách lẻ',
+    customerPhone: request.customer_phone || firstRow.customer_phone || '',
+    customerCompany: request.customer_company || firstRow.customer_company || '',
+    customerTaxCode: request.customer_tax_code || firstRow.customer_tax_code || '',
+    customerEmail: request.customer_email || null,
+    items,
+    totalAmount,
+    totalWithTax: Math.round(totalAmount * 1.1)
+  };
+}
+
+function formatCurrency(value) {
+  return Number(value || 0).toLocaleString('vi-VN') + 'đ';
+}
+
+async function generateGtgtInvoicePdf(orderNumber) {
+  const invoiceData = await getGtgtInvoiceData(orderNumber);
+  if (!invoiceData) {
+    throw new Error(`Không tìm thấy hóa đơn GTGT cho mã đơn ${orderNumber}`);
+  }
+  const doc = new PDFDocument({ size: 'A4', margin: 40 });
+  const buffers = [];
+  doc.on('data', chunk => buffers.push(chunk));
+  const finished = new Promise((resolve, reject) => {
+    doc.on('end', () => resolve(Buffer.concat(buffers)));
+    doc.on('error', reject);
+  });
+  doc.fontSize(18).text('HÓA ĐƠN GIÁ TRỊ GIA TĂNG', { align: 'center' });
+  doc.moveDown(0.5);
+  doc.fontSize(12).text(`Mã đơn: ${invoiceData.orderNumber}`);
+  doc.text(`Ngày: ${new Date(invoiceData.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`);
+  doc.text(`Hình thức thanh toán: ${invoiceData.paymentMethod}`);
+  doc.moveDown();
+  doc.fontSize(12).text('Người bán:', { underline: true });
+  doc.fontSize(11).text(invoiceData.sellerName);
+  doc.moveDown(0.5);
+  doc.fontSize(12).text('Người mua:', { underline: true });
+  doc.fontSize(11).text(invoiceData.customerName);
+  if (invoiceData.customerCompany) doc.text(`Đơn vị: ${invoiceData.customerCompany}`);
+  if (invoiceData.customerTaxCode) doc.text(`MST: ${invoiceData.customerTaxCode}`);
+  if (invoiceData.customerPhone) doc.text(`Điện thoại: ${invoiceData.customerPhone}`);
+  doc.moveDown();
+  doc.fontSize(12).text('Chi tiết hàng hóa/dịch vụ:', { underline: true });
+  doc.moveDown(0.2);
+  const tableTop = doc.y;
+  const columnPositions = { no: 40, name: 70, qty: 320, price: 370, total: 460 };
+  doc.fontSize(10).text('STT', columnPositions.no, tableTop);
+  doc.text('Tên hàng hóa', columnPositions.name, tableTop);
+  doc.text('SL', columnPositions.qty, tableTop);
+  doc.text('Đơn giá', columnPositions.price, tableTop);
+  doc.text('Thành tiền', columnPositions.total, tableTop);
+  doc.moveDown(0.5);
+  invoiceData.items.forEach((item, idx) => {
+    const rowY = doc.y;
+    const itemTotal = Math.round(item.price * item.quantity);
+    doc.text(String(idx + 1), columnPositions.no, rowY);
+    doc.text(item.name, columnPositions.name, rowY, { width: 240 });
+    doc.text(String(item.quantity), columnPositions.qty, rowY);
+    doc.text(formatCurrency(item.price), columnPositions.price, rowY, { width: 80, align: 'right' });
+    doc.text(formatCurrency(itemTotal), columnPositions.total, rowY, { width: 90, align: 'right' });
+    doc.moveDown(0.8);
+  });
+  doc.moveDown();
+  doc.fontSize(12).text(`Tiền hàng: ${formatCurrency(invoiceData.totalAmount)}`, { align: 'right' });
+  doc.text(`Thuế GTGT (10%): ${formatCurrency(invoiceData.totalWithTax - invoiceData.totalAmount)}`, { align: 'right' });
+  doc.text(`Tổng thanh toán: ${formatCurrency(invoiceData.totalWithTax)}`, { align: 'right' });
+  doc.end();
+  return finished;
+}
+
+app.get('/gtgt-invoice-pdf', async (req, res) => {
+  try {
+    const orderNumber = String(req.query.orderNumber || req.query.order_number || '').trim();
+    if (!orderNumber) return res.status(400).send('Mã đơn không hợp lệ.');
+    const pdfBuffer = await generateGtgtInvoicePdf(orderNumber);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${orderNumber.replace(/[^a-zA-Z0-9-_\.]/g, '_')}-GTGT.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error('[GTGT-INVOICE-PDF] Error generating PDF:', err);
+    res.status(500).send('Không thể tạo file PDF hóa đơn.');
+  }
+});
 
 // Diagnostic: quick handler to verify POST reachability (temporary)
 app.post('/_diag_products_bulk_delete', (req, res) => {

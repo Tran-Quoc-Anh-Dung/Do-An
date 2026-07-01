@@ -296,6 +296,8 @@
                 <div id="barcodePreviewInfo" style="color: var(--muted); font-size:14px;"></div>
               </div>
             </div>
+
+              <!-- PO Detail Modal (moved to document root) -->
             <div class="product-grid" id="posProductGrid"></div>
           </div>
           <aside class="cart-panel">
@@ -626,6 +628,44 @@
         </div>
 
         <div class="card" style="margin-bottom:20px;">
+          <h3>Tạo đơn hàng từ nhà cung cấp</h3>
+          <p style="margin:0 0 12px; color:#6b7280;">Chọn nhà cung cấp, thêm sản phẩm, nhập giá và tạo đơn hàng nhập kho.</p>
+          <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+            <div class="form-control">
+              <label for="poSupplier">Nhà cung cấp</label>
+              <select id="poSupplier" onchange="updatePOProducts()"><option value="">-- Chọn NCC --</option></select>
+            </div>
+            <div class="form-control">
+              <label for="poProduct">Sản phẩm</label>
+              <select id="poProduct"><option value="">-- Chọn sản phẩm --</option></select>
+            </div>
+            <div class="form-control">
+              <label for="poQuantity">Số lượng</label>
+              <input id="poQuantity" type="number" min="1" value="1">
+            </div>
+            <div class="form-control">
+              <label for="poUnitPrice">Giá nhập</label>
+              <input id="poUnitPrice" type="number" min="0" value="0">
+            </div>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="button" onclick="addProductToPO()">Thêm vào đơn</button>
+            <button class="button-outline" onclick="createPurchaseOrder()">Tạo đơn hàng</button>
+          </div>
+          <div id="poMessage" class="notification hidden"></div>
+          <div id="poItemsPreview" style="margin-top:16px; display:none; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#f8f9fa;">
+            <h4 style="margin-top:0;">Sản phẩm trong đơn:</h4>
+            <table class="table" style="font-size:14px;">
+              <thead><tr><th>Sản phẩm</th><th>SL</th><th>Giá</th><th>Thành tiền</th><th></th></tr></thead>
+              <tbody id="poItemsList"></tbody>
+            </table>
+            <div style="text-align:right; margin-top:10px; padding-top:10px; border-top:1px solid #d1d5db;">
+              <strong>Tổng: <span id="poTotal">0đ</span></strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
           <h3>Thêm nhà cung cấp</h3>
           <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
             <div class="form-control"><label for="supplierName">Tên nhà cung cấp</label><input id="supplierName" type="text" placeholder="Tên nhà cung cấp"></div>
@@ -656,45 +696,6 @@
         <div class="card">
           <h3>Lịch sử</h3>
           <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Nhà cung cấp</th><th>Số lượng thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
-        </div>
-
-        <div class="card" style="margin-top:20px;">
-          <h3>Tạo đơn hàng từ nhà cung cấp</h3>
-          <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-            <div class="form-control">
-              <label for="poSupplier">Nhà cung cấp</label>
-              <select id="poSupplier" onchange="updatePOProducts()"><option value="">-- Chọn NCC --</option></select>
-            </div>
-            <div class="form-control">
-              <label for="poProduct">Sản phẩm</label>
-              <select id="poProduct"><option value="">-- Chọn sản phẩm --</option></select>
-            </div>
-            <div class="form-control">
-              <label for="poQuantity">Số lượng</label>
-              <input id="poQuantity" type="number" min="1" value="1">
-            </div>
-            <div class="form-control">
-              <label for="poUnitPrice">Giá nhập</label>
-              <input id="poUnitPrice" type="number" min="0" value="0">
-            </div>
-          </div>
-          <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="button" onclick="addProductToPO()">Thêm vào đơn</button>
-            <button class="button-outline" onclick="createPurchaseOrder()">Tạo đơn hàng</button>
-          </div>
-          <div id="poMessage" class="notification hidden"></div>
-          
-          <!-- PO Items Preview -->
-          <div id="poItemsPreview" style="margin-top:16px; display:none; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#f8f9fa;">
-            <h4 style="margin-top:0;">Sản phẩm trong đơn:</h4>
-            <table class="table" style="font-size:14px;">
-              <thead><tr><th>Sản phẩm</th><th>SL</th><th>Giá</th><th>Thành tiền</th><th></th></tr></thead>
-              <tbody id="poItemsList"></tbody>
-            </table>
-            <div style="text-align:right; margin-top:10px; padding-top:10px; border-top:1px solid #d1d5db;">
-              <strong>Tổng: <span id="poTotal">0đ</span></strong>
-            </div>
-          </div>
         </div>
 
         <div class="card" style="margin-top:20px;">
@@ -812,6 +813,50 @@ Số lượng tồn kho</label>
     button { display: none !important; }
   }
 </style>
+
+<script>
+  async function viewPurchaseOrder(poId) {
+    try {
+      const res = await apiFetch(`/api/purchase-orders/${poId}`, { method: 'GET' });
+      const data = await res.json();
+      const po = data.purchase_order;
+      const items = data.items || [];
+      const logs = data.inventory_logs || [];
+
+      document.getElementById('poDetailTitle').textContent = `PO-${po.id}`;
+      const parts = [];
+      // Determine confirmer: prefer explicit field, fallback to inventory log creator
+      const confirmer = po.confirmed_by_user || (logs && logs.length > 0 ? logs[0].created_by_user : null);
+      parts.push(`<div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;"><div><strong>Nhà cung cấp:</strong> ${po.supplier_name || ''}</div><div><strong>Trạng thái:</strong> ${po.status}</div><div><strong>Ngày tạo:</strong> ${formatDateTime(po.created_at)}</div><div><strong>Tổng:</strong> ${formatCurrency(po.total_amount || 0)}</div>${confirmer ? `<div><strong>Người xác nhận:</strong> ${confirmer}</div>` : ''}</div>`);
+
+      parts.push('<h4>Sản phẩm</h4>');
+      if (items.length === 0) {
+        parts.push('<div>Không có sản phẩm</div>');
+      } else {
+        parts.push('<table class="table" style="font-size:14px;"><thead><tr><th>Sản phẩm</th><th>SL</th><th>Giá</th><th>Thành tiền</th></tr></thead><tbody>');
+        for (const it of items) {
+          const name = it.product_name || `ID-${it.product_id}`;
+          parts.push(`<tr><td>${it.product_code ? it.product_code + ' - ' : ''}${name}</td><td>${it.quantity}</td><td>${formatCurrency(it.unit_price || 0)}</td><td>${formatCurrency((it.quantity || 0) * (it.unit_price || 0))}</td></tr>`);
+        }
+        parts.push('</tbody></table>');
+      }
+
+      // Show total amount for the purchase order
+      parts.push(`<div style="text-align:right; margin-top:12px; font-size:15px;"><strong>Tổng tiền đơn: ${formatCurrency(po.total_amount || 0)}</strong></div>`);
+
+      document.getElementById('poDetailBody').innerHTML = parts.join('');
+      document.getElementById('poDetailModal').style.display = 'flex';
+    } catch (err) {
+      showPOMessage(err.message || 'Không thể tải chi tiết đơn hàng.', false);
+    }
+  }
+
+  function closePODetailModal() {
+    document.getElementById('poDetailModal').style.display = 'none';
+    document.getElementById('poDetailBody').innerHTML = '';
+    document.getElementById('poDetailTitle').textContent = '';
+  }
+</script>
 
 <script>
   const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, editCustomerId: null, editUserId: null, users: [], reportData: [], customerDiscount: 0, customerTier: null, currentShift: null, shifts: [], inventoryProducts: [], suppliers: [], gtgtRequests: [] };
@@ -3589,14 +3634,30 @@ Số lượng tồn kho</label>
     } else {
       const str = String(value).trim();
       const localNoTZ = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
-      const normalized = localNoTZ.test(str) ? str.replace(' ', 'T') : str;
-      date = new Date(normalized);
+      if (localNoTZ.test(str)) {
+        const [datePart, timePart] = str.replace('T', ' ').split(' ');
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hour, minute, second] = timePart.split(':').map(Number);
+        date = new Date(year, month - 1, day, hour, minute, second);
+      } else {
+        date = new Date(str);
+      }
     }
 
     if (!date || isNaN(date.getTime())) return String(value);
-    return dateOnly
-      ? date.toLocaleDateString('vi-VN')
-      : date.toLocaleString('vi-VN');
+    const timeZone = 'Asia/Ho_Chi_Minh';
+    if (dateOnly) {
+      return new Intl.DateTimeFormat('vi-VN', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+    }
+    return new Intl.DateTimeFormat('vi-VN', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    }).format(date);
   }
 
   function formatCurrency(value) {
@@ -3983,13 +4044,13 @@ Số lượng tồn kho</label>
         method: 'POST',
         body: JSON.stringify({ supplier_id: supplierId, items: poItems, total_amount: total })
       });
-      const data = await res.json();
-      showPOMessage('Tạo đơn hàng thành công!', true);
+      await res.json();
+      showPOMessage('Tạo đơn hàng thành công! Đơn đang ở trạng thái chờ xác nhận.', true);
       poItems = [];
       document.getElementById('poSupplier').value = '';
       document.getElementById('poProduct').value = '';
       updatePOPreview();
-      loadPurchaseOrders();
+      await loadPurchaseOrders();
     } catch (err) {
       showPOMessage(err.message || 'Lỗi tạo đơn hàng.', false);
     }
@@ -4007,7 +4068,8 @@ Số lượng tồn kho</label>
       tbody.innerHTML = rows.map(row => {
         const statusClass = row.status === 'pending' ? 'status-chip' : row.status === 'confirmed' ? 'status-chip' : '';
         const statusText = row.status === 'pending' ? '⏳ Chờ xác nhận' : row.status === 'confirmed' ? '✅ Đã nhập kho' : row.status;
-        const actionBtn = row.status === 'pending' ? `<button class="button" style="padding:6px 12px; font-size:12px;" onclick="confirmPurchaseOrder(${row.id})">Xác nhận</button>` : '-';
+        const viewBtn = `<button class="button-outline" style="padding:6px 12px; font-size:12px;" onclick="viewPurchaseOrder(${row.id})">Xem</button>`;
+        const actionBtn = row.status === 'pending' ? `${viewBtn} <button class="button" style="padding:6px 12px; font-size:12px;" onclick="confirmPurchaseOrder(${row.id})">Xác nhận</button>` : viewBtn;
 
         return `
           <tr>
@@ -4030,10 +4092,10 @@ Số lượng tồn kho</label>
 
     try {
       const res = await apiFetch(`/api/purchase-orders/${poId}/confirm`, { method: 'POST' });
-      const data = await res.json();
-      showPOMessage('Đã nhập kho thành công!', true);
-      loadPurchaseOrders();
-      loadInventory();
+      await res.json();
+      showPOMessage('Đã xác nhận đơn hàng và nhập kho thành công!', true);
+      await loadPurchaseOrders();
+      await loadInventory();
     } catch (err) {
       showPOMessage(err.message || 'Lỗi xác nhận đơn hàng.', false);
     }
@@ -4045,11 +4107,6 @@ Số lượng tồn kho</label>
     msg.style.color = success ? '#10b981' : '#ef4444';
     msg.classList.remove('hidden');
     setTimeout(() => msg.classList.add('hidden'), 3000);
-  }
-    assignSelect.innerHTML = renderAssignProductOptions(filtered);
-    if (filtered.length === 0) {
-      assignSelect.innerHTML = '<option value="">Không có sản phẩm phù hợp</option>';
-    }
   }
 
   function showAssignMessage(text, success) {
@@ -4070,5 +4127,18 @@ Số lượng tồn kho</label>
 
   window.onload = init;
 </script>
+</script>
+
+  <!-- PO Detail Modal (global) -->
+  <div id="poDetailModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10003; align-items:center; justify-content:center; overflow:auto;">
+    <div style="background:white; border-radius:12px; padding:20px; max-width:760px; width:96%; margin:20px auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <h2 style="margin-top:0;">Chi tiết đơn hàng <span id="poDetailTitle"></span></h2>
+      <div id="poDetailBody" style="max-height:60vh; overflow:auto; font-size:14px;"></div>
+      <div style="display:flex; gap:12px; margin-top:16px; justify-content:flex-end;">
+        <button class="button" onclick="closePODetailModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

@@ -6,9 +6,11 @@ const sql = `
 CREATE TABLE IF NOT EXISTS purchase_orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     supplier_id INT NOT NULL,
-    total_amount DECIMAL(12,2) DEFAULT 0,
-    status VARCHAR(20) DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  total_amount DECIMAL(12,2) DEFAULT 0,
+  status VARCHAR(20) DEFAULT 'pending',
+  confirmed_by INT DEFAULT NULL,
+  confirmed_at TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
 );
 

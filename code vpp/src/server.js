@@ -1726,14 +1726,57 @@ app.get('/api/purchase-orders', authenticateToken, authorizeRoles(['admin', 'man
   }
 });
 
-// Purchase Orders - Confirm and Import to Inventory
-app.post('/api/purchase-orders/:id/confirm', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+// Purchase Orders - Get single PO with items and related inventory logs
+app.get('/api/purchase-orders/:id', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
   try {
     const poId = Number(req.params.id);
     if (!poId) return res.status(400).send('ID đơn hàng không hợp lệ.');
 
+    const rows = await query(
+      `SELECT po.*, s.name as supplier_name, u.username AS confirmed_by_user
+       FROM purchase_orders po
+       LEFT JOIN suppliers s ON po.supplier_id = s.id
+       LEFT JOIN users u ON po.confirmed_by = u.id
+       WHERE po.id = ? LIMIT 1`,
+      [poId]
+    );
+    if (!rows || rows.length === 0) return res.status(404).send('Đơn hàng không tồn tại.');
+    const po = rows[0];
+
+    const items = await query(
+      `SELECT poi.id, poi.product_id, poi.quantity, poi.unit_price, p.name as product_name, p.code as product_code
+       FROM purchase_order_items poi
+       LEFT JOIN products p ON poi.product_id = p.id
+       WHERE poi.po_id = ?`,
+      [poId]
+    );
+
+    const logs = await query(
+      `SELECT il.id, il.product_id, il.quantity_change, il.reason, il.created_by, u.username AS created_by_user, il.created_at
+       FROM inventory_logs il
+       LEFT JOIN users u ON il.created_by = u.id
+       WHERE il.reason LIKE ?
+       ORDER BY il.created_at DESC`,
+      [`%PO-${poId}%`]
+    );
+
+    res.json({ purchase_order: po, items, inventory_logs: logs });
+  } catch (err) {
+    console.error('GET PO detail error:', err && err.stack ? err.stack : err);
+    res.status(500).send(err && err.message ? err.message : 'Lỗi tải chi tiết đơn hàng.');
+  }
+});
+
+// Purchase Orders - Confirm and Import to Inventory
+app.post('/api/purchase-orders/:id/confirm', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const poId = Number(req.params.id);
+    console.log('[DEBUG] confirm PO called for id=', poId, 'by user=', req.user && req.user.username);
+    if (!poId) return res.status(400).send('ID đơn hàng không hợp lệ.');
+
     // Get PO details
     const pos = await query('SELECT * FROM purchase_orders WHERE id = ? LIMIT 1', [poId]);
+    console.log('[DEBUG] purchase_orders lookup result count=', pos.length);
     if (pos.length === 0) return res.status(404).send('Đơn hàng không tồn tại.');
 
     const po = pos[0];
@@ -1743,30 +1786,39 @@ app.post('/api/purchase-orders/:id/confirm', authenticateToken, authorizeRoles([
 
     // Get PO items
     const items = await query('SELECT product_id, quantity FROM purchase_order_items WHERE po_id = ?', [poId]);
+    console.log('[DEBUG] purchase_order_items count=', items.length);
+    console.log('[DEBUG] items fetched:', items);
 
     // Import each product to inventory
     for (const item of items) {
-      // Update product stock
-      await query(
-        'UPDATE products SET stock = stock + ? WHERE id = ?',
-        [item.quantity, item.product_id]
-      );
+      console.log('[DEBUG] processing item', item);
+      try {
+        console.log('[DEBUG] about to update product stock for product_id=', item.product_id, 'qty=', item.quantity);
+        // Update product stock
+        await query('UPDATE products SET stock = stock + ? WHERE id = ?', [item.quantity, item.product_id]);
+        console.log('[DEBUG] product stock updated for product_id=', item.product_id);
 
-      // Log inventory change
-      await query(
-        `INSERT INTO inventory_logs (product_id, quantity_change, reason, created_by_user) 
-         VALUES (?, ?, ?, ?)`,
-        [item.product_id, item.quantity, `Nhập từ đơn hàng PO-${poId}`, req.user.username || 'admin']
-      );
+        // Log inventory change (use established schema)
+        await query(
+          `INSERT INTO inventory_logs (product_id, quantity_change, reason, created_by) VALUES (?, ?, ?, ?)`,
+          [item.product_id, item.quantity, `Nhập từ đơn hàng PO-${poId}`, req.user && req.user.id ? req.user.id : null]
+        );
+        console.log('[DEBUG] inventory_logs inserted for product_id=', item.product_id);
+      } catch (innerErr) {
+        console.error('[ERROR] processing PO item', item, innerErr && innerErr.stack ? innerErr.stack : innerErr);
+        return res.status(500).send(innerErr && innerErr.message ? `Lỗi xử lý sản phẩm ${item.product_id}: ${innerErr.message}` : 'Lỗi xử lý sản phẩm.');
+      }
     }
 
-    // Update PO status
-    await query('UPDATE purchase_orders SET status = ? WHERE id = ?', ['confirmed', poId]);
+    // Update PO status and record confirmer
+    console.log('[DEBUG] about to update purchase_orders status for poId=', poId, 'by user=', req.user && req.user.id);
+    await query('UPDATE purchase_orders SET status = ?, confirmed_by = ?, confirmed_at = NOW() WHERE id = ?', ['confirmed', req.user && req.user.id ? req.user.id : null, poId]);
+    console.log('[DEBUG] purchase_orders status and confirmer updated for poId=', poId);
 
     res.json({ success: true, message: 'Đã nhập kho thành công' });
   } catch (err) {
-    console.error(err);
-    res.status(500).send('Lỗi xác nhận đơn hàng.');
+    console.error('confirm PO error:', err && err.stack ? err.stack : err);
+    res.status(500).send(err && err.message ? err.message : 'Lỗi xác nhận đơn hàng.');
   }
 });
 

@@ -74,6 +74,27 @@ CREATE TABLE suppliers (
     address TEXT
 );
 
+-- PURCHASE ORDERS
+CREATE TABLE purchase_orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    supplier_id INT NOT NULL,
+    total_amount DECIMAL(12,2) DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
+);
+
+-- PURCHASE ORDER ITEMS
+CREATE TABLE purchase_order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    po_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT DEFAULT 1,
+    unit_price DECIMAL(12,2) DEFAULT 0,
+    FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
 -- IMPORTS
 CREATE TABLE imports (
     id INT AUTO_INCREMENT PRIMARY KEY,

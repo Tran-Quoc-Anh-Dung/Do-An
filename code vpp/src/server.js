@@ -1059,7 +1059,15 @@ app.get('/public/reports/summary', async (req, res) => {
     );
 
     const monthlyParams = [];
-    let monthlyWhere = 'WHERE DATE(created_at) BETWEEN DATE_FORMAT(CURRENT_DATE(), "%Y-%m-01") AND LAST_DAY(CURRENT_DATE())';
+    let monthlyWhere = '';
+    // Use start/end if provided, otherwise use current month
+    if (start || end) {
+      monthlyWhere = 'WHERE 1=1';
+      if (start) { monthlyWhere += ' AND created_at >= ?'; monthlyParams.push(start); }
+      if (end) { monthlyWhere += ' AND created_at <= ?'; monthlyParams.push(end); }
+    } else {
+      monthlyWhere = 'WHERE DATE(created_at) BETWEEN DATE_FORMAT(CURRENT_DATE(), "%Y-%m-01") AND LAST_DAY(CURRENT_DATE())';
+    }
     if (product_id) { monthlyWhere += ' AND product_id = ?'; monthlyParams.push(Number(product_id)); }
     if (seller_id) { monthlyWhere += ' AND seller_id = ?'; monthlyParams.push(Number(seller_id)); }
 
@@ -1663,6 +1671,102 @@ app.post('/api/assign-products', authenticateToken, authorizeRoles(['admin', 'ma
   } catch (err) {
     console.error(err);
     res.status(500).send('Lỗi gán sản phẩm.');
+  }
+});
+
+// Purchase Orders - Create
+app.post('/api/purchase-orders', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const { supplier_id, items, total_amount } = req.body;
+    if (!supplier_id || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).send('Nhà cung cấp và sản phẩm là bắt buộc.');
+    }
+
+    // Check if supplier exists
+    const suppliers = await query('SELECT id FROM suppliers WHERE id = ? LIMIT 1', [supplier_id]);
+    if (suppliers.length === 0) {
+      return res.status(404).send('Nhà cung cấp không tồn tại.');
+    }
+
+    // Create PO
+    const result = await query(
+      'INSERT INTO purchase_orders (supplier_id, total_amount, status, created_at) VALUES (?, ?, ?, NOW())',
+      [supplier_id, total_amount || 0, 'pending']
+    );
+    const poId = result.insertId;
+
+    // Add items
+    for (const item of items) {
+      await query(
+        'INSERT INTO purchase_order_items (po_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?)',
+        [poId, item.product_id, item.quantity, item.unit_price]
+      );
+    }
+
+    res.status(201).json({ id: poId, status: 'pending', success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tạo đơn hàng.');
+  }
+});
+
+// Purchase Orders - Get All
+app.get('/api/purchase-orders', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const rows = await query(
+      `SELECT po.id, po.supplier_id, s.name as supplier_name, po.total_amount, po.status, po.created_at 
+       FROM purchase_orders po
+       LEFT JOIN suppliers s ON po.supplier_id = s.id
+       ORDER BY po.created_at DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi lấy danh sách đơn hàng.');
+  }
+});
+
+// Purchase Orders - Confirm and Import to Inventory
+app.post('/api/purchase-orders/:id/confirm', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const poId = Number(req.params.id);
+    if (!poId) return res.status(400).send('ID đơn hàng không hợp lệ.');
+
+    // Get PO details
+    const pos = await query('SELECT * FROM purchase_orders WHERE id = ? LIMIT 1', [poId]);
+    if (pos.length === 0) return res.status(404).send('Đơn hàng không tồn tại.');
+
+    const po = pos[0];
+    if (po.status !== 'pending') {
+      return res.status(400).send('Chỉ có thể xác nhận đơn hàng đang chờ.');
+    }
+
+    // Get PO items
+    const items = await query('SELECT product_id, quantity FROM purchase_order_items WHERE po_id = ?', [poId]);
+
+    // Import each product to inventory
+    for (const item of items) {
+      // Update product stock
+      await query(
+        'UPDATE products SET stock = stock + ? WHERE id = ?',
+        [item.quantity, item.product_id]
+      );
+
+      // Log inventory change
+      await query(
+        `INSERT INTO inventory_logs (product_id, quantity_change, reason, created_by_user) 
+         VALUES (?, ?, ?, ?)`,
+        [item.product_id, item.quantity, `Nhập từ đơn hàng PO-${poId}`, req.user.username || 'admin']
+      );
+    }
+
+    // Update PO status
+    await query('UPDATE purchase_orders SET status = ? WHERE id = ?', ['confirmed', poId]);
+
+    res.json({ success: true, message: 'Đã nhập kho thành công' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi xác nhận đơn hàng.');
   }
 });
 

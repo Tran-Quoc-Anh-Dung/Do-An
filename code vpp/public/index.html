@@ -55,7 +55,7 @@
 
     .table { width: 100%; border-collapse: collapse; }
     .table th, .table td { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: middle; }
-    .table th { color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .table th { color: #000; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
     .table tbody tr:hover { background: #f8fafc; }
 
     .pos-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(360px, 0.95fr); gap: 20px; align-items: flex-start; }
@@ -237,7 +237,6 @@
   <section id="authSection" class="card">
     <div class="tabs">
       <button class="tab-button active" id="tabLogin" onclick="showAuthTab('login')">Đăng nhập</button>
-      <button class="tab-button" id="tabRegister" onclick="showAuthTab('register')">Đăng ký</button>
     </div>
     <div id="loginBox">
       <div class="form-grid">
@@ -246,20 +245,6 @@
       </div>
       <div class="form-actions" style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
         <button class="button" onclick="login(event)">Đăng nhập</button>
-      </div>
-      <div style="margin-top:12px;">
-        <a href="/reports.html" class="button-outline" style="display:inline-block; padding:10px 14px; border-radius:10px; text-decoration:none;">Xem báo cáo (demo)</a>
-      </div>
-    </div>
-    <div id="registerBox" class="hidden">
-      <div class="form-grid">
-        <div class="form-control"><label for="registerUsername">Tên đăng nhập</label><input id="registerUsername" type="text" placeholder="nhanvien01"></div>
-        <div class="form-control"><label for="registerPassword">Mật khẩu</label><input id="registerPassword" type="password" placeholder="••••••••"></div>
-        <div class="form-control"><label for="registerFullname">Họ và tên</label><input id="registerFullname" type="text" placeholder="Nguyễn Văn A"></div>
-      </div>
-      <div class="form-actions" style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
-        <button class="button" onclick="register(event)">Đăng ký</button>
-        <button class="button-outline" onclick="showAuthTab('login')">Quay lại đăng nhập</button>
       </div>
     </div>
   </section>
@@ -405,7 +390,7 @@
           <div id="categoriesList" style="margin-top:12px;">
           </div>
         </div>
-        <div class="card"><table class="table"><thead><tr><th>Tên</th><th>Mã</th><th>Danh mục</th><th>Giá</th><th>Tồn kho</th><th>Người quản lý</th><th>Hành động</th></tr></thead><tbody id="productTable"></tbody></table></div>
+        <div class="card"><table class="table"><thead><tr><th>Tên</th><th>Mã</th><th>Danh mục</th><th>Giá</th><th>Tồn kho</th><th>Trạng thái</th><th>Hành động</th></tr></thead><tbody id="productTable"></tbody></table></div>
         <div class="card" id="inventorySummaryCard">
           <h3>Tồn kho theo danh mục</h3>
           <table class="table"><thead><tr><th>Danh mục</th><th>Số sản phẩm</th><th>Tổng tồn kho</th></tr></thead><tbody id="inventorySummaryTable"></tbody></table>
@@ -466,6 +451,28 @@
 
       <div id="reportsSection" class="section hidden">
         <h2>Báo cáo doanh thu</h2>
+        <div class="card" style="margin-bottom:20px; background:#f0f9ff; border:1px solid #7dd3fc;">
+          <h3 style="margin-top:0; color:#0369a1;">Doanh thu tự chọn theo tháng</h3>
+          <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label style="font-weight:600; font-size:13px;">Chọn tháng/năm</label>
+              <input type="month" id="selectMonthReport" style="padding:8px 12px; border:1px solid #7dd3fc; border-radius:6px; background:white; font-size:14px;">
+            </div>
+            <button class="button" onclick="loadReportByMonth()" style="background:#0284c7; padding:10px 24px; font-weight:600;">Xem doanh thu</button>
+          </div>
+          <div style="margin-top:12px; padding:12px; background:white; border-radius:6px; border:1px solid #e0f2fe;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <span style="font-size:13px; color:#075985;">Doanh thu tháng được chọn:</span>
+                <div style="font-size:20px; font-weight:700; color:#0284c7; margin-top:4px;" id="selectedMonthRevenue">0đ</div>
+              </div>
+              <div>
+                <span style="font-size:13px; color:#075985;">Đơn hàng tháng được chọn:</span>
+                <div style="font-size:20px; font-weight:700; color:#0284c7; margin-top:4px;" id="selectedMonthOrders">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="grid-2" style="margin-bottom:20px;"><div class="small-card"><span>Doanh thu tháng</span><strong id="reportSalesTotal">0đ</strong></div><div class="small-card"><span>Đơn hàng tháng</span><strong id="reportOrdersCount">0</strong></div></div>
         <div class="grid-2" style="margin-bottom:20px;"><div class="small-card"><span>Doanh thu theo ngày</span><strong id="reportDailyRevenue">0đ</strong></div><div class="small-card"><span>Đơn hàng theo ngày</span><strong id="reportDailyOrders">0</strong></div></div>
           <div class="card" style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border:1px solid #7dd3fc;">
@@ -500,7 +507,7 @@
           <div class="card" style="margin-top:20px;"><h3>Doanh thu theo tuần</h3><div style="position:relative; width:100%; height:280px; margin-bottom:12px;"><canvas id="reportChartWeekly" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Tuần</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportWeeklyTable"></tbody></table></div>
           <div class="card" style="margin-top:20px;"><h3>Doanh thu theo tháng</h3><div style="position:relative; width:100%; height:280px; margin-bottom:12px;"><canvas id="reportChartMonthly" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Tháng</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportMonthlyTable"></tbody></table></div>
 
-          <div class="card" style="margin-top:20px;"><h3>Sản phẩm bán chạy</h3><div style="position:relative; width:100%; height:280px; margin-bottom:12px;"><canvas id="reportChartProducts" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Sản phẩm</th><th>SL</th><th>Doanh thu</th><th>Tồn kho</th></tr></thead><tbody id="reportProductsTable"></tbody></table></div>
+          <div class="card" style="margin-top:20px;"><h3 style="font-size:26px; margin:0 0 16px 0;">Sản phẩm bán chạy</h3><div style="position:relative; width:100%; height:380px; margin-bottom:12px;"><canvas id="reportChartProducts" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Sản phẩm</th><th>SL</th><th>Doanh thu</th><th>Tồn kho</th></tr></thead><tbody id="reportProductsTable"></tbody></table></div>
 
           <div class="card" style="margin-top:20px;"><h3>Khách hàng</h3><table class="table"><thead><tr><th>Khách</th><th>Số đơn</th><th>Doanh thu</th></tr></thead><tbody id="reportCustomersTable"></tbody></table></div>
 
@@ -649,6 +656,53 @@
         <div class="card">
           <h3>Lịch sử</h3>
           <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Nhà cung cấp</th><th>Số lượng thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+          <h3>Tạo đơn hàng từ nhà cung cấp</h3>
+          <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+            <div class="form-control">
+              <label for="poSupplier">Nhà cung cấp</label>
+              <select id="poSupplier" onchange="updatePOProducts()"><option value="">-- Chọn NCC --</option></select>
+            </div>
+            <div class="form-control">
+              <label for="poProduct">Sản phẩm</label>
+              <select id="poProduct"><option value="">-- Chọn sản phẩm --</option></select>
+            </div>
+            <div class="form-control">
+              <label for="poQuantity">Số lượng</label>
+              <input id="poQuantity" type="number" min="1" value="1">
+            </div>
+            <div class="form-control">
+              <label for="poUnitPrice">Giá nhập</label>
+              <input id="poUnitPrice" type="number" min="0" value="0">
+            </div>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="button" onclick="addProductToPO()">Thêm vào đơn</button>
+            <button class="button-outline" onclick="createPurchaseOrder()">Tạo đơn hàng</button>
+          </div>
+          <div id="poMessage" class="notification hidden"></div>
+          
+          <!-- PO Items Preview -->
+          <div id="poItemsPreview" style="margin-top:16px; display:none; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#f8f9fa;">
+            <h4 style="margin-top:0;">Sản phẩm trong đơn:</h4>
+            <table class="table" style="font-size:14px;">
+              <thead><tr><th>Sản phẩm</th><th>SL</th><th>Giá</th><th>Thành tiền</th><th></th></tr></thead>
+              <tbody id="poItemsList"></tbody>
+            </table>
+            <div style="text-align:right; margin-top:10px; padding-top:10px; border-top:1px solid #d1d5db;">
+              <strong>Tổng: <span id="poTotal">0đ</span></strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+          <h3>Danh sách đơn hàng từ NCC</h3>
+          <table class="table">
+            <thead><tr><th>Mã đơn</th><th>NCC</th><th>Ngày tạo</th><th>Tổng tiền</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+            <tbody id="poListTable"></tbody>
+          </table>
         </div>
       </div>
         </div>
@@ -1094,10 +1148,9 @@ Số lượng tồn kho</label>
   })();
 
   function showAuthTab(tab) {
-    document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
-    document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
-    document.getElementById('loginBox').classList.toggle('hidden', tab !== 'login');
-    document.getElementById('registerBox').classList.toggle('hidden', tab !== 'register');
+    if (tab === 'login') {
+      document.getElementById('loginBox').classList.remove('hidden');
+    }
   }
 
   function setStatus(text) {
@@ -1483,20 +1536,6 @@ Số lượng tồn kho</label>
     } catch (err) { alert(err.message || 'Đăng nhập thất bại.'); }
   }
 
-  async function register(event) {
-    if (event) event.preventDefault();
-    const username = document.getElementById('registerUsername').value.trim();
-    const password = document.getElementById('registerPassword').value.trim();
-    const full_name = document.getElementById('registerFullname').value.trim();
-    if (!username || !password) return alert('Nhập tên đăng nhập và mật khẩu.');
-    try {
-      const response = await fetch('/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ username, password, full_name }) });
-      if (!response.ok) throw new Error(await response.text());
-      alert('Đăng ký thành công. Vui lòng đăng nhập.');
-      showAuthTab('login');
-    } catch (err) { alert(err.message || 'Đăng ký thất bại.'); }
-  }
-
   function renderMenu() {
     const tabs = [
       { id:'dashboard', label:'Dashboard' },
@@ -1816,20 +1855,24 @@ Số lượng tồn kho</label>
 
     const categories = Object.keys(grouped).sort();
     tbody.innerHTML = categories.map(categoryName => {
-      const rows = grouped[categoryName].map(product => `
+      const rows = grouped[categoryName].map(product => {
+        const stock = Number(product.stock || 0);
+        const status = stock < 5 ? 'Tồn kho thấp' : 'Bình thường';
+        const statusStyle = stock < 5 ? 'color:#b91c1c; font-weight:700;' : '';
+        return `
         <tr>
           <td>${product.name}</td>
           <td>${product.code || '-'}</td>
           <td>${product.category || 'Chưa phân loại'}</td>
           <td>${formatCurrency(product.price)}</td>
-          <td>${product.stock} ${Number(product.stock||0) < 5 ? '<span style="color:#b91c1c; font-weight:700; margin-left:8px;">⚠️ Tồn kho thấp</span>' : ''}</td>
-          <td>${formatDateTime(product.created_at, { dateOnly: true })}</td>
+          <td>${product.stock}</td>
+          <td style="${statusStyle}">${status}</td>
           <td style="white-space:nowrap; display:flex; gap:8px;">
             <button class="button-outline" onclick="editProduct(${product.id})">Sửa</button>
             ${state.user.role === 'admin' ? `<button class="button-danger" onclick="deleteProduct(${product.id})">Xóa</button>` : ''}
           </td>
         </tr>
-      `).join('');
+      `}).join('');
       return `
         <tr style="background:#f8fafc;"><td colspan="7"><strong>${categoryName}</strong></td></tr>
         ${rows}
@@ -3278,6 +3321,16 @@ Số lượng tồn kho</label>
   
   async function initReportFilters() {
     try {
+      // Set default month to current month
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const monthInput = document.getElementById('selectMonthReport');
+      if (monthInput) {
+        monthInput.value = `${year}-${month}`;
+      }
+    } catch (e) { console.warn('set default month failed', e); }
+    try {
       const products = await fetchJSON('/api/products?sold=1');
       const prodSel = document.getElementById('report-product'); 
       if (prodSel && prodSel.innerHTML === '<option value="">Tất cả sản phẩm</option>' || prodSel.options.length === 1) {
@@ -3351,6 +3404,43 @@ Số lượng tồn kho</label>
       return acc;
     }, {});
     return Object.values(byMonth);
+  }
+
+  async function loadReportByMonth() {
+    try {
+      const monthInput = document.getElementById('selectMonthReport').value;
+      if (!monthInput) {
+        alert('Vui lòng chọn tháng/năm');
+        return;
+      }
+      
+      const [year, month] = monthInput.split('-');
+      const startDate = new Date(year, parseInt(month) - 1, 1);
+      const endDate = new Date(year, parseInt(month), 0);
+      
+      // Format dates as local YYYY-MM-DD to avoid timezone issues
+      const formatLocalDate = (date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      };
+      
+      // Create fresh params with only start and end, no other filters
+      const startStr = formatLocalDate(startDate) + ' 00:00:00';
+      const endStr = formatLocalDate(endDate) + ' 23:59:59';
+      const url = `/public/reports/summary?start=${encodeURIComponent(startStr)}&end=${encodeURIComponent(endStr)}`;
+      
+      console.log('Fetching report with URL:', url);
+      const data = await fetchJSON(url);
+      console.log('Report data received:', data);
+      
+      document.getElementById('selectedMonthRevenue').textContent = formatCurrency(data.month_total_revenue || 0);
+      document.getElementById('selectedMonthOrders').textContent = data.month_order_count || 0;
+    } catch (e) { 
+      console.error('loadReportByMonth', e);
+      alert('Không thể tải doanh thu tháng. Vui lòng thử lại.');
+    }
   }
 
   async function loadSummary() {
@@ -3455,12 +3545,12 @@ Số lượng tồn kho</label>
       const values = byProduct.slice(0,10).map(r => Number(r.total_revenue || 0));
       const ctx = document.getElementById('reportChartProducts').getContext('2d');
       if (productsChart) productsChart.destroy();
-      productsChart = new Chart(ctx, { type: 'pie', data: { labels, datasets: [{ data: values, backgroundColor: labels.map((_,i)=>`hsl(${i*36%360} 70% 50%)`) }] }, plugins: [ChartDataLabels], options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'left', align: 'center', labels: { boxWidth: 12, padding: 10 } }, datalabels: { color: '#000000', formatter: (value, context) => {
+      productsChart = new Chart(ctx, { type: 'pie', data: { labels, datasets: [{ data: values, backgroundColor: labels.map((_,i)=>`hsl(${i*36%360} 70% 50%)`) }] }, plugins: [ChartDataLabels], options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'left', align: 'center', labels: { boxWidth: 18, padding: 14, font: { size: 18, weight: 'bold' } } }, datalabels: { color: '#000000', formatter: (value, context) => {
             const dataset = context.chart.data.datasets[0];
             const total = dataset.data.reduce((sum, item) => sum + item, 0);
             return total ? `${Math.round((value / total) * 100)}%` : '';
           },
-          font: { weight: 'bold', size: 12 },
+          font: { weight: 'bold', size: 14 },
           anchor: 'center',
           align: 'center'
         } } } });
@@ -3630,6 +3720,13 @@ Số lượng tồn kho</label>
           <td>${log.created_by_user || '-'}</td>
         </tr>
       `).join('');
+
+      // Fill PO supplier select
+      const poSupplierSelect = document.getElementById('poSupplier');
+      poSupplierSelect.innerHTML = '<option value="">-- Chọn NCC --</option>' + getPOSuppliers();
+
+      // Load purchase orders
+      loadPurchaseOrders();
     } catch (err) {
       console.error(err);
       alert('Không thể tải thông tin tồn kho.');
@@ -3793,6 +3890,162 @@ Số lượng tồn kho</label>
         return text.includes(query);
       });
     }
+    assignSelect.innerHTML = renderAssignProductOptions(filtered);
+  }
+
+  // Purchase Order Functions
+  let poItems = [];
+
+  function getPOSuppliers() {
+    const suppliers = state.suppliers || [];
+    return suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  }
+
+  function getPOProducts() {
+    const supplierId = document.getElementById('poSupplier').value;
+    if (!supplierId) return '<option value="">-- Chọn nhà cung cấp trước --</option>';
+    const supplierProducts = state.products.filter(p => p.supplier_id === Number(supplierId));
+    return supplierProducts.map(p => `<option value="${p.id}">${p.code ? `${p.code} - ` : ''}${p.name}</option>`).join('');
+  }
+
+  function updatePOProducts() {
+    document.getElementById('poProduct').innerHTML = getPOProducts();
+  }
+
+  function addProductToPO() {
+    const productId = Number(document.getElementById('poProduct').value);
+    const quantity = Number(document.getElementById('poQuantity').value) || 1;
+    const unitPrice = Number(document.getElementById('poUnitPrice').value) || 0;
+
+    if (!productId || quantity <= 0 || unitPrice < 0) {
+      showPOMessage('Vui lòng nhập đầy đủ thông tin sản phẩm.', false);
+      return;
+    }
+
+    const product = state.products.find(p => p.id === productId);
+    if (!product) {
+      showPOMessage('Sản phẩm không tồn tại.', false);
+      return;
+    }
+
+    // Check if product already in list
+    const existingIndex = poItems.findIndex(item => item.product_id === productId);
+    if (existingIndex >= 0) {
+      poItems[existingIndex].quantity += quantity;
+    } else {
+      poItems.push({ product_id: productId, product_name: product.name, product_code: product.code, quantity, unit_price: unitPrice });
+    }
+
+    updatePOPreview();
+    document.getElementById('poQuantity').value = '1';
+    document.getElementById('poUnitPrice').value = '0';
+    showPOMessage(`Đã thêm ${product.name}`, true);
+  }
+
+  function removeProductFromPO(index) {
+    poItems.splice(index, 1);
+    updatePOPreview();
+  }
+
+  function updatePOPreview() {
+    if (poItems.length === 0) {
+      document.getElementById('poItemsPreview').style.display = 'none';
+      return;
+    }
+
+    const tbody = document.getElementById('poItemsList');
+    const total = poItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+
+    tbody.innerHTML = poItems.map((item, idx) => `
+      <tr>
+        <td>${item.product_code ? `${item.product_code} - ` : ''}${item.product_name}</td>
+        <td>${item.quantity}</td>
+        <td>${formatCurrency(item.unit_price)}</td>
+        <td>${formatCurrency(item.quantity * item.unit_price)}</td>
+        <td><button class="button-danger" style="padding:4px 8px; font-size:12px;" onclick="removeProductFromPO(${idx})">Xoá</button></td>
+      </tr>
+    `).join('');
+
+    document.getElementById('poTotal').textContent = formatCurrency(total);
+    document.getElementById('poItemsPreview').style.display = 'block';
+  }
+
+  async function createPurchaseOrder() {
+    const supplierId = Number(document.getElementById('poSupplier').value);
+    if (!supplierId || poItems.length === 0) {
+      showPOMessage('Vui lòng chọn nhà cung cấp và thêm sản phẩm vào đơn.', false);
+      return;
+    }
+
+    try {
+      const total = poItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+      const res = await apiFetch('/api/purchase-orders', {
+        method: 'POST',
+        body: JSON.stringify({ supplier_id: supplierId, items: poItems, total_amount: total })
+      });
+      const data = await res.json();
+      showPOMessage('Tạo đơn hàng thành công!', true);
+      poItems = [];
+      document.getElementById('poSupplier').value = '';
+      document.getElementById('poProduct').value = '';
+      updatePOPreview();
+      loadPurchaseOrders();
+    } catch (err) {
+      showPOMessage(err.message || 'Lỗi tạo đơn hàng.', false);
+    }
+  }
+
+  async function loadPurchaseOrders() {
+    try {
+      const rows = await apiFetch('/api/purchase-orders', { method: 'GET' }).then(r => r.json());
+      const tbody = document.getElementById('poListTable');
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--muted);">Không có đơn hàng</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = rows.map(row => {
+        const statusClass = row.status === 'pending' ? 'status-chip' : row.status === 'confirmed' ? 'status-chip' : '';
+        const statusText = row.status === 'pending' ? '⏳ Chờ xác nhận' : row.status === 'confirmed' ? '✅ Đã nhập kho' : row.status;
+        const actionBtn = row.status === 'pending' ? `<button class="button" style="padding:6px 12px; font-size:12px;" onclick="confirmPurchaseOrder(${row.id})">Xác nhận</button>` : '-';
+
+        return `
+          <tr>
+            <td>PO-${row.id}</td>
+            <td>${row.supplier_name || ''}</td>
+            <td>${formatDateTime(row.created_at, { dateOnly: true })}</td>
+            <td>${formatCurrency(row.total_amount || 0)}</td>
+            <td><span class="${statusClass}" style="background: ${row.status === 'pending' ? '#fef3c7' : '#d1fae5'}; color: ${row.status === 'pending' ? '#92400e' : '#065f46'}; padding:6px 12px; border-radius:8px;">${statusText}</span></td>
+            <td>${actionBtn}</td>
+          </tr>
+        `;
+      }).join('');
+    } catch (err) {
+      console.error('loadPurchaseOrders', err);
+    }
+  }
+
+  async function confirmPurchaseOrder(poId) {
+    if (!confirm('Xác nhận nhập kho đơn hàng này?')) return;
+
+    try {
+      const res = await apiFetch(`/api/purchase-orders/${poId}/confirm`, { method: 'POST' });
+      const data = await res.json();
+      showPOMessage('Đã nhập kho thành công!', true);
+      loadPurchaseOrders();
+      loadInventory();
+    } catch (err) {
+      showPOMessage(err.message || 'Lỗi xác nhận đơn hàng.', false);
+    }
+  }
+
+  function showPOMessage(text, success) {
+    const msg = document.getElementById('poMessage');
+    msg.textContent = text;
+    msg.style.color = success ? '#10b981' : '#ef4444';
+    msg.classList.remove('hidden');
+    setTimeout(() => msg.classList.add('hidden'), 3000);
+  }
     assignSelect.innerHTML = renderAssignProductOptions(filtered);
     if (filtered.length === 0) {
       assignSelect.innerHTML = '<option value="">Không có sản phẩm phù hợp</option>';

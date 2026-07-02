@@ -59,6 +59,17 @@ const PORT = process.env.PORT || 3000;
 const AUTH_SECRET = process.env.AUTH_SECRET || "vpp-secret-key";
 const ALLOWED_ROLES = ["admin", "manager", "seller"];
 
+function generateVietQR(amount, orderId) {
+  const bank = "ICB";
+  const account = "107873372407";
+  const name = "TRAN QUOC ANH DUNGG";
+
+  // 🔥 ép về số chuẩn
+  const cleanAmount = Number(String(amount).replace(/[^\d]/g, ""));
+
+  return `https://img.vietqr.io/image/${bank}-${account}-compact.png?amount=${cleanAmount}&addInfo=${encodeURIComponent(orderId)}&accountName=${encodeURIComponent(name)}`;
+}
+
 app.use(cors());
 app.use(express.json());
 app.use(apiRouter);
@@ -82,6 +93,17 @@ app.get('/__routes', (req, res) => {
   inspectRouter(app._router, 'app._router');
   inspectRouter(apiRouter, 'apiRouter');
   res.json({ routes });
+});
+
+app.post('/create-order', (req, res) => {
+  const amount = req.body && req.body.amount;
+  if (amount == null || isNaN(Number(amount)) || Number(amount) <= 0) {
+    return res.status(400).json({ error: 'Số tiền không hợp lệ' });
+  }
+  const sanitizedAmount = Number(amount);
+  const orderId = `DH${Date.now()}`;
+  const qrUrl = generateVietQR(sanitizedAmount, orderId);
+  res.json({ orderId, amount: sanitizedAmount, qrUrl });
 });
 
 // Middleware: format timestamp fields to Vietnam time before sending JSON
@@ -2871,6 +2893,17 @@ ensureDatabase()
         });
       }
     } catch (e) { console.log('DEBUG: router inspect error', e); }
+    // Handle dynamic amount-aware transfer QR requests while preserving the static image file
+    app.get('/transfer-qr.png', (req, res, next) => {
+      const amount = req.query.amount != null ? Number(req.query.amount) : NaN;
+      const orderId = String(req.query.orderId || '').trim();
+      if (!isNaN(amount) && amount > 0 && orderId) {
+        const qrUrl = generateVietQR(amount, orderId);
+        return res.redirect(qrUrl);
+      }
+      next();
+    });
+
     // Serve static files from the project's public directory
     app.use(express.static(path.join(__dirname, '..', 'public')));
 

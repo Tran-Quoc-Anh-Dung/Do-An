@@ -2472,12 +2472,18 @@ Số lượng tồn kho</label>
   function clearCart() { state.cart = []; renderCart(); }
 
   const transferPaymentSettings = {
+    bank: 'ICB',
     accountNumber: '107873372407',
     accountName: 'TRAN QUOC ANH DUNG',
-    bankBranch: 'VietinBank CN DAK NONG - HOI SO'
+    bankBranch: 'VietinBank CN DAK NONG'
   };
 
-  const pendingTransferOrder = { paymentMethod: null, customerName: null, customerPhone: null, customerCompany: null, customerTaxCode: null, invoiceType: 'normal', totalAmount: 0 };
+  const pendingTransferOrder = { paymentMethod: null, customerName: null, customerPhone: null, customerCompany: null, customerTaxCode: null, invoiceType: 'normal', totalAmount: 0, orderReference: null };
+
+  function buildVietQRUrl(amount, orderId) {
+    const cleanAmount = Number(String(amount).replace(/[^\d]/g, ''));
+    return `https://img.vietqr.io/image/${transferPaymentSettings.bank}-${transferPaymentSettings.accountNumber}-compact.png?amount=${cleanAmount}&addInfo=${encodeURIComponent(orderId)}&accountName=${encodeURIComponent(transferPaymentSettings.accountName)}`;
+  }
 
   function resetPendingTransferOrder() {
     pendingTransferOrder.paymentMethod = null;
@@ -2487,6 +2493,7 @@ Số lượng tồn kho</label>
     pendingTransferOrder.customerTaxCode = null;
     pendingTransferOrder.invoiceType = 'normal';
     pendingTransferOrder.totalAmount = 0;
+    pendingTransferOrder.orderReference = null;
   }
 
   async function checkout() {
@@ -2537,6 +2544,13 @@ Số lượng tồn kho</label>
     document.getElementById('transferAccountName').textContent = transferPaymentSettings.accountName;
     document.getElementById('transferBankBranch').textContent = transferPaymentSettings.bankBranch;
     document.getElementById('transferAmountDisplay').textContent = formatCurrency(totalAmount);
+    const orderReference = `TRF${Date.now()}`;
+    pendingTransferOrder.orderReference = orderReference;
+    pendingTransferOrder.totalAmount = totalAmount;
+    const qrImage = document.getElementById('transferQrImage');
+    qrImage.src = buildVietQRUrl(totalAmount, orderReference);
+    qrImage.alt = 'QR chuyển khoản có số tiền';
+    qrImage.style.display = 'block';
     document.getElementById('checkoutButton').disabled = true;
     modal.style.display = 'flex';
   }
@@ -2956,7 +2970,7 @@ Số lượng tồn kho</label>
   }
 
   function generateQrDataUrl(text) {
-    return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(text)}`;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(text)}&cache_bust=${Date.now()}`;
   }
 
   function normalizeOrderNumber(orderNumber) {

@@ -2109,8 +2109,8 @@ Số lượng tồn kho</label>
           showAlert('Sản phẩm không tồn tại trong kho.', true);
           return;
         }
-        console.log('Không tìm thấy trong kho dữ liệu, tìm trên Open Food Facts...');
-        showAlert('Đang tìm kiếm từ Open Food Facts...');
+        console.log('Không tìm thấy trong kho dữ liệu, tìm trên OpenFoodFacts...');
+        showAlert('Đang tìm kiếm từ OpenFoodFacts...');
         product = await fetchProductFromOpenFoodFacts(barcode);
         if (!product) {
           showAlert('Barcode không tìm thấy trong hệ thống.', true);
@@ -2154,29 +2154,74 @@ Số lượng tồn kho</label>
     if (preview) preview.classList.add('hidden');
   }
 
-  // Fetch product info from Open Food Facts API
+  // Fetch product info from UPC.dev API
   async function fetchProductFromOpenFoodFacts(barcode) {
+    barcode = String(barcode || '').trim();
     if (!barcode) return null;
-    try {
-      const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+
+    async function fetchProductDetails(code) {
+      const url = `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(code)}.json`;
+      const response = await fetch(url);
       if (!response.ok) return null;
-      
       const data = await response.json();
-      if (data.status === 0) return null; // Product not found
-      
-      const product = data.product;
+      if (!data || data.status !== 1 || !data.product) return null;
+      return data.product;
+    }
+
+    async function fetchSearchFallback(query) {
+      try {
+        const searchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&page_size=1&json=1`;
+        const searchResponse = await fetch(searchUrl);
+        if (!searchResponse.ok) return null;
+        const searchData = await searchResponse.json();
+        if (!searchData || !Array.isArray(searchData.products) || searchData.products.length === 0) return null;
+        return searchData.products[0];
+      } catch (err) {
+        console.error('OpenFoodFacts search fallback error:', err);
+        return null;
+      }
+    }
+
+    try {
+      let product = null;
+      const barcodesToTry = [barcode];
+      const withoutLeadingZeros = barcode.replace(/^0+/, '');
+      if (withoutLeadingZeros && withoutLeadingZeros !== barcode) {
+        barcodesToTry.push(withoutLeadingZeros);
+      }
+      const paddedBarcode = barcode.length === 12 ? `0${barcode}` : null;
+      if (paddedBarcode && paddedBarcode !== barcode) {
+        barcodesToTry.push(paddedBarcode);
+      }
+
+      for (const code of barcodesToTry) {
+        product = await fetchProductDetails(code);
+        if (product) break;
+      }
+
+      if (!product) {
+        console.log('OpenFoodFacts direct lookup not found, trying search fallback for', barcode);
+        product = await fetchSearchFallback(barcode);
+        if (!product && withoutLeadingZeros) {
+          product = await fetchSearchFallback(withoutLeadingZeros);
+        }
+      }
+
+      if (!product) return null;
+
       return {
-        id: null, // Will be saved with new ID
+        id: null,
         barcode: barcode,
-        name: product.product_name || `Sản phẩm ${barcode}`,
-        image: product.image_url || product.image_front_url || '/assets/real-products/fallback.jpg',
-        category: product.categories || 'Khác',
+        name: product.product_name || product.generic_name || `Sản phẩm ${barcode}`,
+        image: product.image_front_url || product.image_url || product.image_small_url || '/assets/real-products/fallback.jpg',
+        category: product.categories || product.category || 'Khác',
         brand: product.brands || '',
-        price: 0, // Will be set by user
+        description: product.generic_name || product.product_name || '',
+        price: 0,
         stock: 0
       };
     } catch (err) {
-      console.error('Open Food Facts API error:', err);
+      console.error('OpenFoodFacts API error:', err);
       return null;
     }
   }

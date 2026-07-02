@@ -10,6 +10,7 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const https = require('https');
 const db = require("./database");
 const PDFDocument = require('pdfkit');
 const nodemailer = require('nodemailer');
@@ -172,6 +173,58 @@ function authenticateToken(req, res, next) {
     req.user = payload;
     next();
   });
+}
+
+async function fetchProductFromOpenFoodFactsOnServer(barcode) {
+  barcode = String(barcode || '').trim();
+  if (!barcode) return null;
+
+  function fetchJson(url) {
+    return new Promise(resolve => {
+      https.get(url, { headers: { Accept: 'application/json' } }, res => {
+        let raw = '';
+        res.on('data', chunk => raw += chunk);
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(raw);
+            if (!parsed) return resolve(null);
+            if (parsed.status === 1 && parsed.product) {
+              return resolve(parsed.product);
+            }
+            if (Array.isArray(parsed.products) && parsed.products.length > 0) {
+              return resolve(parsed.products[0]);
+            }
+          } catch (e) {
+            console.error('[OpenFoodFacts] parse error', e);
+          }
+          resolve(null);
+        });
+      }).on('error', err => {
+        console.error('[OpenFoodFacts] request error', err);
+        resolve(null);
+      });
+    });
+  }
+
+  const tried = new Set();
+  const candidates = [barcode];
+  if (barcode.startsWith('0')) {
+    const withoutZero = barcode.replace(/^0+/, '');
+    if (withoutZero) candidates.push(withoutZero);
+  }
+  if (barcode.length === 12) {
+    candidates.push(`0${barcode}`);
+  }
+
+  for (const code of candidates) {
+    if (tried.has(code)) continue;
+    tried.add(code);
+    const product = await fetchJson(`https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(code)}.json`);
+    if (product) return product;
+  }
+
+  const searchProduct = await fetchJson(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(barcode)}&search_simple=1&action=process&page_size=1&json=1`);
+  return searchProduct;
 }
 
 // Email transporter (configured via env)
@@ -1775,11 +1828,27 @@ app.get('/api/products/:barcode', async (req, res) => {
       [barcode, barcode]
     );
 
-    if (products.length === 0) {
+    if (products.length > 0) {
+      return res.json(products[0]);
+    }
+
+    const remoteProduct = await fetchProductFromOpenFoodFactsOnServer(barcode);
+    if (!remoteProduct) {
       return res.status(404).send('Không tìm thấy sản phẩm với barcode này.');
     }
 
-    res.json(products[0]);
+    return res.json({
+      id: null,
+      name: remoteProduct.name || `Sản phẩm ${barcode}`,
+      description: remoteProduct.description || '',
+      category: remoteProduct.category || 'Khác',
+      price: 0,
+      stock: 0,
+      image: remoteProduct.image || remoteProduct.image_url || '/assets/real-products/fallback.jpg',
+      code: null,
+      barcode: barcode,
+      supplier_id: null
+    });
   } catch (err) {
     console.error(err);
     res.status(500).send('Lỗi tìm sản phẩm theo barcode.');

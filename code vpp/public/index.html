@@ -25,130 +25,76 @@
     button, input, select, textarea { font: inherit; }
     button { cursor: pointer; }
 
-    header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 24px 32px; background: linear-gradient(135deg, rgba(37, 99, 235, 0.98) 0%, rgba(30, 64, 175, 0.98) 100%); color: white; position: sticky; top: 0; z-index: 10; box-shadow: 0 4px 20px rgba(37, 99, 235, 0.25); }
-    header h1 { margin: 0; font-size: 26px; letter-spacing: -0.03em; font-weight: 900; }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 24px 32px; background: rgba(37, 99, 235, 0.98); color: white; position: sticky; top: 0; z-index: 10; }
+    header h1 { margin: 0; font-size: 24px; letter-spacing: -0.03em; }
     header .meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-    header .meta span, header .meta button { background: linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%); border-radius: 12px; padding: 10px 16px; color: white; border: 1px solid rgba(255,255,255,0.2); font-weight: 600; transition: all 0.3s ease; }
-    header .meta span:hover, header .meta button:hover { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.4); }
+    header .meta span, header .meta button { background: rgba(255,255,255,0.16); border-radius: 999px; padding: 10px 16px; color: white; border: none; }
 
     .page { max-width: 1400px; margin: 0 auto; padding: 0 24px 24px; display: grid; gap: 24px; }
-    .card { background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%); border: 2px solid #e5e7eb; border-radius: 20px; box-shadow: 0 4px 20px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9); padding: 24px; position: relative; overflow: hidden; }
-    .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.3), transparent); }
-    .card h2 { margin-top: 0; font-size: 24px; font-weight: 800; color: #0f172a; }
-    .small-card { border-radius: 20px; background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%); padding: 20px; display: grid; gap: 12px; border: 2px solid #e5e7eb; box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8); position: relative; overflow: hidden; }
-    .small-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.5), transparent); }
-    .small-card strong { display: block; font-size: 32px; font-weight: 900; color: #0f172a; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; box-shadow: var(--shadow); padding: 24px; }
+    .card h2 { margin-top: 0; font-size: 22px; }
+    .small-card { border-radius: 24px; background: var(--card); padding: 20px; display: grid; gap: 12px; }
+    .small-card strong { display: block; font-size: 28px; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
     .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
     .hidden { display: none !important; }
-    .button { border: none; border-radius: 16px; padding: 14px 20px; background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); color: white; font-weight: 700; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
-    .button:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4); }
-    .button-outline { background: white; color: var(--text); border: 2px solid #e5e7eb; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06); }
-    .button-outline:hover { border-color: #2563eb; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15); }
-    .button-danger { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
+    .button { border: none; border-radius: 14px; padding: 14px 18px; background: var(--primary); color: white; font-weight: 700; transition: transform 0.16s ease; }
+    .button:hover { transform: translateY(-1px); }
+    .button-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .button-danger { background: var(--danger); }
 
     .tabs { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
-    .tab-button { border-radius: 16px; border: 2px solid #e5e7eb; background: white; color: var(--text); padding: 12px 20px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
-    .tab-button:hover { border-color: #2563eb; background: #f0f9ff; }
-    .tab-button.active { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); color: white; border-color: #1e40af; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+    .tab-button { border-radius: 999px; border: 1px solid transparent; background: var(--card); color: var(--text); padding: 12px 18px; }
+    .tab-button.active { background: var(--primary); color: white; border-color: rgba(255,255,255,0.2); }
 
     .form-grid { display: grid; gap: 16px; }
     .form-control { display: grid; gap: 8px; }
-    .form-control label { font-size: 14px; color: #4b5563; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-    .form-control input, .form-control select, .form-control textarea { width: 100%; border: 2px solid #e5e7eb; border-radius: 12px; padding: 12px 14px; background: white; color: var(--text); font-weight: 500; transition: all 0.3s ease; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02); }
-    .form-control input:focus, .form-control select:focus, .form-control textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1), inset 0 1px 2px rgba(0, 0, 0, 0.02); }
+    .form-control label { font-size: 14px; color: var(--muted); }
+    .form-control input, .form-control select, .form-control textarea { width: 100%; border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; background: white; color: var(--text); }
     .form-control textarea { min-height: 120px; resize: vertical; }
 
     .table { width: 100%; border-collapse: collapse; }
     .table th, .table td { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: middle; }
-    .table th { color: #0f172a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 800; background: linear-gradient(135deg, #f8fafc 0%, #f3f4f6 100%); }
-    .table tbody tr { transition: all 0.3s ease; }
-    .table tbody tr:hover { background: #f0f9ff; border-left: 3px solid #2563eb; }
+    .table th { color: #000; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+    .table tbody tr:hover { background: #f8fafc; }
 
     .pos-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(360px, 0.95fr); gap: 20px; align-items: flex-start; }
-    .pos-topbar { position: sticky; top: calc(var(--header-height) + var(--nav-height)); z-index: 7; background: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(250,251,252,0.98) 100%); padding: 16px 20px 12px; border-radius: 18px; margin-bottom: 16px; width: min(100%, calc(100% - 460px)); margin-right: auto; border: 1px solid rgba(229,231,235,0.5); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08); }
-    .pos-topbar h2 { margin: 0 0 12px; color: #0f172a; font-weight: 800; }
+    .pos-topbar { position: sticky; top: calc(var(--header-height) + var(--nav-height)); z-index: 7; background: rgba(255,255,255,0.96); padding: 14px 20px 10px; border-radius: 24px; margin-bottom: 16px; width: min(100%, calc(100% - 460px)); margin-right: auto; }
+    .pos-topbar h2 { margin: 0 0 12px; }
     .pos-topbar .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .pos-topbar .form-control { gap: 6px; }
-    .pos-topbar .form-control label { font-size: 12px; }
-    .pos-topbar .form-control input, .pos-topbar .form-control select { padding: 10px 12px; font-size: 14px; }
+    .pos-topbar .form-control label { font-size: 13px; }
+    .pos-topbar .form-control input, .pos-topbar .form-control select { padding: 12px 14px; }
     .cart-panel { position: fixed; top: calc(var(--header-height) + var(--nav-height)); right: 24px; width: 420px; z-index: 6; }
-    .cart-panel .card { display: flex; flex-direction: column; gap: 16px; max-height: calc(100vh - (var(--header-height) + var(--nav-height) + 32px)); overflow-y: auto; background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%); }
-    .cart-panel h2 { margin: 0; font-size: 20px; font-weight: 900; color: #0f172a; }
+    .cart-panel .card { display: flex; flex-direction: column; gap: 16px; max-height: calc(100vh - (var(--header-height) + var(--nav-height) + 32px)); overflow-y: auto; }
+    .cart-panel h2 { margin: 0; }
     .cart-summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .cart-summary .status-chip { margin: 0; }
     .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; align-items: stretch; }
-    .product-card { background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%); border: 2px solid #e5e7eb; border-radius: 18px; display: flex; flex-direction: column; gap: 12px; padding: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); min-height: 100%; position: relative; overflow: hidden; }
-    .product-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.3), transparent); }
-    .product-card:hover { transform: translateY(-6px); border-color: #2563eb; box-shadow: 0 12px 32px rgba(37, 99, 235, 0.18); }
-    .product-card img { width: 100%; height: 150px; object-fit: cover; border-radius: 14px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08); }
-    .product-card .meta { display: flex; justify-content: space-between; gap: 12px; align-items: center; font-size: 13px; color: #6b7280; }
+    .product-card { background: var(--card); border-radius: 24px; display: flex; flex-direction: column; gap: 12px; padding: 14px; cursor: pointer; transition: transform 0.16s ease, box-shadow 0.16s ease; min-height: 100%; }
+    .product-card:hover { transform: translateY(-2px); box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12); }
+    .product-card img { width: 100%; height: 150px; object-fit: cover; border-radius: 18px; }
+    .product-card .meta { display: flex; justify-content: space-between; gap: 12px; align-items: center; font-size: 14px; color: var(--muted); }
     .product-card .product-footer { margin-top: auto; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-    .product-card .price { font-size: 18px; font-weight: 900; margin: 0; white-space: nowrap; color: #0f172a; }
+    .product-card .price { font-size: 18px; font-weight: 700; margin: 0; white-space: nowrap; }
     .product-card .actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-    .status-chip { background: linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(37, 99, 235, 0.08) 100%); border: 1px solid rgba(37, 99, 235, 0.3); border-radius: 12px; padding: 8px 14px; color: #0c4a6e; font-weight: 600; font-size: 13px; }
-    .notification { margin-top: 12px; color: var(--danger); font-size: 14px; font-weight: 600; }
-
-    /* Professional Dashboard Styling */
-    #dashboardSection { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border: 3px solid #2563eb; border-radius: 32px; padding: 32px; box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.1), 0 16px 60px rgba(37, 99, 235, 0.12); position: relative; overflow: hidden; }
-    #dashboardSection::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(37, 99, 235, 0.03) 0%, transparent 100%); pointer-events: none; }
-    #dashboardSection > * { position: relative; z-index: 1; }
-    #dashboardSection h2 { color: #0f172a; font-size: 32px; font-weight: 900; margin: 0 0 28px 0; letter-spacing: -0.02em; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
-
-    /* Enhanced Small Cards */
-    .small-card { background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%); border: 2px solid #e5e7eb; border-radius: 20px; padding: 20px; box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); position: relative; overflow: hidden; }
-    .small-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.5), transparent); }
-    .small-card:hover { transform: translateY(-4px); border-color: #2563eb; box-shadow: 0 12px 24px rgba(37, 99, 235, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8); }
-    .small-card span:first-child { color: #4b5563; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
-    .small-card strong { color: #0f172a; font-size: 32px; font-weight: 800; }
-    .small-card span:last-child { color: #7c8699; font-size: 12px; font-weight: 500; }
-
-    /* Enhanced Chart Card */
-    #dashboardSection .card { background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%); border: 2px solid #e5e7eb; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9); }
-    #dashboardSection .card h3 { color: #0f172a; font-size: 20px; font-weight: 900; margin: 0 0 16px 0; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
-
-    /* Alert Cards Styling */
-    #dashboardSection .card:last-child > div > div { background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%); border: 2px solid; border-radius: 16px; padding: 16px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8); }
-    #dashboardSection .card:last-child > div > div:first-child { border-color: #fed7d7; background: linear-gradient(135deg, #fff5f5 0%, #fef2f2 100%); }
-    #dashboardSection .card:last-child > div > div:first-child h4 { color: #7c2d12; font-size: 16px; font-weight: 900; margin: 0 0 12px 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
-    #dashboardSection .card:last-child > div > div:last-child { border-color: #bfdbfe; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); }
-    #dashboardSection .card:last-child > div > div:last-child h4 { color: #0c2340; font-size: 16px; font-weight: 900; margin: 0 0 12px 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
-    #dashboardSection .card:last-child > div > div:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9); }
-
-    /* Premium Typography */
-    #dashboardSection .card:last-child > div > div > div > div { line-height: 1.6; }
-    #dashboardSection .card:last-child > div > div strong { font-weight: 800; }
-
-    /* Professional POS Section Styling */
-    #posSection .card { background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%); border: 2px solid #e5e7eb; border-radius: 20px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9); position: relative; overflow: hidden; }
-    #posSection .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.4), transparent); }
-    #posSection .card h2 { color: #0f172a; font-size: 20px; font-weight: 900; margin: 0 0 12px 0; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
-    #posSection .card h3 { color: #1f2937; font-size: 16px; font-weight: 800; margin: 0 0 12px 0; }
-
-    /* POS Product Cards */
-    #posSection .product-card { background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%); border: 2px solid #e5e7eb; border-radius: 18px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
-    #posSection .product-card:hover { transform: translateY(-4px); border-color: #2563eb; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.12); }
-    #posSection .product-card .price { color: #0f172a; font-weight: 900; }
-
-    /* Detail and Preview Cards */
-    #productDetailCard, #barcodePreview { background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%); border: 2px solid #e5e7eb !important; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important; border-radius: 20px !important; }
-    #productDetailCard h3, #barcodePreview h3 { color: #0f172a; font-weight: 900; }
+    .status-chip { background: rgba(255,255,255,0.18); border-radius: 999px; padding: 10px 16px; }
+    .notification { margin-top: 12px; color: var(--danger); font-size: 14px; }
 
     @media (max-width: 1100px) { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
-    @media (max-width: 1100px) { #dashboardSection { padding: 24px; border-radius: 24px; } }
     @media (max-width: 720px) { body, .page { padding: 0 16px; } header { flex-direction: column; align-items: stretch; } }
 
     /* Horizontal menu styles (fixed below header) */
     .app-container { display: grid; grid-template-columns: 1fr; gap: 0; margin-top: 0; }
-    .sidebar { background: linear-gradient(180deg, #2563eb 0%, #1e40af 100%); color: white; padding: 8px 16px; overflow-x: auto; position: fixed; left: 0; top: var(--header-height); right: 0; width: 100%; height: var(--nav-height); z-index: 1000; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); display: flex; align-items: center; }
-    .sidebar-header { padding: 0 12px 0 12px; border-bottom: none; margin-right: 12px; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.95; color: rgba(255, 255, 255, 0.85); }
+    .sidebar { background: linear-gradient(180deg, #2563eb 0%, #1e40af 100%); color: white; padding: 8px 16px; overflow-x: auto; position: fixed; left: 0; top: var(--header-height); right: 0; width: 100%; height: var(--nav-height); z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; align-items: center; }
+    .sidebar-header { padding: 0 12px 0 12px; border-bottom: none; margin-right: 12px; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.95; }
     .sidebar-menu { display: flex; flex-direction: row; gap: 8px; align-items: center; overflow-x: auto; padding: 6px 0; }
-    .sidebar-item { padding: 8px 14px; color: rgba(255,255,255,0.9); cursor: pointer; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-right: none; border-bottom: 3px solid transparent; border-radius: 8px 8px 0 0; font-weight: 600; }
-    .sidebar-item:hover { background: rgba(255,255,255,0.12); color: white; }
-    .sidebar-item.active { background: rgba(255,255,255,0.15); color: white; border-bottom-color: #fbbf24; font-weight: 800; box-shadow: inset 0 -3px 0 rgba(251, 191, 36, 0.8); }
+    .sidebar-item { padding: 8px 12px; color: rgba(255,255,255,0.95); cursor: pointer; transition: background 160ms ease, transform 160ms ease; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-right: none; border-bottom: 3px solid transparent; border-radius: 8px; }
+    .sidebar-item:hover { background: rgba(255,255,255,0.06); color: white; }
+    .sidebar-item.active { background: rgba(255,255,255,0.12); color: white; border-bottom-color: white; font-weight: 600; }
     .sidebar-item.disabled-tab { opacity: 0.55; }
-    .sidebar-item.section-divider { padding: 8px 12px; font-size: 11px; text-transform: uppercase; color: rgba(255,255,255,0.6); font-weight: 700; margin-left: 8px; }
+    .sidebar-item.section-divider { padding: 8px 12px; font-size: 12px; text-transform: uppercase; color: rgba(255,255,255,0.6); font-weight: 600; margin-left: 8px; }
     .main-content { margin-left: 0; padding-top: var(--nav-height); }
 
     @media (max-width: 768px) {
@@ -313,41 +259,13 @@
         <div id="dashboardSection" class="section">
           <h2>Tổng quan</h2>
           <div class="grid-3">
-            <div class="small-card"><span>Vai trò</span><strong id="metricRole">Khách</strong></div>
             <div class="small-card"><span>Sản phẩm</span><strong id="metricProducts">0</strong><span>Tổng số sản phẩm đang quản lý</span></div>
             <div class="small-card"><span>Đơn hàng</span><strong id="metricOrders">0</strong><span>Tổng đơn hàng đã bán</span></div>
-          </div>
-          <div class="grid-3" style="margin-top:20px;">
             <div class="small-card"><span>Doanh thu</span><strong id="metricRevenue">0đ</strong><span>Tổng doanh thu từ bán hàng</span></div>
-            <div class="small-card"><span>Doanh thu hôm nay</span><strong id="metricToday">0đ</strong></div>
-            <div class="small-card"><span>Số đơn hôm nay</span><strong id="metricOrdersToday">0</strong></div>
           </div>
           <div class="grid-2" style="margin-top:20px;">
-            <div class="small-card"><span>Số sản phẩm đã bán</span><strong id="metricProductsSoldToday">0</strong></div>
-            <div class="small-card"><span>Số khách hàng hôm nay</span><strong id="metricCustomersToday">0</strong></div>
-          </div>
-          <div class="card" style="margin-top:20px;">
-            <h3 style="margin:0 0 12px 0;">Doanh thu 7 ngày gần nhất</h3>
-            <div style="position:relative; width:100%; height:300px;">
-              <canvas id="dashboardLast7DaysChart" style="max-width:100%;"></canvas>
-            </div>
-          </div>
-          <div class="card" style="margin-top:20px;">
-            <h3 style="margin:0 0 12px 0;">Báo cáo nhanh</h3>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px;">
-              <div style="border:1px solid #fee2e2; background:#fef2f2; border-radius:8px; padding:12px;">
-                <h4 style="margin:0 0 8px 0; color:#dc2626; font-size:13px; font-weight:700;">📦 Sản phẩm sắp hết hàng</h4>
-                <div id="lowStockList" style="font-size:13px; max-height:180px; overflow-y:auto;">
-                  <div style="color:#999; text-align:center; padding:20px;">Không có cảnh báo</div>
-                </div>
-              </div>
-              <div style="border:1px solid #dbeafe; background:#f0f9ff; border-radius:8px; padding:12px;">
-                <h4 style="margin:0 0 8px 0; color:#0284c7; font-size:13px; font-weight:700;">🔥 Top 5 bán chạy hôm nay</h4>
-                <div id="topProductsList" style="font-size:13px; max-height:180px; overflow-y:auto;">
-                  <div style="color:#999; text-align:center; padding:20px;">Chưa có dữ liệu</div>
-                </div>
-              </div>
-            </div>
+            <div class="small-card"><span>Doanh thu hôm nay</span><strong id="metricToday">0đ</strong></div>
+            <div class="small-card"><span>Vai trò</span><strong id="metricRole">Khách</strong></div>
           </div>
         </div>
       <div id="posSection" class="section hidden">
@@ -821,7 +739,7 @@
           </div>
           <div style="display:flex; gap:12px; margin-top:24px; justify-content:flex-end;">
             <button class="button-outline" style="flex:0 0 auto;" onclick="printInvoice()">🖨️ In hóa đơn</button>
-            <button id="downloadInvoiceButton" class="button-outline" style="flex:0 0 auto; display:none;" onclick="downloadInvoicePdf()">⬇️ Tải PDF</button>
+            <button class="button-outline" style="flex:0 0 auto;" onclick="downloadInvoicePdf()">⬇️ Tải PDF</button>
             <button class="button" style="flex:0 0 auto;" onclick="closeInvoiceModal()">Đóng</button>
           </div>
         </div>
@@ -1072,29 +990,13 @@ Số lượng tồn kho</label>
     }).join('');
   }
 
-  async function removeGtgtRequest(index) {
-    if (!Array.isArray(state.gtgtRequests)) return;
-    if (index < 0 || index >= state.gtgtRequests.length) return;
-
-    const request = normalizeGtgtRequest(state.gtgtRequests[index]);
-    const orderNumber = request.orderNumber;
-    if (!orderNumber) return;
-
-    if (!confirm(`Xác nhận xóa yêu cầu GTGT ${orderNumber}?`)) {
-      return;
-    }
-
-    try {
-      await apiFetch(`/gtgt-requests/${encodeURIComponent(orderNumber)}/delete`, { method: 'POST' });
-      const updatedRequests = state.gtgtRequests.slice();
-      updatedRequests.splice(index, 1);
-      saveGtgtRequests(updatedRequests);
-      state.gtgtRequests = updatedRequests;
-      renderGtgtSection();
-    } catch (err) {
-      console.error(err);
-      alert('Không thể xóa yêu cầu GTGT: ' + (err.message || err));
-    }
+  function removeGtgtRequest(index) {
+    const requests = getStoredGtgtRequests();
+    if (index < 0 || index >= requests.length) return;
+    requests.splice(index, 1);
+    saveGtgtRequests(requests);
+    state.gtgtRequests = requests;
+    renderGtgtSection();
   }
 
   function markGtgtRequestIssued(orderNumber) {
@@ -1725,8 +1627,6 @@ Số lượng tồn kho</label>
     await loadCurrentShift();
   }
 
-  let dashboardLast7DaysChart = null;
-
   async function loadDashboard() {
     try {
       const res = await apiFetch('/dashboard', { method: 'GET' });
@@ -1735,139 +1635,8 @@ Số lượng tồn kho</label>
       document.getElementById('metricOrders').textContent = data.orderCount;
       document.getElementById('metricRevenue').textContent = formatCurrency(data.salesTotal);
       document.getElementById('metricToday').textContent = formatCurrency(data.todayTotal);
-      document.getElementById('metricOrdersToday').textContent = data.todayOrderCount;
-      document.getElementById('metricProductsSoldToday').textContent = data.todayProductsSold;
-      document.getElementById('metricCustomersToday').textContent = data.todayCustomerCount;
       document.getElementById('metricRole').textContent = roleLabel(state.user.role);
-      renderDashboardLast7DaysChart(data.last7Days || []);
-      await loadDashboardAlerts();
     } catch (err) { console.error(err); }
-  }
-
-  function renderDashboardLast7DaysChart(rows) {
-    try {
-      const labels = [];
-      const values = [];
-      const today = new Date();
-      const dates = [];
-      const pad = (n) => String(n).padStart(2, '0');
-      for (let i = 6; i >= 0; i -= 1) {
-        const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
-        const localDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-        dates.push(localDate);
-      }
-      const revenueByDate = rows.reduce((acc, row) => {
-        const dateKey = String(row.date).slice(0, 10);
-        acc[dateKey] = Number(row.total_sales || 0);
-        return acc;
-      }, {});
-      dates.forEach(date => {
-        labels.push(date);
-        values.push(revenueByDate[date] || 0);
-      });
-
-      const ctx = document.getElementById('dashboardLast7DaysChart').getContext('2d');
-      if (dashboardLast7DaysChart) dashboardLast7DaysChart.destroy();
-      dashboardLast7DaysChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Doanh thu (7 ngày)',
-            data: values,
-            borderColor: '#2563eb',
-            backgroundColor: 'rgba(37,99,235,0.12)',
-            fill: true,
-            tension: 0.35,
-            pointRadius: 3,
-            pointBackgroundColor: '#2563eb'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              title: { display: true, text: 'Doanh thu (VND)' }
-            },
-            x: {
-              title: { display: true, text: 'Ngày' }
-            }
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: ctx => formatCurrency(ctx.parsed.y)
-              }
-            }
-          }
-        }
-      });
-    } catch (err) {
-      console.error('renderDashboardLast7DaysChart', err);
-    }
-  }
-
-  async function loadDashboardAlerts() {
-    try {
-      const [lowStockRes, topProductsRes] = await Promise.all([
-        apiFetch('/api/alerts/low-stock?threshold=5', { method: 'GET' }),
-        apiFetch('/api/alerts/top-products-today', { method: 'GET' })
-      ]);
-      const lowStock = await lowStockRes.json();
-      const topProducts = await topProductsRes.json();
-      
-      renderLowStockAlert(lowStock);
-      renderTopProductsAlert(topProducts);
-    } catch (err) {
-      console.error('loadDashboardAlerts', err);
-    }
-  }
-
-  function renderLowStockAlert(products) {
-    try {
-      const container = document.getElementById('lowStockList');
-      if (!Array.isArray(products) || products.length === 0) {
-        container.innerHTML = '<div style="color:#999; text-align:center; padding:20px;">Không có cảnh báo</div>';
-        return;
-      }
-      container.innerHTML = products.map(p => `
-        <div style="padding:8px 0; border-bottom:1px solid #fecaca; display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <div style="font-weight:600; color:#333;">${p.name}</div>
-            <div style="font-size:12px; color:#666;">${p.category || 'Chưa phân loại'}</div>
-          </div>
-          <div style="text-align:right; font-weight:700; color:#b91c1c; min-width:30px;">${p.stock}</div>
-        </div>
-      `).join('') + '<div style="padding:8px 0; border-bottom:none;"></div>';
-    } catch (err) {
-      console.error('renderLowStockAlert', err);
-    }
-  }
-
-  function renderTopProductsAlert(products) {
-    try {
-      const container = document.getElementById('topProductsList');
-      if (!Array.isArray(products) || products.length === 0) {
-        container.innerHTML = '<div style="color:#999; text-align:center; padding:20px;">Chưa có dữ liệu</div>';
-        return;
-      }
-      container.innerHTML = products.map((p, idx) => `
-        <div style="padding:8px 0; border-bottom:1px solid #bfdbfe; display:flex; justify-content:space-between; align-items:center;">
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span style="font-weight:700; color:#0284c7; min-width:20px;">${idx + 1}.</span>
-            <div>
-              <div style="font-weight:600; color:#333;">${p.name}</div>
-              <div style="font-size:12px; color:#666;">${p.total_qty} bán • ${formatCurrency(p.total_sales)}</div>
-            </div>
-          </div>
-        </div>
-      `).join('') + '<div style="padding:8px 0; border-bottom:none;"></div>';
-    } catch (err) {
-      console.error('renderTopProductsAlert', err);
-    }
   }
 
   async function loadCategories() {
@@ -2860,8 +2629,6 @@ Số lượng tồn kho</label>
         }
       }
 
-      document.getElementById('cashReceived').value = 0;
-      document.getElementById('cashChange').textContent = formatCurrency(0);
       state.cart = [];
       renderCart();
       loadProductList();
@@ -2979,7 +2746,6 @@ Số lượng tồn kho</label>
     `;
     
     document.getElementById('invoiceContent').innerHTML = invoiceHTML;
-    document.getElementById('downloadInvoiceButton').style.display = 'none';
     document.getElementById('invoiceModal').style.display = 'flex';
   }
 
@@ -3116,7 +2882,6 @@ Số lượng tồn kho</label>
     `;
 
     document.getElementById('invoiceContent').innerHTML = gtgtInvoiceHTML;
-    document.getElementById('downloadInvoiceButton').style.display = 'none';
     document.getElementById('invoiceModal').style.display = 'flex';
   }
 
@@ -3942,8 +3707,10 @@ Số lượng tồn kho</label>
       const str = String(value).trim();
       const localNoTZ = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
       if (localNoTZ.test(str)) {
-        const normalized = str.replace(' ', 'T').replace(/\.\d+$/, '');
-        date = new Date(normalized + '+07:00');
+        const [datePart, timePart] = str.replace('T', ' ').split(' ');
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hour, minute, second] = timePart.split(':').map(Number);
+        date = new Date(year, month - 1, day, hour, minute, second);
       } else {
         date = new Date(str);
       }

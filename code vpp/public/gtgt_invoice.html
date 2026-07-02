@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hóa đơn GTGT</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; min-height: 100vh; background: #f3f4f6; color: #111827; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .page { width: 100%; max-width: 980px; margin: 20px auto; padding: 18px; }
+    .invoice-card { background: #ffffff; border-radius: 28px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08); overflow: hidden; }
+    .invoice-top { background: #fff1f2; padding: 34px 32px 26px; text-align: center; }
+    .invoice-title { margin: 0; font-size: 34px; font-weight: 900; letter-spacing: 0.14em; line-height: 1.05; color: #991b1b; text-transform: uppercase; }
+    .invoice-subtitle { margin: 12px auto 0; color: #7f1d1d; font-size: 14px; font-weight: 700; }
+    .invoice-meta { margin-top: 16px; display: flex; justify-content: center; gap: 26px; flex-wrap: wrap; color: #475569; font-size: 13px; }
+    .invoice-meta div { line-height: 1.6; }
+    .content-block { padding: 28px 32px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+    .box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 22px; padding: 22px; }
+    .box-title { margin: 0 0 18px; font-size: 14px; font-weight: 700; color: #991b1b; letter-spacing: 0.02em; }
+    .row { display: grid; grid-template-columns: 145px 1fr; gap: 6px 18px; align-items: start; margin-bottom: 10px; font-size: 13px; }
+    .row .label { color: #475569; font-weight: 600; }
+    .row .value { color: #111827; }
+    .note-box { margin-top: 20px; padding: 18px 22px; border-radius: 20px; background: #f8fafc; border: 1px solid #e2e8f0; font-size: 13px; color: #334155; line-height: 1.7; }
+    .invoice-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+    .invoice-table th, .invoice-table td { padding: 14px 12px; border: 1px solid #fee2e2; }
+    .invoice-table th { background: #fef2f2; color: #991b1b; font-weight: 700; }
+    .invoice-table td { color: #334155; }
+    .invoice-table td.numeric { text-align: right; }
+    .totals { margin-top: 20px; width: 100%; max-width: 420px; margin-left: auto; border-radius: 22px; overflow: hidden; }
+    .totals tr td { padding: 14px 16px; background: #fff; border: 1px solid #e2e8f0; font-size: 13px; }
+    .totals tr td:first-child { color: #475569; }
+    .totals tr td:last-child { text-align: right; font-weight: 700; color: #111827; }
+    .totals tr.total-row td { background: #f8fafc; }
+    .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 28px; }
+    .sign-box { min-height: 140px; padding: 20px; border: 2px dashed #cbd5e1; border-radius: 22px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; }
+    .sign-title { margin: 0 0 10px; color: #475569; font-size: 13px; font-weight: 700; }
+    .sign-text { color: #334155; font-size: 12px; line-height: 1.7; }
+    .sign-note { margin-top: 12px; font-size: 12px; color: #6b7280; }
+    .sign-approval { background: #dcfce7; border: 1px solid #86efac; border-radius: 18px; padding: 14px 16px; color: #166534; font-size: 12px; line-height: 1.6; }
+    .actions { display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap; padding: 16px 32px 28px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; padding: 12px 18px; border-radius: 12px; border: none; background: #991b1b; color: #ffffff; text-decoration: none; font-weight: 700; cursor: pointer; }
+    .button-outline { background: #ffffff; color: #991b1b; border: 1px solid #991b1b; }
+    .error { padding: 16px; background: #fee2e2; color: #991b1b; border-radius: 14px; margin-top: 16px; }
+    @media (max-width: 840px) { .info-grid { grid-template-columns: 1fr; } .signatures { grid-template-columns: 1fr; } }
+    @media print { body { background: #fff; } .page { margin: 0; padding: 0; } .actions, #errorMessage { display: none !important; } .invoice-card { box-shadow: none; border-radius: 0; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="invoice-card">
+      <div class="invoice-top">
+        <div class="invoice-title">Hóa đơn<br>Giá trị gia tăng</div>
+        <div class="invoice-subtitle" id="invoiceSubtitle">Đang tải dữ liệu hóa đơn...</div>
+        <div class="invoice-meta">
+          <div>Ngày: <span id="metaDate">-</span></div>
+          <div>Số: <span id="metaNumber">-</span></div>
+        </div>
+      </div>
+      <div id="invoiceContent">
+        <div class="content-block">
+          <div class="info-grid">
+          <div class="box">
+            <div class="box-title">Thông tin người bán</div>
+            <div class="row"><div class="label">Đơn vị bán hàng:</div><div class="value" id="sellerName"></div></div>
+            <div class="row"><div class="label">Mã số thuế:</div><div class="value" id="sellerTaxCode"></div></div>
+            <div class="row"><div class="label">Địa chỉ:</div><div class="value" id="sellerAddress"></div></div>
+            <div class="row"><div class="label">Điện thoại:</div><div class="value" id="sellerPhone"></div></div>
+          </div>
+          <div class="box">
+            <div class="box-title">Hóa đơn</div>
+            <div class="row"><div class="label">Mẫu số:</div><div class="value" id="invoiceForm">01GTKT3/001</div></div>
+            <div class="row"><div class="label">Ký hiệu:</div><div class="value" id="invoiceSymbol">BM/11P</div></div>
+            <div class="row"><div class="label">Số hóa đơn:</div><div class="value" id="invoiceNumber"></div></div>
+          </div>
+        </div>
+
+        <div class="box">
+          <div class="box-title">Thông tin người mua hàng</div>
+          <div class="row"><div class="label">Họ tên người mua hàng:</div><div class="value" id="customerName">-</div></div>
+          <div class="row"><div class="label">Tên đơn vị:</div><div class="value" id="customerCompany">-</div></div>
+          <div class="row"><div class="label">Mã số thuế:</div><div class="value" id="customerTaxCode">-</div></div>
+          <div class="row"><div class="label">Địa chỉ:</div><div class="value" id="customerAddress">-</div></div>
+          <div class="row"><div class="label">Hình thức thanh toán:</div><div class="value" id="paymentMethod">-</div></div>
+        </div>
+
+        <div class="box" style="margin-top:24px;">
+          <table class="invoice-table">
+            <thead>
+              <tr>
+                <th>STT</th>
+                <th>Tên hàng hóa, dịch vụ</th>
+                <th>ĐVT</th>
+                <th>SL</th>
+                <th>Đơn giá</th>
+                <th>Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody id="itemsTable"></tbody>
+          </table>
+        </div>
+
+        <table class="totals">
+          <tr><td>Tiền hàng</td><td id="totalAmount"></td></tr>
+          <tr><td>Thuế suất GTGT</td><td>10%</td></tr>
+          <tr><td>Tiền thuế GTGT</td><td id="taxAmount"></td></tr>
+          <tr class="total-row"><td>Tổng tiền thanh toán</td><td id="totalWithTax"></td></tr>
+          <tr><td colspan="2" style="padding-top:14px; color:#475569; font-size:13px;">Số tiền viết bằng chữ: <span id="amountInWords"></span></td></tr>
+        </table>
+
+        <div class="signatures">
+          <div class="sign-box">
+            <div class="sign-title">Người mua hàng</div>
+            <div class="sign-text">(Ký, ghi rõ họ tên)</div>
+          </div>
+          <div class="sign-box">
+            <div class="sign-title">Người bán hàng</div>
+            <div class="sign-approval">
+              <div><strong>Ký bởi:</strong> Công ty cổ phần VPP</div>
+              <div><strong>Ký ngày:</strong> <span id="signedAt"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="button" id="printButton" onclick="window.print()" style="display:none;">In hóa đơn</button>
+      <a class="button button-outline" id="pdfButton" href="#" target="_blank" style="display:none;">Tải PDF</a>
+    </div>
+    <div id="errorMessage" class="error" style="display:none;"></div>
+  </div>
+  <script>
+    function getQueryParam(name) { const params = new URLSearchParams(window.location.search); return params.get(name); }
+    function formatCurrency(value) { return Number(value || 0).toLocaleString('vi-VN') + ' đ'; }
+    function formatDateTime(value) { const date = new Date(value); if (isNaN(date.getTime())) return ''; return date.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false }); }
+    function numberToVietnameseText(amount) {
+      const units = ['không','một','hai','ba','bốn','năm','sáu','bảy','tám','chín'];
+      function readTriple(num, isFirst) {
+        const hundreds = Math.floor(num/100);
+        const tens = Math.floor((num%100)/10);
+        const ones = num%10;
+        const parts = [];
+        if (hundreds > 0) parts.push(`${units[hundreds]} trăm`);
+        if (tens === 0 && ones > 0) { if (hundreds>0) parts.push('lẻ'); parts.push(ones===5 ? 'năm' : units[ones]); }
+        else if (tens === 1) { parts.push('mười'); if (ones>0) parts.push(ones===5 ? 'lăm' : units[ones]); }
+        else if (tens > 1) { parts.push(`${units[tens]} mươi`); if (ones > 0) { if (ones===1) parts.push('mốt'); else if (ones===4) parts.push('bốn'); else if (ones===5) parts.push('lăm'); else parts.push(units[ones]); } }
+        return parts.join(' ');
+      }
+      if (!amount || isNaN(amount)) return '';
+      let value = Math.floor(Math.abs(Number(amount)));
+      if (value === 0) return 'không đồng';
+      const scales = ['', ' nghìn', ' triệu', ' tỷ', ' nghìn tỷ'];
+      const groups = [];
+      while (value > 0) { groups.unshift(value % 1000); value = Math.floor(value / 1000); }
+      const words = groups.map((g,i) => { if (g === 0) return ''; return readTriple(g, i === 0) + scales[groups.length - 1 - i]; }).filter(Boolean);
+      return words.join(' ').replace(/\s+/g,' ').trim() + ' đồng';
+    }
+    function renderInvoice(data) {
+      document.getElementById('metaDate').textContent = formatDateTime(data.createdAt);
+      document.getElementById('metaNumber').textContent = data.orderNumber || '-';
+      document.getElementById('invoiceSubtitle').textContent = `Mã đơn: ${data.orderNumber}`;
+      document.getElementById('sellerName').textContent = data.sellerName || 'admin';
+      document.getElementById('sellerTaxCode').textContent = data.sellerTaxCode || '234865924';
+      document.getElementById('sellerAddress').textContent = data.sellerAddress || 'Thành Phố Hồ Chí Minh';
+      document.getElementById('sellerPhone').textContent = data.sellerPhone || '0359389490';
+      document.getElementById('invoiceNumber').textContent = data.orderNumber || '-';
+      document.getElementById('customerName').textContent = data.customerName || '-';
+      document.getElementById('customerCompany').textContent = data.customerCompany || '-';
+      document.getElementById('customerTaxCode').textContent = data.customerTaxCode || '-';
+      document.getElementById('customerAddress').textContent = data.customerAddress || '-';
+      document.getElementById('paymentMethod').textContent = data.paymentMethod || '-';
+      document.getElementById('signedAt').textContent = formatDateTime(data.createdAt);
+      const itemsTable = document.getElementById('itemsTable');
+      itemsTable.innerHTML = '';
+      (data.items || []).forEach((item, index) => {
+        const qty = Number(item.quantity || 0) || 1;
+        const price = Number(item.price || 0);
+        const amount = price * qty;
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${index + 1}</td><td>${item.name || '-'}</td><td>Cái</td><td>${qty}</td><td class="numeric">${formatCurrency(price)}</td><td class="numeric">${formatCurrency(amount)}</td>`;
+        itemsTable.appendChild(row);
+      });
+      document.getElementById('totalAmount').textContent = formatCurrency(data.totalAmount);
+      document.getElementById('taxAmount').textContent = formatCurrency(Math.round((data.totalWithTax || 0) - (data.totalAmount || 0)));
+      document.getElementById('totalWithTax').textContent = formatCurrency(data.totalWithTax);
+      document.getElementById('amountInWords').textContent = numberToVietnameseText(data.totalWithTax);
+      document.getElementById('printButton').style.display = 'inline-flex';
+      document.getElementById('pdfButton').style.display = 'inline-flex';
+      document.getElementById('pdfButton').href = `/gtgt-invoice-pdf?orderNumber=${encodeURIComponent(data.orderNumber)}`;
+    }
+    function showError(message) {
+      document.getElementById('invoiceContent').style.display = 'none';
+      const errorMessage = document.getElementById('errorMessage');
+      errorMessage.textContent = message;
+      errorMessage.style.display = 'block';
+      document.getElementById('invoiceSubtitle').textContent = 'Lỗi tải hóa đơn';
+    }
+    async function loadInvoice() {
+      const orderNumber = getQueryParam('orderNumber') || getQueryParam('order_number');
+      if (!orderNumber) { showError('Mã đơn không tìm thấy trong đường dẫn.'); return; }
+      try {
+        const res = await fetch(`/gtgt-invoice-data?orderNumber=${encodeURIComponent(orderNumber)}`);
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(errorText || 'Không thể tải dữ liệu hóa đơn.');
+        }
+        const data = await res.json();
+        renderInvoice(data);
+      } catch (err) {
+        console.error(err);
+        showError(err.message || 'Lỗi khi tải hóa đơn GTGT.');
+      }
+    }
+    window.addEventListener('DOMContentLoaded', loadInvoice);
+  </script>
+</body>
+</html>

@@ -1142,7 +1142,7 @@ Số lượng tồn kho</label>
         customerTaxCode: requested.customerTaxCode || order.customer_tax_code || '-',
         paymentMethod: order.payment_method || 'Tiền mặt',
         invoiceType: 'Hóa đơn GTGT',
-        gtgtFormLink: `${window.location.origin}/gtgt_form.html?orderNumber=${encodeURIComponent(orderNumber)}`,
+        gtgtFormLink: `${window.location.origin}/gtgt_invoice.html?orderNumber=${encodeURIComponent(orderNumber)}`,
         items: orderItems.map(item => ({ product_name: item.product_name || 'Sản phẩm', price: Number(item.price || 0), quantity: Number(item.quantity || 0), discountPercent: Number(item.discount_percent || 0) })),
         totalAmount: totalAmount,
         totalAmountInWords: numberToVietnameseText(totalWithTax),
@@ -2549,7 +2549,7 @@ Số lượng tồn kho</label>
       });
       const result = await res.json();
 
-      const gtgtFormLink = `${window.location.origin}/gtgt_form.html?orderNumber=${encodeURIComponent(result.orderNumber)}`;
+      const gtgtFormLink = `${window.location.origin}/gtgt_invoice.html?orderNumber=${encodeURIComponent(result.orderNumber)}`;
 
       showInvoice({
         orderNumber: result.orderNumber,
@@ -2960,7 +2960,7 @@ Số lượng tồn kho</label>
         totalAmount: totalAmount,
         pointsEarned: 0,
         currentPoints: 0,
-        gtgtFormLink: `${window.location.origin}/gtgt_form.html?orderNumber=${encodeURIComponent(normalizeOrderNumber(order.order_number || `#${order.id}`))}`,
+        gtgtFormLink: `${window.location.origin}/gtgt_invoice.html?orderNumber=${encodeURIComponent(normalizeOrderNumber(order.order_number || `#${order.id}`))}`,
         items: orderItems.map(item => ({
           product_name: item.product_name || 'Sản phẩm',
           price: Number(item.price || 0),

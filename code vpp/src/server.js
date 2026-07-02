@@ -4,6 +4,7 @@ require("dotenv").config();
 // Ensure Node uses Vietnam timezone for logs and default date handling where possible
 process.env.TZ = process.env.TZ || 'Asia/Ho_Chi_Minh';
 
+const fs = require('fs');
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
@@ -12,6 +13,43 @@ const jwt = require("jsonwebtoken");
 const db = require("./database");
 const PDFDocument = require('pdfkit');
 const nodemailer = require('nodemailer');
+
+function findDefaultPdfFont() {
+  const envPath = process.env.PDF_FONT_PATH;
+  if (envPath && fs.existsSync(envPath)) {
+    return envPath;
+  }
+
+  const candidates = [];
+  if (process.platform === 'win32') {
+    const windir = process.env.WINDIR || 'C:\\Windows';
+    candidates.push(path.join(windir, 'Fonts', 'ARIALUNI.TTF'));
+    candidates.push(path.join(windir, 'Fonts', 'arialuni.ttf'));
+    candidates.push(path.join(windir, 'Fonts', 'ARIALN.TTF'));
+    candidates.push(path.join(windir, 'Fonts', 'arial.ttf'));
+    candidates.push(path.join(windir, 'Fonts', 'times.ttf'));
+    candidates.push(path.join(windir, 'Fonts', 'timesbd.ttf'));
+  } else {
+    candidates.push('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf');
+    candidates.push('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf');
+    candidates.push('/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf');
+    candidates.push('/usr/share/fonts/truetype/freefont/FreeSans.ttf');
+  }
+
+  for (const fontPath of candidates) {
+    if (fs.existsSync(fontPath)) {
+      return fontPath;
+    }
+  }
+  return null;
+}
+
+const PDF_FONT_PATH = findDefaultPdfFont();
+if (!PDF_FONT_PATH) {
+  console.warn('[PDF] Warning: No Unicode font found for PDF generation. Vietnamese text may render improperly. Set PDF_FONT_PATH to a TTF font file if available.');
+} else {
+  console.log('[PDF] Using font for PDF generation:', PDF_FONT_PATH);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -151,15 +189,15 @@ async function sendInvoiceEmail(orderNumber, toEmail) {
     const transporter = await getMailer();
     if (!transporter) return;
     const origin = process.env.APP_ORIGIN || `http://localhost:${PORT}`;
-    const invoiceUrl = `${origin.replace(/\/$/, '')}/gtgt_form.html?orderNumber=${encodeURIComponent(orderNumber)}`;
+    const invoiceUrl = `${origin.replace(/\/$/, '')}/gtgt_invoice.html?orderNumber=${encodeURIComponent(orderNumber)}`;
     const from = process.env.SMTP_FROM || process.env.SMTP_USER;
     const pdfBuffer = await generateGtgtInvoicePdf(orderNumber);
     const info = await transporter.sendMail({
       from,
       to: toEmail,
       subject: `Hóa đơn GTGT - ${orderNumber}`,
-      text: `Kính gửi khách hàng,\n\nHóa đơn GTGT mã ${orderNumber} đã được đính kèm dưới dạng file PDF.\n\nTrân trọng.`,
-      html: `<p>Kính gửi khách hàng,</p><p>Hóa đơn GTGT mã <strong>${orderNumber}</strong> đã được đính kèm dưới dạng file PDF.</p><p>Vui lòng mở file đính kèm để xem nội dung hóa đơn.</p><p>Trân trọng.</p>`,
+      text: `Kính gửi khách hàng,\n\nHóa đơn GTGT mã ${orderNumber} đã sẵn sàng. Quý khách có thể xem hóa đơn tại: ${invoiceUrl}\n\nTrân trọng.`,
+      html: `<p>Kính gửi khách hàng,</p><p>Hóa đơn GTGT mã <strong>${orderNumber}</strong> đã sẵn sàng.</p><p>Quý khách vui lòng xem hóa đơn trực tiếp tại: <a href="${invoiceUrl}">${invoiceUrl}</a></p><p>Trân trọng.</p>`,
       attachments: [
         {
           filename: `${orderNumber.replace(/[^a-zA-Z0-9-_\.]/g, '_')}-GTGT.pdf`,
@@ -228,6 +266,10 @@ async function generateGtgtInvoicePdf(orderNumber) {
     throw new Error(`Không tìm thấy hóa đơn GTGT cho mã đơn ${orderNumber}`);
   }
   const doc = new PDFDocument({ size: 'A4', margin: 40 });
+  if (PDF_FONT_PATH) {
+    doc.registerFont('unicode', PDF_FONT_PATH);
+    doc.font('unicode');
+  }
   const buffers = [];
   doc.on('data', chunk => buffers.push(chunk));
   const finished = new Promise((resolve, reject) => {
@@ -277,6 +319,7 @@ async function generateGtgtInvoicePdf(orderNumber) {
   return finished;
 }
 
+console.log('[ROUTE] Registering /gtgt-invoice-pdf');
 app.get('/gtgt-invoice-pdf', async (req, res) => {
   try {
     const orderNumber = String(req.query.orderNumber || req.query.order_number || '').trim();
@@ -288,6 +331,20 @@ app.get('/gtgt-invoice-pdf', async (req, res) => {
   } catch (err) {
     console.error('[GTGT-INVOICE-PDF] Error generating PDF:', err);
     res.status(500).send('Không thể tạo file PDF hóa đơn.');
+  }
+});
+
+console.log('[ROUTE] Registering /gtgt-invoice-data');
+app.get('/gtgt-invoice-data', async (req, res) => {
+  try {
+    const orderNumber = String(req.query.orderNumber || req.query.order_number || '').trim();
+    if (!orderNumber) return res.status(400).json({ error: 'Mã đơn không hợp lệ.' });
+    const data = await getGtgtInvoiceData(orderNumber);
+    if (!data) return res.status(404).json({ error: 'Không tìm thấy hóa đơn GTGT.' });
+    res.json(data);
+  } catch (err) {
+    console.error('[GTGT-INVOICE-DATA] Error:', err);
+    res.status(500).json({ error: 'Không thể tải dữ liệu hóa đơn.' });
   }
 });
 
@@ -2717,7 +2774,16 @@ ensureDatabase()
     // Debug: show router stack info before attaching static and listening
     try {
       console.log('DEBUG: app._router present =', !!app._router);
-      console.log('DEBUG: app._router.stack length =', app._router && app._router.stack ? app._router.stack.length : 0);
+      console.log('DEBUG: app.router present =', !!app.router);
+      console.log('DEBUG: app.router.stack length =', app.router && app.router.stack ? app.router.stack.length : 0);
+      if (app.router && Array.isArray(app.router.stack)) {
+        app.router.stack.forEach((mw, idx) => {
+          if (mw.route && mw.route.path) {
+            const methods = Object.keys(mw.route.methods).join(',').toUpperCase();
+            console.log(`DEBUG ROUTE ${idx + 1}: ${methods} ${mw.route.path}`);
+          }
+        });
+      }
     } catch (e) { console.log('DEBUG: router inspect error', e); }
     // Serve static files from the project's public directory
     app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -2726,8 +2792,9 @@ ensureDatabase()
       console.log("Server chạy tại http://localhost:" + PORT);
       try {
         const routes = [];
-        if (app._router && Array.isArray(app._router.stack)) {
-          app._router.stack.forEach(mw => {
+        const router = app.router || app._router;
+        if (router && Array.isArray(router.stack)) {
+          router.stack.forEach(mw => {
             if (mw.route && mw.route.path) {
               const methods = Object.keys(mw.route.methods).join(',').toUpperCase();
               routes.push(`${methods} ${mw.route.path}`);

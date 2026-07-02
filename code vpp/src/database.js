@@ -12,6 +12,10 @@ const db = mysql.createPool({
   timezone: '+07:00',
   dateStrings: true
 });
-db.query("SET NAMES utf8mb4");
-db.query("SET time_zone = '+07:00'");
+
+db.on('connection', (conn) => {
+  conn.query("SET NAMES utf8mb4");
+  conn.query("SET time_zone = '+07:00'");
+});
+
 module.exports = db;

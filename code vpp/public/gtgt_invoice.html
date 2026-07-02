@@ -153,6 +153,11 @@
       if (isNaN(date.getTime())) return '';
       return date.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false });
     }
+    function formatVNTime(timestamp) {
+      return new Date(timestamp).toLocaleString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh'
+      });
+    }
     function numberToVietnameseText(amount) {
       const units = ['không','một','hai','ba','bốn','năm','sáu','bảy','tám','chín'];
       function readTriple(num, isFirst) {

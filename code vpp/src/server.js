@@ -1,8 +1,8 @@
 
 require("dotenv").config();
 
-// Ensure Node uses Vietnam timezone for logs and default date handling where possible
-process.env.TZ = process.env.TZ || 'Asia/Ho_Chi_Minh';
+// ✅ Fix timezone toàn server
+process.env.TZ = "Asia/Ho_Chi_Minh";
 
 const fs = require('fs');
 const path = require("path");
@@ -93,6 +93,13 @@ app.get('/__routes', (req, res) => {
   inspectRouter(app._router, 'app._router');
   inspectRouter(apiRouter, 'apiRouter');
   res.json({ routes });
+});
+
+app.get('/api/time', (req, res) => {
+  const now = Date.now(); // timestamp chuẩn
+  res.json({
+    timestamp: now
+  });
 });
 
 app.post('/create-order', (req, res) => {

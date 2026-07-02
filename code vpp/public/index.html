@@ -161,6 +161,7 @@
   <div class="meta">
     <span id="userStatus">Chưa đăng nhập</span>
     <span id="shiftStatus" class="status-chip hidden">Chưa có ca mở</span>
+    <span id="time" style="margin-left:16px; font-weight:600; color:#0f172a;">Đang tải...</span>
     <button class="button hidden" id="shiftActionButton" onclick="onShiftActionClick()">Mở ca</button>
     <button class="button-outline hidden" id="profileButton" onclick="openSection('profile')">Hồ sơ</button>
     <button class="button-outline hidden" id="logoutButton" onclick="logout()">Đăng xuất</button>
@@ -1317,6 +1318,8 @@ Số lượng tồn kho</label>
     initBarcodeScanner();
     openSection('dashboard');
     refreshData();
+    updateTimeDisplay();
+    setInterval(updateTimeDisplay, 1000);
   }
 
   function showAuth() {
@@ -3877,6 +3880,24 @@ Số lượng tồn kho</label>
       minute: '2-digit',
       second: '2-digit'
     }).format(date);
+  }
+
+  function formatVNTime(timestamp) {
+    return new Date(timestamp).toLocaleString('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh'
+    });
+  }
+
+  function datetimeLocalToVNTimestamp(value) {
+    if (!value) return null;
+    // input value from <input type="datetime-local">
+    return new Date(value).getTime();
+  }
+
+  function updateTimeDisplay() {
+    const el = document.getElementById('time');
+    if (!el) return;
+    el.textContent = `Thời gian: ${formatVNTime(Date.now())}`;
   }
 
   function formatCurrency(value) {

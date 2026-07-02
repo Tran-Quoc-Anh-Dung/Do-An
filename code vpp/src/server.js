@@ -52,12 +52,36 @@ if (!PDF_FONT_PATH) {
 }
 
 const app = express();
+const apiRouter = express.Router();
+
 const PORT = process.env.PORT || 3000;
 const AUTH_SECRET = process.env.AUTH_SECRET || "vpp-secret-key";
 const ALLOWED_ROLES = ["admin", "manager", "seller"];
 
 app.use(cors());
 app.use(express.json());
+app.use(apiRouter);
+
+app.get('/__test', (req, res) => {
+  res.json({ ok: true, route: '/__test', timestamp: new Date().toISOString() });
+});
+app.get('/__routes', (req, res) => {
+  const routes = [];
+  const inspectRouter = (router, name) => {
+    if (!router) return;
+    const stack = router.stack || [];
+    if (!Array.isArray(stack)) return;
+    stack.forEach(mw => {
+      if (mw.route && mw.route.path) {
+        routes.push({ mount: name, path: mw.route.path, methods: Object.keys(mw.route.methods).map(method => method.toUpperCase()) });
+      }
+    });
+  };
+  inspectRouter(app.router, 'app.router');
+  inspectRouter(app._router, 'app._router');
+  inspectRouter(apiRouter, 'apiRouter');
+  res.json({ routes });
+});
 
 // Middleware: format timestamp fields to Vietnam time before sending JSON
 app.use((req, res, next) => {
@@ -187,25 +211,18 @@ async function sendInvoiceEmail(orderNumber, toEmail) {
   try {
     if (!toEmail || typeof toEmail !== 'string') return;
     const transporter = await getMailer();
-    if (!transporter) return;
+    if (!transporter) {
+      throw new Error('Không thể khởi tạo kết nối SMTP để gửi email.');
+    }
     const origin = process.env.APP_ORIGIN || `http://localhost:${PORT}`;
-    const invoiceUrl = `${origin.replace(/\/$/, '')}/gtgt_invoice.html?orderNumber=${encodeURIComponent(orderNumber)}`;
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-    const pdfBuffer = await generateGtgtInvoicePdf(orderNumber);
+    const htmlInvoiceUrl = `${origin.replace(/\/$/, '')}/gtgt_invoice.html?orderNumber=${encodeURIComponent(orderNumber)}`;
+    const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@example.com';
     const info = await transporter.sendMail({
       from,
       to: toEmail,
       subject: `Hóa đơn GTGT - ${orderNumber}`,
-      text: `Kính gửi khách hàng,\n\nHóa đơn GTGT mã ${orderNumber} đã sẵn sàng. Quý khách có thể xem hóa đơn tại: ${invoiceUrl}\n\nTrân trọng.`,
-      html: `<p>Kính gửi khách hàng,</p><p>Hóa đơn GTGT mã <strong>${orderNumber}</strong> đã sẵn sàng.</p><p>Quý khách vui lòng xem hóa đơn trực tiếp tại: <a href="${invoiceUrl}">${invoiceUrl}</a></p><p>Trân trọng.</p>`,
-      attachments: [
-        {
-          filename: `${orderNumber.replace(/[^a-zA-Z0-9-_\.]/g, '_')}-GTGT.pdf`,
-          content: pdfBuffer,
-          contentType: 'application/pdf',
-          contentDisposition: 'attachment'
-        }
-      ]
+      text: `Kính gửi khách hàng,\n\nHóa đơn GTGT mã ${orderNumber} đã được tạo. Quý khách vui lòng truy cập: ${htmlInvoiceUrl}\n\nTrân trọng.`,
+      html: `<p>Kính gửi khách hàng,</p><p>Hóa đơn GTGT mã <strong>${orderNumber}</strong> đã được tạo.</p><p>Quý khách vui lòng truy cập: <a href="${htmlInvoiceUrl}">${htmlInvoiceUrl}</a></p><p>Trân trọng.</p>`
     });
     console.log('[MAIL] Sent invoice email', info && info.messageId);
   } catch (err) {
@@ -320,7 +337,7 @@ async function generateGtgtInvoicePdf(orderNumber) {
 }
 
 console.log('[ROUTE] Registering /gtgt-invoice-pdf');
-app.get('/gtgt-invoice-pdf', async (req, res) => {
+apiRouter.get('/gtgt-invoice-pdf', async (req, res) => {
   try {
     const orderNumber = String(req.query.orderNumber || req.query.order_number || '').trim();
     if (!orderNumber) return res.status(400).send('Mã đơn không hợp lệ.');
@@ -335,7 +352,7 @@ app.get('/gtgt-invoice-pdf', async (req, res) => {
 });
 
 console.log('[ROUTE] Registering /gtgt-invoice-data');
-app.get('/gtgt-invoice-data', async (req, res) => {
+apiRouter.get('/gtgt-invoice-data', async (req, res) => {
   try {
     const orderNumber = String(req.query.orderNumber || req.query.order_number || '').trim();
     if (!orderNumber) return res.status(400).json({ error: 'Mã đơn không hợp lệ.' });

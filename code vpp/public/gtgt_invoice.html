@@ -9,29 +9,38 @@
     body { margin: 0; min-height: 100vh; background: #f3f4f6; color: #111827; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     .page { width: 100%; max-width: 980px; margin: 20px auto; padding: 18px; }
     .invoice-card { background: #ffffff; border-radius: 28px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08); overflow: hidden; }
-    .invoice-top { background: #fff1f2; padding: 34px 32px 26px; text-align: center; }
-    .invoice-title { margin: 0; font-size: 34px; font-weight: 900; letter-spacing: 0.14em; line-height: 1.05; color: #991b1b; text-transform: uppercase; }
-    .invoice-subtitle { margin: 12px auto 0; color: #7f1d1d; font-size: 14px; font-weight: 700; }
-    .invoice-meta { margin-top: 16px; display: flex; justify-content: center; gap: 26px; flex-wrap: wrap; color: #475569; font-size: 13px; }
-    .invoice-meta div { line-height: 1.6; }
-    .content-block { padding: 28px 32px; }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+    .invoice-top { background: #ffffff; padding: 32px 32px 24px; border-bottom: 1px solid #f3f4f6; }
+    .invoice-title { margin: 0 auto; font-size: 32px; font-weight: 900; letter-spacing: 0.14em; line-height: 1.05; color: #991b1b; text-transform: uppercase; text-align: center; max-width: 100%; }
+    .invoice-subtitle { margin: 12px auto 0; color: #7f1d1d; font-size: 14px; font-weight: 700; text-align: center; }
+    .invoice-meta-group { margin-top: 24px; display: grid; grid-template-columns: 1fr auto; gap: 28px; align-items: start; }
+    .seller-block { display: grid; gap: 10px; font-size: 13px; color: #475569; line-height: 1.7; }
+    .seller-item { display: flex; gap: 8px; }
+    .seller-item .label { font-weight: 700; color: #111827; min-width: 140px; }
+    .invoice-heading { text-align: right; font-size: 13px; color: #475569; }
+    .invoice-heading .meta-line { margin-bottom: 10px; }
+    .invoice-heading .vat-line { display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+    .invoice-heading .vat-line div { min-width: 120px; }
+    .invoice-heading .vat-label { color: #475569; font-weight: 700; }
+    .invoice-heading .invoice-number { margin-top: 10px; font-size: 16px; font-weight: 700; color: #991b1b; }
+    .content-block { padding: 28px 32px 32px; }
+    .buyer-box { margin-bottom: 24px; }
     .box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 22px; padding: 22px; }
-    .box-title { margin: 0 0 18px; font-size: 14px; font-weight: 700; color: #991b1b; letter-spacing: 0.02em; }
+    .box-title { margin: 0 0 18px 0; font-size: 14px; font-weight: 700; color: #991b1b; letter-spacing: 0.02em; }
     .row { display: grid; grid-template-columns: 145px 1fr; gap: 6px 18px; align-items: start; margin-bottom: 10px; font-size: 13px; }
     .row .label { color: #475569; font-weight: 600; }
     .row .value { color: #111827; }
     .note-box { margin-top: 20px; padding: 18px 22px; border-radius: 20px; background: #f8fafc; border: 1px solid #e2e8f0; font-size: 13px; color: #334155; line-height: 1.7; }
     .invoice-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
-    .invoice-table th, .invoice-table td { padding: 14px 12px; border: 1px solid #fee2e2; }
-    .invoice-table th { background: #fef2f2; color: #991b1b; font-weight: 700; }
+    .invoice-table th, .invoice-table td { padding: 14px 12px; border: 1px solid #f5c2f1; }
+    .invoice-table th { background: #fff1f2; color: #991b1b; font-weight: 700; }
     .invoice-table td { color: #334155; }
     .invoice-table td.numeric { text-align: right; }
-    .totals { margin-top: 20px; width: 100%; max-width: 420px; margin-left: auto; border-radius: 22px; overflow: hidden; }
-    .totals tr td { padding: 14px 16px; background: #fff; border: 1px solid #e2e8f0; font-size: 13px; }
+    .totals { margin-top: 18px; width: 100%; max-width: 420px; margin-left: auto; border-radius: 22px; overflow: hidden; }
+    .totals tr td { padding: 14px 16px; background: #ffffff; border: 1px solid #e2e8f0; font-size: 13px; }
     .totals tr td:first-child { color: #475569; }
     .totals tr td:last-child { text-align: right; font-weight: 700; color: #111827; }
     .totals tr.total-row td { background: #f8fafc; }
+    .totals tr.amount-text td { border-top: none; background: #f8fafc; color: #475569; font-weight: 700; }
     .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 28px; }
     .sign-box { min-height: 140px; padding: 20px; border: 2px dashed #cbd5e1; border-radius: 22px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; }
     .sign-title { margin: 0 0 10px; color: #475569; font-size: 13px; font-weight: 700; }
@@ -52,72 +61,70 @@
       <div class="invoice-top">
         <div class="invoice-title">Hóa đơn<br>Giá trị gia tăng</div>
         <div class="invoice-subtitle" id="invoiceSubtitle">Đang tải dữ liệu hóa đơn...</div>
-        <div class="invoice-meta">
-          <div>Ngày: <span id="metaDate">-</span></div>
-          <div>Số: <span id="metaNumber">-</span></div>
+        <div class="invoice-meta-group">
+          <div class="seller-block">
+            <div class="seller-item"><span class="label">Đơn vị bán hàng:</span><span id="sellerName"></span></div>
+            <div class="seller-item"><span class="label">Mã số thuế:</span><span id="sellerTaxCode"></span></div>
+            <div class="seller-item"><span class="label">Địa chỉ:</span><span id="sellerAddress"></span></div>
+            <div class="seller-item"><span class="label">Điện thoại:</span><span id="sellerPhone"></span></div>
+          </div>
+          <div class="invoice-heading">
+            <div class="meta-line">Ngày: <span id="metaDate">-</span></div>
+            <div class="vat-line">
+              <div><strong class="vat-label">Mẫu số:</strong> 01GTKT3/001</div>
+              <div><strong class="vat-label">Ký hiệu:</strong> BM/11P</div>
+            </div>
+            <div class="invoice-number">Số: <span id="invoiceNumber">-</span></div>
+            <div style="display:none;"><span id="metaNumber">-</span></div>
+          </div>
         </div>
       </div>
       <div id="invoiceContent">
         <div class="content-block">
-          <div class="info-grid">
-          <div class="box">
-            <div class="box-title">Thông tin người bán</div>
-            <div class="row"><div class="label">Đơn vị bán hàng:</div><div class="value" id="sellerName"></div></div>
-            <div class="row"><div class="label">Mã số thuế:</div><div class="value" id="sellerTaxCode"></div></div>
-            <div class="row"><div class="label">Địa chỉ:</div><div class="value" id="sellerAddress"></div></div>
-            <div class="row"><div class="label">Điện thoại:</div><div class="value" id="sellerPhone"></div></div>
+          <div class="box buyer-box">
+            <div class="box-title">Thông tin người mua hàng</div>
+            <div class="row"><div class="label">Họ tên người mua hàng:</div><div class="value" id="customerName">-</div></div>
+            <div class="row"><div class="label">Tên đơn vị:</div><div class="value" id="customerCompany">-</div></div>
+            <div class="row"><div class="label">Mã số thuế:</div><div class="value" id="customerTaxCode">-</div></div>
+            <div class="row"><div class="label">Địa chỉ:</div><div class="value" id="customerAddress">-</div></div>
+            <div class="row"><div class="label">Hình thức thanh toán:</div><div class="value" id="paymentMethod">-</div></div>
           </div>
-          <div class="box">
-            <div class="box-title">Hóa đơn</div>
-            <div class="row"><div class="label">Mẫu số:</div><div class="value" id="invoiceForm">01GTKT3/001</div></div>
-            <div class="row"><div class="label">Ký hiệu:</div><div class="value" id="invoiceSymbol">BM/11P</div></div>
-            <div class="row"><div class="label">Số hóa đơn:</div><div class="value" id="invoiceNumber"></div></div>
+
+          <div class="box" style="padding: 16px 12px;">
+            <table class="invoice-table">
+              <thead>
+                <tr>
+                  <th>STT</th>
+                  <th>Tên hàng hóa, dịch vụ</th>
+                  <th>ĐVT</th>
+                  <th>SL</th>
+                  <th>Đơn giá</th>
+                  <th>Thành tiền</th>
+                </tr>
+              </thead>
+              <tbody id="itemsTable"></tbody>
+            </table>
           </div>
-        </div>
 
-        <div class="box">
-          <div class="box-title">Thông tin người mua hàng</div>
-          <div class="row"><div class="label">Họ tên người mua hàng:</div><div class="value" id="customerName">-</div></div>
-          <div class="row"><div class="label">Tên đơn vị:</div><div class="value" id="customerCompany">-</div></div>
-          <div class="row"><div class="label">Mã số thuế:</div><div class="value" id="customerTaxCode">-</div></div>
-          <div class="row"><div class="label">Địa chỉ:</div><div class="value" id="customerAddress">-</div></div>
-          <div class="row"><div class="label">Hình thức thanh toán:</div><div class="value" id="paymentMethod">-</div></div>
-        </div>
-
-        <div class="box" style="margin-top:24px;">
-          <table class="invoice-table">
-            <thead>
-              <tr>
-                <th>STT</th>
-                <th>Tên hàng hóa, dịch vụ</th>
-                <th>ĐVT</th>
-                <th>SL</th>
-                <th>Đơn giá</th>
-                <th>Thành tiền</th>
-              </tr>
-            </thead>
-            <tbody id="itemsTable"></tbody>
+          <table class="totals">
+            <tr><td>Tiền hàng</td><td id="totalAmount"></td></tr>
+            <tr><td>Thuế suất GTGT</td><td>10%</td></tr>
+            <tr><td>Tiền thuế GTGT</td><td id="taxAmount"></td></tr>
+            <tr class="total-row"><td>Tổng tiền thanh toán</td><td id="totalWithTax"></td></tr>
+            <tr class="amount-text"><td colspan="2">Số tiền viết bằng chữ: <span id="amountInWords"></span></td></tr>
           </table>
-        </div>
 
-        <table class="totals">
-          <tr><td>Tiền hàng</td><td id="totalAmount"></td></tr>
-          <tr><td>Thuế suất GTGT</td><td>10%</td></tr>
-          <tr><td>Tiền thuế GTGT</td><td id="taxAmount"></td></tr>
-          <tr class="total-row"><td>Tổng tiền thanh toán</td><td id="totalWithTax"></td></tr>
-          <tr><td colspan="2" style="padding-top:14px; color:#475569; font-size:13px;">Số tiền viết bằng chữ: <span id="amountInWords"></span></td></tr>
-        </table>
-
-        <div class="signatures">
-          <div class="sign-box">
-            <div class="sign-title">Người mua hàng</div>
-            <div class="sign-text">(Ký, ghi rõ họ tên)</div>
-          </div>
-          <div class="sign-box">
-            <div class="sign-title">Người bán hàng</div>
-            <div class="sign-approval">
-              <div><strong>Ký bởi:</strong> Công ty cổ phần VPP</div>
-              <div><strong>Ký ngày:</strong> <span id="signedAt"></span></div>
+          <div class="signatures">
+            <div class="sign-box">
+              <div class="sign-title">Người mua hàng</div>
+              <div class="sign-text">(Ký, ghi rõ họ tên)</div>
+            </div>
+            <div class="sign-box">
+              <div class="sign-title">Người bán hàng</div>
+              <div class="sign-approval">
+                <div><strong>Ký bởi:</strong> Công ty cổ phần VPP</div>
+                <div><strong>Ký ngày:</strong> <span id="signedAt"></span></div>
+              </div>
             </div>
           </div>
         </div>
@@ -156,37 +163,51 @@
       return words.join(' ').replace(/\s+/g,' ').trim() + ' đồng';
     }
     function renderInvoice(data) {
-      document.getElementById('metaDate').textContent = formatDateTime(data.createdAt);
-      document.getElementById('metaNumber').textContent = data.orderNumber || '-';
-      document.getElementById('invoiceSubtitle').textContent = `Mã đơn: ${data.orderNumber}`;
-      document.getElementById('sellerName').textContent = data.sellerName || 'admin';
-      document.getElementById('sellerTaxCode').textContent = data.sellerTaxCode || '234865924';
-      document.getElementById('sellerAddress').textContent = data.sellerAddress || 'Thành Phố Hồ Chí Minh';
-      document.getElementById('sellerPhone').textContent = data.sellerPhone || '0359389490';
-      document.getElementById('invoiceNumber').textContent = data.orderNumber || '-';
-      document.getElementById('customerName').textContent = data.customerName || '-';
-      document.getElementById('customerCompany').textContent = data.customerCompany || '-';
-      document.getElementById('customerTaxCode').textContent = data.customerTaxCode || '-';
-      document.getElementById('customerAddress').textContent = data.customerAddress || '-';
-      document.getElementById('paymentMethod').textContent = data.paymentMethod || '-';
-      document.getElementById('signedAt').textContent = formatDateTime(data.createdAt);
+      const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+      };
+
+      setText('metaDate', formatDateTime(data.createdAt));
+      setText('metaNumber', data.orderNumber || '-');
+      setText('invoiceSubtitle', `Mã đơn: ${data.orderNumber}`);
+      setText('sellerName', data.sellerName || 'admin');
+      setText('sellerTaxCode', data.sellerTaxCode || '234865924');
+      setText('sellerAddress', data.sellerAddress || 'Thành Phố Hồ Chí Minh');
+      setText('sellerPhone', data.sellerPhone || '0359389490');
+      setText('invoiceNumber', data.orderNumber || '-');
+      setText('customerName', data.customerName || '-');
+      setText('customerCompany', data.customerCompany || '-');
+      setText('customerTaxCode', data.customerTaxCode || '-');
+      setText('customerAddress', data.customerAddress || '-');
+      setText('paymentMethod', data.paymentMethod || '-');
+      setText('signedAt', formatDateTime(data.createdAt));
+
       const itemsTable = document.getElementById('itemsTable');
-      itemsTable.innerHTML = '';
-      (data.items || []).forEach((item, index) => {
-        const qty = Number(item.quantity || 0) || 1;
-        const price = Number(item.price || 0);
-        const amount = price * qty;
-        const row = document.createElement('tr');
-        row.innerHTML = `<td>${index + 1}</td><td>${item.name || '-'}</td><td>Cái</td><td>${qty}</td><td class="numeric">${formatCurrency(price)}</td><td class="numeric">${formatCurrency(amount)}</td>`;
-        itemsTable.appendChild(row);
-      });
-      document.getElementById('totalAmount').textContent = formatCurrency(data.totalAmount);
-      document.getElementById('taxAmount').textContent = formatCurrency(Math.round((data.totalWithTax || 0) - (data.totalAmount || 0)));
-      document.getElementById('totalWithTax').textContent = formatCurrency(data.totalWithTax);
-      document.getElementById('amountInWords').textContent = numberToVietnameseText(data.totalWithTax);
-      document.getElementById('printButton').style.display = 'inline-flex';
-      document.getElementById('pdfButton').style.display = 'inline-flex';
-      document.getElementById('pdfButton').href = `/gtgt-invoice-pdf?orderNumber=${encodeURIComponent(data.orderNumber)}`;
+      if (itemsTable) {
+        itemsTable.innerHTML = '';
+        (data.items || []).forEach((item, index) => {
+          const qty = Number(item.quantity || 0) || 1;
+          const price = Number(item.price || 0);
+          const amount = price * qty;
+          const row = document.createElement('tr');
+          row.innerHTML = `<td>${index + 1}</td><td>${item.name || '-'}</td><td>Cái</td><td>${qty}</td><td class="numeric">${formatCurrency(price)}</td><td class="numeric">${formatCurrency(amount)}</td>`;
+          itemsTable.appendChild(row);
+        });
+      }
+
+      setText('totalAmount', formatCurrency(data.totalAmount));
+      setText('taxAmount', formatCurrency(Math.round((data.totalWithTax || 0) - (data.totalAmount || 0))));
+      setText('totalWithTax', formatCurrency(data.totalWithTax));
+      setText('amountInWords', numberToVietnameseText(data.totalWithTax));
+
+      const printBtn = document.getElementById('printButton');
+      if (printBtn) printBtn.style.display = 'inline-flex';
+      const pdfBtn = document.getElementById('pdfButton');
+      if (pdfBtn) {
+        pdfBtn.style.display = 'inline-flex';
+        pdfBtn.href = `/gtgt-invoice-pdf?orderNumber=${encodeURIComponent(data.orderNumber)}`;
+      }
     }
     function showError(message) {
       document.getElementById('invoiceContent').style.display = 'none';

@@ -1122,35 +1122,22 @@ Số lượng tồn kho</label>
 
   async function viewGtgtInvoice(orderNumber) {
     try {
-      const res = await apiFetch('/orders', { method: 'GET' });
-      const orders = await res.json();
       const requested = state.gtgtRequests.find(req => req.orderNumber === orderNumber);
       if (!requested) return alert('Không tìm thấy yêu cầu GTGT.');
-      const orderItems = orders.filter(item => (item.order_number || `#${item.id}`) === orderNumber);
-      if (!orderItems || orderItems.length === 0) return alert('Không tìm thấy đơn hàng tương ứng.');
-      const order = orderItems[0];
-      const totalAmount = order.total_after_discount != null ? Number(order.total_after_discount) : orderItems.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
-      const totalWithTax = Math.round(totalAmount * 1.1);
-      showInvoice({
-        orderNumber: orderNumber,
-        createdAt: formatDateTime(order.created_at),
-        sellerName: order.seller_full_name || order.seller_name || '-',
-        customerName: requested.customerName || order.customer_name || 'Khách lẻ',
-        customerPhone: requested.customerPhone || order.customer_phone || '-',
-        customerCompany: requested.customerCompany || order.customer_company || '-',
-        customerEmail: requested.customerEmail || order.customer_email || '-',
-        customerTaxCode: requested.customerTaxCode || order.customer_tax_code || '-',
-        paymentMethod: order.payment_method || 'Tiền mặt',
-        invoiceType: 'Hóa đơn GTGT',
-        gtgtFormLink: `${window.location.origin}/gtgt_invoice.html?orderNumber=${encodeURIComponent(orderNumber)}`,
-        items: orderItems.map(item => ({ product_name: item.product_name || 'Sản phẩm', price: Number(item.price || 0), quantity: Number(item.quantity || 0), discountPercent: Number(item.discount_percent || 0) })),
-        totalAmount: totalAmount,
-        totalAmountInWords: numberToVietnameseText(totalWithTax),
-        cashReceived: order.payment_cash_received != null ? Number(order.payment_cash_received) : null,
-        cashChange: order.payment_cash_change != null ? Number(order.payment_cash_change) : null,
-        pointsEarned: 0,
-        currentPoints: 0
+
+      const res = await fetch(`/gtgt-invoice-data?orderNumber=${encodeURIComponent(orderNumber)}`);
+      if (!res.ok) {
+        const message = await res.text();
+        throw new Error(message || 'Không thể tải dữ liệu hóa đơn GTGT.');
+      }
+      const invoiceData = await res.json();
+
+      showGtgtInvoice({
+        ...invoiceData,
+        createdAt: formatDateTime(invoiceData.createdAt),
+        gtgtFormLink: `${window.location.origin}/gtgt_invoice.html?orderNumber=${encodeURIComponent(orderNumber)}`
       });
+
       window.currentInvoiceOrderNumber = orderNumber;
       markGtgtRequestIssued(orderNumber);
     } catch (err) {

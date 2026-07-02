@@ -35,6 +35,41 @@
     .card h2 { margin-top: 0; font-size: 22px; }
     .small-card { border-radius: 24px; background: var(--card); padding: 20px; display: grid; gap: 12px; }
     .small-card strong { display: block; font-size: 28px; }
+    .alert-card { background: linear-gradient(180deg, rgba(59,130,246,0.08), rgba(37,99,235,0.06)); border: 1px solid rgba(37,99,235,0.22); box-shadow: 0 18px 40px rgba(37,99,235,0.1); border-radius: 28px; padding: 24px; position: relative; overflow: hidden; }
+    .alert-card.danger { background: linear-gradient(180deg, rgba(254,228,226,0.95), rgba(254,202,202,0.55)); border-color: rgba(239,68,68,0.25); box-shadow: 0 18px 40px rgba(239,68,68,0.12); }
+    .alert-card::before { content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 8px;
+      height: 100%;
+      background: linear-gradient(180deg, #2563eb, #0ea5e9);
+      border-top-left-radius: 28px;
+      border-bottom-left-radius: 28px;
+    }
+    .alert-card.danger::before { background: linear-gradient(180deg, #dc2626, #f97316); }
+    .alert-card h4 { margin-top: 0; font-size: 18px; color: #1e3a8a; position: relative; z-index: 1; }
+    .alert-card.danger h4 { color: #b91c1c; }
+    .alert-card ul,
+    .alert-card ol { margin: 0; padding-left: 18px; color: #0f172a; position: relative; z-index: 1; }
+    .alert-card li { margin-bottom: 10px; line-height: 1.6; }
+    .alert-card li strong { color: #0f172a; }
+    .alert-card .alert-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(16,185,129,0.12);
+      color: #047857;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      position: relative;
+      z-index: 1;
+    }
+    .alert-card.danger .alert-badge { background: rgba(254,202,202,0.4); color: #b91c1c; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
     .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
     .hidden { display: none !important; }
@@ -266,6 +301,30 @@
           <div class="grid-2" style="margin-top:20px;">
             <div class="small-card"><span>Doanh thu hôm nay</span><strong id="metricToday">0đ</strong></div>
             <div class="small-card"><span>Vai trò</span><strong id="metricRole">Khách</strong></div>
+          </div>
+          <div class="grid-3" style="margin-top:20px;">
+            <div class="small-card"><span>Số đơn hôm nay</span><strong id="metricOrdersToday">0</strong></div>
+            <div class="small-card"><span>Số sản phẩm đã bán</span><strong id="metricProductsSoldToday">0</strong></div>
+            <div class="small-card"><span>Số khách hàng hôm nay</span><strong id="metricCustomersToday">0</strong></div>
+          </div>
+          <div class="card" style="margin-top:24px;">
+            <h3>Doanh thu 7 ngày gần nhất</h3>
+            <div style="position:relative; width:100%; height:320px; margin-top:16px;"><canvas id="dashboardTrendChart" style="max-width:100%;"></canvas></div>
+          </div>
+          <div style="margin-top:24px;">
+            <h3>Báo cáo nhanh</h3>
+            <div class="grid-2" style="margin-top:16px; gap:20px;">
+              <div class="alert-card danger">
+                <div class="alert-badge">Sắp hết hàng</div>
+                <h4>Sản phẩm sắp hết hàng</h4>
+                <ul id="dashboardLowStockList"></ul>
+              </div>
+              <div class="alert-card">
+                <div class="alert-badge">Bán chạy hôm nay</div>
+                <h4>5 sản phẩm bán chạy nhất hôm nay</h4>
+                <ol id="dashboardTopProductsTodayList"></ol>
+              </div>
+            </div>
           </div>
         </div>
       <div id="posSection" class="section hidden">
@@ -1635,8 +1694,87 @@ Số lượng tồn kho</label>
       document.getElementById('metricOrders').textContent = data.orderCount;
       document.getElementById('metricRevenue').textContent = formatCurrency(data.salesTotal);
       document.getElementById('metricToday').textContent = formatCurrency(data.todayTotal);
+      document.getElementById('metricOrdersToday').textContent = data.todayOrderCount || 0;
+      document.getElementById('metricProductsSoldToday').textContent = data.todayProductsSold || 0;
+      document.getElementById('metricCustomersToday').textContent = data.todayCustomerCount || 0;
       document.getElementById('metricRole').textContent = roleLabel(state.user.role);
+      renderDashboardTrendChart(data.last7Days || []);
+      loadDashboardAlerts();
     } catch (err) { console.error(err); }
+  }
+
+  let dashboardTrendChart = null;
+  function renderDashboardTrendChart(data) {
+    try {
+      const labels = data.map(row => row.date);
+      const values = data.map(row => Number(row.total_sales || 0));
+      const ctx = document.getElementById('dashboardTrendChart').getContext('2d');
+      if (dashboardTrendChart) dashboardTrendChart.destroy();
+      dashboardTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Doanh thu 7 ngày',
+            data: values,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.12)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 4,
+            pointBackgroundColor: '#2563eb'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              title: { display: true, text: 'Ngày' },
+              ticks: {
+                autoSkip: false,
+                maxRotation: 0,
+                callback: function(value, index, ticks) {
+                  const label = this.getLabelForValue(value);
+                  if (!label) return '';
+                  const [year, month, day] = label.split('-');
+                  return `${day}/${month}`;
+                }
+              }
+            },
+            y: { beginAtZero: true, title: { display: true, text: 'Doanh thu (VND)' } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    } catch (err) { console.error('renderDashboardTrendChart', err); }
+  }
+
+  async function loadDashboardAlerts() {
+    try {
+      const lowStockRes = await apiFetch('/api/alerts/low-stock');
+      const lowStock = await lowStockRes.json();
+      const lowStockList = document.getElementById('dashboardLowStockList');
+      if (lowStock && lowStock.length) {
+        lowStockList.innerHTML = lowStock.slice(0, 5).map(item => `<li style="margin-bottom:8px;"><strong>${item.name}</strong> - ${item.stock} còn lại</li>`).join('');
+      } else {
+        lowStockList.innerHTML = '<li>Không có sản phẩm sắp hết hàng.</li>';
+      }
+    } catch (err) {
+      console.error('loadDashboardAlerts lowStock', err);
+    }
+    try {
+      const topRes = await apiFetch('/api/alerts/top-products-today');
+      const topProducts = await topRes.json();
+      const topProductsList = document.getElementById('dashboardTopProductsTodayList');
+      if (topProducts && topProducts.length) {
+        topProductsList.innerHTML = topProducts.map(item => `<li style="margin-bottom:8px;"><strong>${item.name}</strong> - ${item.total_qty} sp</li>`).join('');
+      } else {
+        topProductsList.innerHTML = '<li>Chưa có sản phẩm bán chạy hôm nay.</li>';
+      }
+    } catch (err) {
+      console.error('loadDashboardAlerts topProducts', err);
+    }
   }
 
   async function loadCategories() {

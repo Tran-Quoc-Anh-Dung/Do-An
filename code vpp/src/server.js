@@ -2951,7 +2951,7 @@ app.get('/dashboard', async (req, res) => {
        FROM orders
        WHERE DATE(created_at) = CURRENT_DATE()`
     );
-    const last7Days = await query(
+    const last7DaysRows = await query(
       `SELECT DATE(created_at) AS date, COALESCE(SUM(price * quantity), 0) AS total_sales
        FROM orders
        WHERE DATE(created_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 DAY)
@@ -2959,6 +2959,19 @@ app.get('/dashboard', async (req, res) => {
        ORDER BY DATE(created_at) ASC`
     );
     const [categoryCountRow] = await query('SELECT COUNT(DISTINCT category) AS categoryCount FROM products');
+
+    const last7DaysMap = new Map(last7DaysRows.map(row => [row.date, Number(row.total_sales || 0)]));
+    const last7Days = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i -= 1) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dateString = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      last7Days.push({
+        date: dateString,
+        total_sales: last7DaysMap.has(dateString) ? last7DaysMap.get(dateString) : 0
+      });
+    }
 
     res.json({
       productCount: Number(productCountRow.productCount || 0),

@@ -132,6 +132,7 @@
     </div>
     <div class="actions">
       <button class="button" id="printButton" onclick="window.print()" style="display:none;">In hóa đơn</button>
+      <button class="button button-outline" id="downloadButton" onclick="downloadInvoicePdf()" style="display:none;">Tải PDF</button>
     </div>
     <div id="errorMessage" class="error" style="display:none;"></div>
   </div>
@@ -214,7 +215,31 @@
       setText('amountInWords', numberToVietnameseText(data.totalWithTax));
 
       const printBtn = document.getElementById('printButton');
+      const downloadBtn = document.getElementById('downloadButton');
       if (printBtn) printBtn.style.display = 'inline-flex';
+      if (downloadBtn) downloadBtn.style.display = 'inline-flex';
+    }
+    async function downloadInvoicePdf() {
+      const orderNumber = getQueryParam('orderNumber') || getQueryParam('order_number');
+      if (!orderNumber) return alert('Không tìm thấy mã hóa đơn để tải PDF.');
+      try {
+        const res = await fetch(`/gtgt-invoice-pdf?orderNumber=${encodeURIComponent(orderNumber)}`);
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || 'Lỗi tải file PDF.');
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `${orderNumber.replace(/[^a-zA-Z0-9-_\.]/g, '_')}-GTGT.pdf`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert('Không thể tải file PDF: ' + (err.message || err));
+      }
     }
     function showError(message) {
       document.getElementById('invoiceContent').style.display = 'none';

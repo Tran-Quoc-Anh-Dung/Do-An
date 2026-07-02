@@ -33,8 +33,12 @@
     .page { max-width: 1400px; margin: 0 auto; padding: 0 24px 24px; display: grid; gap: 24px; }
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; box-shadow: var(--shadow); padding: 24px; }
     .card h2 { margin-top: 0; font-size: 22px; }
+    #dashboardSection h2 { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; color: #0f172a; margin-bottom: 24px; }
+    #dashboardSection .card h3 { margin-top: 0; font-size: 20px; font-weight: 700; color: #111827; letter-spacing: -0.02em; }
     .small-card { border-radius: 24px; background: var(--card); padding: 20px; display: grid; gap: 12px; }
     .small-card strong { display: block; font-size: 28px; }
+    #dashboardSection .small-card { border: 1px solid rgba(37,99,235,0.16); background: linear-gradient(180deg, #ffffff, #f7faff); box-shadow: 0 14px 32px rgba(37,99,235,0.08); }
+    #dashboardSection .card { border-color: rgba(37,99,235,0.16); background: linear-gradient(180deg, #ffffff, #fbfdff); }
     .alert-card { background: linear-gradient(180deg, rgba(59,130,246,0.08), rgba(37,99,235,0.06)); border: 1px solid rgba(37,99,235,0.22); box-shadow: 0 18px 40px rgba(37,99,235,0.1); border-radius: 28px; padding: 24px; position: relative; overflow: hidden; }
     .alert-card.danger { background: linear-gradient(180deg, rgba(254,228,226,0.95), rgba(254,202,202,0.55)); border-color: rgba(239,68,68,0.25); box-shadow: 0 18px 40px rgba(239,68,68,0.12); }
     .alert-card::before { content: '';
@@ -50,6 +54,8 @@
     .alert-card.danger::before { background: linear-gradient(180deg, #dc2626, #f97316); }
     .alert-card h4 { margin-top: 0; font-size: 18px; color: #1e3a8a; position: relative; z-index: 1; }
     .alert-card.danger h4 { color: #b91c1c; }
+    #dashboardSection .small-card span { font-size: 14px; color: #475569; }
+    #dashboardSection .small-card strong { font-size: 32px; color: #0f172a; }
     .alert-card ul,
     .alert-card ol { margin: 0; padding-left: 18px; color: #0f172a; position: relative; z-index: 1; }
     .alert-card li { margin-bottom: 10px; line-height: 1.6; }
@@ -72,6 +78,10 @@
     .alert-card.danger .alert-badge { background: rgba(254,202,202,0.4); color: #b91c1c; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
     .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .dashboard-panel { border: 1px solid rgba(37,99,235,0.14); border-radius: 24px; background: #ffffff; box-shadow: 0 12px 30px rgba(15,23,42,0.06); padding: 22px; }
+    .dashboard-panel h3 { margin: 0 0 16px 0; font-size: 20px; color: #1e3a8a; }
+    .dashboard-panel .dashboard-item { border: 1px solid rgba(15,23,42,0.08); border-radius: 20px; background: #f8fbff; padding: 18px; margin-bottom: 16px; }
+    .dashboard-panel .dashboard-item:last-child { margin-bottom: 0; }
     .hidden { display: none !important; }
     .button { border: none; border-radius: 14px; padding: 14px 18px; background: var(--primary); color: white; font-weight: 700; transition: transform 0.16s ease; }
     .button:hover { transform: translateY(-1px); }
@@ -294,13 +304,13 @@
         <div id="dashboardSection" class="section">
           <h2>Tổng quan</h2>
           <div class="grid-3">
+            <div class="small-card"><span>Vai trò</span><strong id="metricRole">Khách</strong></div>
             <div class="small-card"><span>Sản phẩm</span><strong id="metricProducts">0</strong><span>Tổng số sản phẩm đang quản lý</span></div>
             <div class="small-card"><span>Đơn hàng</span><strong id="metricOrders">0</strong><span>Tổng đơn hàng đã bán</span></div>
-            <div class="small-card"><span>Doanh thu</span><strong id="metricRevenue">0đ</strong><span>Tổng doanh thu từ bán hàng</span></div>
           </div>
           <div class="grid-2" style="margin-top:20px;">
+            <div class="small-card"><span>Doanh thu</span><strong id="metricRevenue">0đ</strong><span>Tổng doanh thu từ bán hàng</span></div>
             <div class="small-card"><span>Doanh thu hôm nay</span><strong id="metricToday">0đ</strong></div>
-            <div class="small-card"><span>Vai trò</span><strong id="metricRole">Khách</strong></div>
           </div>
           <div class="grid-3" style="margin-top:20px;">
             <div class="small-card"><span>Số đơn hôm nay</span><strong id="metricOrdersToday">0</strong></div>
@@ -798,7 +808,6 @@
           </div>
           <div style="display:flex; gap:12px; margin-top:24px; justify-content:flex-end;">
             <button class="button-outline" style="flex:0 0 auto;" onclick="printInvoice()">🖨️ In hóa đơn</button>
-            <button class="button-outline" style="flex:0 0 auto;" onclick="downloadInvoicePdf()">⬇️ Tải PDF</button>
             <button class="button" style="flex:0 0 auto;" onclick="closeInvoiceModal()">Đóng</button>
           </div>
         </div>

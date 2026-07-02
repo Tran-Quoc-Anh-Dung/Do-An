@@ -132,14 +132,26 @@
     </div>
     <div class="actions">
       <button class="button" id="printButton" onclick="window.print()" style="display:none;">In hóa đơn</button>
-      <a class="button button-outline" id="pdfButton" href="#" target="_blank" style="display:none;">Tải PDF</a>
     </div>
     <div id="errorMessage" class="error" style="display:none;"></div>
   </div>
   <script>
     function getQueryParam(name) { const params = new URLSearchParams(window.location.search); return params.get(name); }
     function formatCurrency(value) { return Number(value || 0).toLocaleString('vi-VN') + ' đ'; }
-    function formatDateTime(value) { const date = new Date(value); if (isNaN(date.getTime())) return ''; return date.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false }); }
+    function formatDateTime(value) {
+      if (value == null || value === '') return '';
+      const str = String(value).trim();
+      const localNoTZ = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
+      let date;
+      if (localNoTZ.test(str)) {
+        const normalized = str.replace(' ', 'T').replace(/\.\d+$/, '');
+        date = new Date(normalized + '+07:00');
+      } else {
+        date = new Date(str);
+      }
+      if (isNaN(date.getTime())) return '';
+      return date.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false });
+    }
     function numberToVietnameseText(amount) {
       const units = ['không','một','hai','ba','bốn','năm','sáu','bảy','tám','chín'];
       function readTriple(num, isFirst) {
@@ -203,11 +215,6 @@
 
       const printBtn = document.getElementById('printButton');
       if (printBtn) printBtn.style.display = 'inline-flex';
-      const pdfBtn = document.getElementById('pdfButton');
-      if (pdfBtn) {
-        pdfBtn.style.display = 'inline-flex';
-        pdfBtn.href = `/gtgt-invoice-pdf?orderNumber=${encodeURIComponent(data.orderNumber)}`;
-      }
     }
     function showError(message) {
       document.getElementById('invoiceContent').style.display = 'none';

@@ -523,6 +523,43 @@ app.get('/gtgt-requests', authenticateToken, async (req, res) => {
   }
 });
 
+console.log('[STARTUP] About to register GTGT DELETE route');
+app.delete('/gtgt-requests/:orderNumber', authenticateToken, async (req, res) => {
+  try {
+    const orderNumber = String(req.params.orderNumber || '').trim();
+    if (!orderNumber) return res.status(400).send('Mã đơn không hợp lệ.');
+
+    const existing = await query('SELECT id FROM gtgt_requests WHERE order_number = ? LIMIT 1', [orderNumber]);
+    if (existing.length === 0) {
+      return res.status(404).send('Không tìm thấy yêu cầu GTGT.');
+    }
+
+    await query('DELETE FROM gtgt_requests WHERE order_number = ?', [orderNumber]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[GTGT-DELETE] Error:', err);
+    res.status(500).send('Không thể xóa yêu cầu GTGT.');
+  }
+});
+
+app.post('/gtgt-requests/:orderNumber/delete', authenticateToken, async (req, res) => {
+  try {
+    const orderNumber = String(req.params.orderNumber || '').trim();
+    if (!orderNumber) return res.status(400).send('Mã đơn không hợp lệ.');
+
+    const existing = await query('SELECT id FROM gtgt_requests WHERE order_number = ? LIMIT 1', [orderNumber]);
+    if (existing.length === 0) {
+      return res.status(404).send('Không tìm thấy yêu cầu GTGT.');
+    }
+
+    await query('DELETE FROM gtgt_requests WHERE order_number = ?', [orderNumber]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[GTGT-DELETE] Error:', err);
+    res.status(500).send('Không thể xóa yêu cầu GTGT.');
+  }
+});
+
 // Mark GTGT request as issued
 // Allow marking GTGT issued without auth for local/dev usage
 app.post('/gtgt-requests/:orderNumber/issue', async (req, res) => {
@@ -2850,6 +2887,51 @@ app.post('/dev/fix-orders-shift-id', async (req, res) => {
   }
 });
 
+// Quick alerts: low stock products
+app.get('/api/alerts/low-stock', async (req, res) => {
+  try {
+    const threshold = Number(req.query.threshold || 5);
+    const products = await query(
+      `SELECT id, name, category, price, stock 
+       FROM products 
+       WHERE stock < ? 
+       ORDER BY stock ASC 
+       LIMIT 10`,
+      [threshold]
+    );
+    res.json(products);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải cảnh báo tồn kho.');
+  }
+});
+
+// Quick alerts: top 5 products sold today
+app.get('/api/alerts/top-products-today', async (req, res) => {
+  try {
+    const products = await query(
+      `SELECT 
+         o.product_id, 
+         o.product_name AS name, 
+         SUM(o.quantity) AS total_qty,
+         COUNT(DISTINCT o.order_number) AS order_count,
+         COALESCE(SUM(o.price * o.quantity), 0) AS total_sales,
+         p.stock,
+         p.category
+       FROM orders o
+       LEFT JOIN products p ON p.id = o.product_id
+       WHERE DATE(o.created_at) = CURRENT_DATE()
+       GROUP BY o.product_id, o.product_name
+       ORDER BY total_qty DESC
+       LIMIT 5`
+    );
+    res.json(products);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Lỗi tải sản phẩm bán chạy.');
+  }
+});
+
 // Dashboard route: minimal client to verify UI
 app.get('/dashboard', async (req, res) => {
   try {
@@ -2857,9 +2939,24 @@ app.get('/dashboard', async (req, res) => {
     const [orderCountRow] = await query('SELECT COUNT(*) AS orderCount FROM orders');
     const [salesTotalRow] = await query('SELECT COALESCE(SUM(price * quantity), 0) AS salesTotal FROM orders');
     const [todayTotalRow] = await query(
-      `SELECT COALESCE(SUM(price * quantity), 0) AS todayTotal
+      `SELECT COALESCE(SUM(price * quantity), 0) AS todayTotal,
+              COUNT(DISTINCT order_number) AS todayOrderCount,
+              COALESCE(SUM(quantity), 0) AS todayProductsSold,
+              COUNT(DISTINCT CASE
+                WHEN customer_id IS NOT NULL THEN CONCAT('id:', customer_id)
+                WHEN customer_phone IS NOT NULL AND customer_phone <> '' THEN CONCAT('phone:', customer_phone)
+                WHEN customer_name IS NOT NULL AND customer_name <> '' THEN CONCAT('name:', customer_name)
+                ELSE CONCAT('anon:', order_number)
+              END) AS todayCustomerCount
        FROM orders
        WHERE DATE(created_at) = CURRENT_DATE()`
+    );
+    const last7Days = await query(
+      `SELECT DATE(created_at) AS date, COALESCE(SUM(price * quantity), 0) AS total_sales
+       FROM orders
+       WHERE DATE(created_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 DAY)
+       GROUP BY DATE(created_at)
+       ORDER BY DATE(created_at) ASC`
     );
     const [categoryCountRow] = await query('SELECT COUNT(DISTINCT category) AS categoryCount FROM products');
 
@@ -2868,6 +2965,13 @@ app.get('/dashboard', async (req, res) => {
       orderCount: Number(orderCountRow.orderCount || 0),
       salesTotal: Number(salesTotalRow.salesTotal || 0),
       todayTotal: Number(todayTotalRow.todayTotal || 0),
+      todayOrderCount: Number(todayTotalRow.todayOrderCount || 0),
+      todayProductsSold: Number(todayTotalRow.todayProductsSold || 0),
+      todayCustomerCount: Number(todayTotalRow.todayCustomerCount || 0),
+      last7Days: last7Days.map(row => ({
+        date: row.date,
+        total_sales: Number(row.total_sales || 0)
+      })),
       categoryCount: Number(categoryCountRow.categoryCount || 0)
     });
   } catch (err) {

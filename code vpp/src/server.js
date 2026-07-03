@@ -113,6 +113,40 @@ app.post('/create-order', (req, res) => {
   res.json({ orderId, amount: sanitizedAmount, qrUrl });
 });
 
+console.log('[ROUTE] Registering /api/ollama/chat');
+app.post('/api/ollama/chat', async (req, res) => {
+  const message = req.body && req.body.message;
+  if (!message || typeof message !== 'string') {
+    return res.status(400).json({ error: 'Thiếu message trong body' });
+  }
+
+  try {
+    const response = await fetch('http://localhost:11434/api/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama3',
+        prompt: message,
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Không thể đọc lỗi từ Ollama');
+      console.error('[Ollama] non-ok response', response.status, errorText);
+      return res.status(502).json({ error: 'Ollama trả về lỗi', details: errorText });
+    }
+
+    const data = await response.json();
+    return res.json({ reply: data.response });
+  } catch (err) {
+    console.error('[Ollama] Request failed', err);
+    return res.status(500).json({ error: 'Không gọi được Ollama' });
+  }
+});
+
 // Middleware: format timestamp fields to Vietnam time before sending JSON
 app.use((req, res, next) => {
   const originalJson = res.json.bind(res);

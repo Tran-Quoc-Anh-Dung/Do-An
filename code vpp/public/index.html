@@ -577,6 +577,7 @@
                 <button class="button-outline" id="report-export-products" style="padding:10px 16px;">📥 Export SP</button>
                 <button class="button-outline" id="report-export-customers" style="padding:10px 16px;">📥 Export KH</button>
                 <button class="button-outline" id="report-export-staff" style="padding:10px 16px;">📥 Export NV</button>
+                <button class="button button-success" id="report-ollama-analyze" style="padding:10px 16px;">Phân tích tồn kho top 10</button>
               </div>
             </div>
           </div>
@@ -584,6 +585,8 @@
           <div class="card"><h3>Doanh thu theo ngày</h3><div style="position:relative; width:100%; height:280px; margin-bottom:12px;"><canvas id="reportChartSales" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Ngày</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportDailyTable"></tbody></table></div>
           <div class="card" style="margin-top:20px;"><h3>Doanh thu theo tuần</h3><div style="position:relative; width:100%; height:280px; margin-bottom:12px;"><canvas id="reportChartWeekly" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Tuần</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportWeeklyTable"></tbody></table></div>
           <div class="card" style="margin-top:20px;"><h3>Doanh thu theo tháng</h3><div style="position:relative; width:100%; height:280px; margin-bottom:12px;"><canvas id="reportChartMonthly" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Tháng</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportMonthlyTable"></tbody></table></div>
+
+          <div class="card" style="margin-top:20px;" id="ollamaInventoryAnalysisCard"><h3>Phân tích tồn kho 10 sản phẩm bán chạy</h3><div id="ollamaInventoryAnalysisContent" class="small-card">Nhấn nút <strong>Phân tích tồn kho top 10</strong> để truy vấn Ollama và nhận gợi ý nhập hàng cùng dự kiến bán hết.</div></div>
 
           <div class="card" style="margin-top:20px;"><h3 style="font-size:26px; margin:0 0 16px 0;">Sản phẩm bán chạy</h3><div style="position:relative; width:100%; height:380px; margin-bottom:12px;"><canvas id="reportChartProducts" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Sản phẩm</th><th>SL</th><th>Doanh thu</th><th>Tồn kho</th></tr></thead><tbody id="reportProductsTable"></tbody></table></div>
 
@@ -3106,18 +3109,6 @@ Số lượng tồn kho</label>
     }
   }
 
-  function escapeHtml(text) {
-    if (!text) return '';
-    const map = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;'
-    };
-    return String(text).replace(/[&<>"']/g, m => map[m]);
-  }
-
   function generateQrDataUrl(text) {
     return `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(text)}&cache_bust=${Date.now()}`;
   }
@@ -3631,6 +3622,10 @@ Số lượng tồn kho</label>
     document.getElementById('report-export-products').onclick = () => exportReport('products');
     document.getElementById('report-export-customers').onclick = () => exportReport('customers');
     document.getElementById('report-export-staff').onclick = () => exportReport('staff');
+    const ollamaBtn = document.getElementById('report-ollama-analyze');
+    if (ollamaBtn) {
+      ollamaBtn.onclick = () => analyzeInventoryWithOllama();
+    }
   }
 
   async function loadReportFilters() {
@@ -3821,6 +3816,61 @@ Số lượng tồn kho</label>
           align: 'center'
         } } } });
     } catch (e) { console.error('loadProductsReport', e); }
+  }
+
+  async function analyzeInventoryWithOllama() {
+    const contentEl = document.getElementById('ollamaInventoryAnalysisContent');
+    if (!contentEl) return;
+    try {
+      const params = buildFilterParams();
+      contentEl.innerHTML = '<em>Đang gửi yêu cầu đến Ollama...</em>';
+      const data = await fetchJSON('/public/reports/products?' + params.toString());
+      const topItems = Array.isArray(data.top) ? data.top.slice(0, 10) : [];
+      if (!topItems.length) {
+        contentEl.innerHTML = '<div class="small-card">Không tìm thấy sản phẩm bán chạy để phân tích.</div>';
+        return;
+      }
+
+      const payloadItems = topItems.map(item => ({
+        product_name: item.product_name || item.product_name || 'Sản phẩm',
+        total_qty: item.total_qty || 0,
+        total_revenue: item.total_revenue || 0,
+        stock: item.stock != null ? item.stock : 'không rõ',
+        category: item.category || 'không rõ',
+      }));
+
+      const message = `Bạn là chuyên gia quản lý tồn kho cho chuỗi cửa hàng. Dựa trên danh sách 10 sản phẩm bán chạy nhất hiện tại, hãy phân tích từng sản phẩm theo các thông tin sau:
+- Tên sản phẩm
+- Số lượng đã bán trong kỳ lọc
+- Doanh thu
+- Tồn kho hiện tại
+
+Hãy cho gợi ý nhập hàng cho từng sản phẩm, bao gồm số lượng đề xuất nên đặt thêm và lý do.
+Hãy dự đoán thời gian bán hết (số ngày) dựa trên mức bán thực tế và tồn kho hiện tại, tính theo tình hình thị trường và tiêu dùng thực tế.
+Trả lời dưới dạng văn bản rõ ràng, mỗi sản phẩm một mục, kèm dự đoán bán hết và gợi ý nhập hàng. Nếu tồn kho đủ, ghi rõ không cần nhập thêm. Sử dụng ngôn ngữ tiếng Việt dễ hiểu.`;
+
+      const response = await fetch('/api/ollama/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: message + '\n\nDữ liệu sản phẩm:\n' + payloadItems.map((p, idx) => `${idx + 1}. ${p.product_name} - Bán: ${p.total_qty} sp, Doanh thu: ${p.total_revenue}, Tồn kho: ${p.stock}`).join('\n') })
+      });
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => 'Không thể đọc lỗi');
+        throw new Error(`Ollama lỗi: ${response.status} ${errText}`);
+      }
+      const result = await response.json();
+      const reply = result.reply || result.response || '';
+      contentEl.innerHTML = `<pre style="white-space:pre-wrap; word-break:break-word; margin:0;">${escapeHtml(reply)}</pre>`;
+    } catch (err) {
+      console.error('analyzeInventoryWithOllama', err);
+      contentEl.innerHTML = `<div class="small-card">Lỗi gọi Ollama: ${escapeHtml(err.message || 'Không xác định')}</div>`;
+    }
+  }
+
+  function escapeHtml(text) {
+    if (text == null) return '';
+    return String(text).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
   }
 
   async function loadCustomersReport() {

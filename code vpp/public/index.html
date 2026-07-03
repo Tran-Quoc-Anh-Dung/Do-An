@@ -96,6 +96,7 @@
     .button:hover { transform: translateY(-1px); }
     .button-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
     .button-danger { background: var(--danger); }
+    .button-success-light { background: #86efac; color: #065f46; }
 
     .tabs { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
     .tab-button { border-radius: 999px; border: 1px solid transparent; background: var(--card); color: var(--text); padding: 12px 18px; }
@@ -694,13 +695,14 @@
               <button class="button-outline" style="height:48px;" onclick="clearInventorySearch()">Xóa tìm kiếm</button>
             </div>
           </div>
-          <div class="form-grid" style="grid-template-columns: repeat(2, minmax(220px, 1fr)); gap:16px; margin-top:20px;">
+          <div class="form-grid" style="grid-template-columns: repeat(3, minmax(220px, 1fr)); gap:16px; margin-top:20px;">
             <div class="form-control"><label for="invProduct">Sản phẩm</label><select id="invProduct"><option value="">-- Chọn sản phẩm --</option></select></div>
             <div class="form-control"><label for="invQuantity">Số lượng</label><input id="invQuantity" type="number" min="1" value="1"></div>
+            <div class="form-control"><label for="invReason">Lý do</label><select id="invReason"><option value="">-- Chọn lý do --</option><option value="Đổi trả NCC">Đổi trả NCC</option><option value="Hàng hỏng">Hàng hỏng</option></select></div>
           </div>
           <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap;">
             <button class="button" onclick="importInventory()" style="min-width:160px;">Nhập hàng</button>
-            <button class="button-outline" onclick="exportInventory()" style="min-width:160px;">Xuất hàng</button>
+            <button class="button" onclick="exportInventory()" style="min-width:160px; background:#ef4444; border:none; color:white;">Xuất hàng</button>
           </div>
           <div id="inventoryMessage" class="notification hidden" style="margin-top:14px;"></div>
         </div>
@@ -728,7 +730,7 @@
           </div>
           <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
             <button class="button" onclick="addProductToPO()">Thêm vào đơn</button>
-            <button class="button-outline" onclick="createPurchaseOrder()">Tạo đơn hàng</button>
+            <button class="button button-success-light" onclick="createPurchaseOrder()">Tạo đơn hàng</button>
           </div>
           <div id="poMessage" class="notification hidden"></div>
           <div id="poItemsPreview" style="margin-top:16px; display:none; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#f8f9fa;">
@@ -766,7 +768,6 @@
           </div>
           <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
             <button class="button" onclick="assignProductsToSupplier()">Gán sản phẩm</button>
-            <button class="button-outline" type="button" onclick="filterAssignProducts()">Lọc danh sách</button>
           </div>
           <div id="assignMessage" class="notification hidden"></div>
         </div>
@@ -4009,35 +4010,45 @@ Số lượng tồn kho</label>
   function filterProductsBySupplier() {
     const supplierId = Number(document.getElementById('invSupplier').value) || null;
     const prodSelect = document.getElementById('invProduct');
+    const codeValue = document.getElementById('invProductCode').value.trim();
+
+    if (!codeValue) {
+      prodSelect.innerHTML = '<option value="">-- Chọn sản phẩm --</option>';
+      return;
+    }
+
     let filteredProducts = state.inventoryProducts;
-    
     if (supplierId) {
       filteredProducts = state.inventoryProducts.filter(p => Number(p.supplier_id) === supplierId);
     }
-    
-    prodSelect.innerHTML = filteredProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
     if (filteredProducts.length === 0) {
       prodSelect.innerHTML = '<option value="">Không có sản phẩm</option>';
+      return;
     }
+
+    prodSelect.innerHTML = filteredProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
   }
 
   async function searchInventoryProductByCode() {
     const codeValue = document.getElementById('invProductCode').value.trim();
     const supplierId = Number(document.getElementById('invSupplier').value) || null;
+    const prodSelect = document.getElementById('invProduct');
+
     if (!codeValue) {
+      prodSelect.innerHTML = '<option value="">-- Chọn sản phẩm --</option>';
       showInventoryMessage('Vui lòng nhập mã sản phẩm để tìm.', false);
       return;
     }
+
     try {
       const res = await apiFetch(`/api/products?search=${encodeURIComponent(codeValue)}`, { method: 'GET' });
       let products = await res.json();
       
-      // Filter theo NCC nếu được chọn
       if (supplierId && Array.isArray(products)) {
         products = products.filter(p => Number(p.supplier_id) === supplierId);
       }
       
-      const prodSelect = document.getElementById('invProduct');
       if (!Array.isArray(products) || products.length === 0) {
         prodSelect.innerHTML = '<option value="">Không tìm thấy sản phẩm</option>';
         showInventoryMessage('Không tìm thấy sản phẩm với mã này.', false);
@@ -4047,6 +4058,7 @@ Số lượng tồn kho</label>
       showInventoryMessage('Đã tìm thấy sản phẩm.', true);
     } catch (err) {
       console.error(err);
+      prodSelect.innerHTML = '<option value="">-- Chọn sản phẩm --</option>';
       showInventoryMessage('Lỗi tìm sản phẩm.', false);
     }
   }
@@ -4100,14 +4112,16 @@ Số lượng tồn kho</label>
   async function importInventory() {
     const productId = Number(document.getElementById('invProduct').value);
     const quantity = Number(document.getElementById('invQuantity').value);
-    if (!productId || quantity <= 0) {
-      alert('Vui lòng chọn sản phẩm và nhập số lượng.');
+    const reason = document.getElementById('invReason').value;
+    if (!productId || quantity <= 0 || !reason) {
+      alert('Vui lòng chọn sản phẩm, số lượng và lý do.');
       return;
     }
     try {
-      await apiFetch('/inventory/import', { method: 'POST', body: JSON.stringify({ product_id: productId, quantity }) });
+      await apiFetch('/inventory/import', { method: 'POST', body: JSON.stringify({ product_id: productId, quantity, reason }) });
       showInventoryMessage('Nhập hàng thành công.', true);
       document.getElementById('invQuantity').value = '1';
+      document.getElementById('invReason').value = '';
       loadInventory();
     } catch (err) {
       showInventoryMessage(err.message || 'Nhập hàng thất bại.', false);
@@ -4117,14 +4131,16 @@ Số lượng tồn kho</label>
   async function exportInventory() {
     const productId = Number(document.getElementById('invProduct').value);
     const quantity = Number(document.getElementById('invQuantity').value);
-    if (!productId || quantity <= 0) {
-      alert('Vui lòng chọn sản phẩm và nhập số lượng.');
+    const reason = document.getElementById('invReason').value;
+    if (!productId || quantity <= 0 || !reason) {
+      alert('Vui lòng chọn sản phẩm, số lượng và lý do.');
       return;
     }
     try {
-      await apiFetch('/inventory/export', { method: 'POST', body: JSON.stringify({ product_id: productId, quantity }) });
+      await apiFetch('/inventory/export', { method: 'POST', body: JSON.stringify({ product_id: productId, quantity, reason }) });
       showInventoryMessage('Xuất hàng thành công.', true);
       document.getElementById('invQuantity').value = '1';
+      document.getElementById('invReason').value = '';
       loadInventory();
     } catch (err) {
       showInventoryMessage(err.message || 'Xuất hàng thất bại.', false);

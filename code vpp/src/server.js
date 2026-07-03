@@ -1816,10 +1816,10 @@ app.get('/inventory', authenticateToken, authorizeRoles(['admin', 'manager']), a
 });
 
 app.post('/inventory/import', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
-  const { product_id, quantity } = req.body;
+  const { product_id, quantity, reason } = req.body;
   const qty = Number(quantity || 0);
-  if (!product_id || qty <= 0) {
-    return res.status(400).send('Sản phẩm hoặc số lượng không hợp lệ.');
+  if (!product_id || qty <= 0 || !reason) {
+    return res.status(400).send('Sản phẩm, số lượng hoặc lý do không hợp lệ.');
   }
   try {
     const product = await query('SELECT id FROM products WHERE id = ? LIMIT 1', [product_id]);
@@ -1828,7 +1828,7 @@ app.post('/inventory/import', authenticateToken, authorizeRoles(['admin', 'manag
     }
     await query(
       'INSERT INTO inventory_logs (product_id, quantity_change, reason, created_by) VALUES (?, ?, ?, ?)',
-      [product_id, qty, 'Nhập kho', req.user.id]
+      [product_id, qty, reason, req.user.id]
     );
     await query('UPDATE products SET stock = stock + ? WHERE id = ?', [qty, product_id]);
     res.json({ success: true });
@@ -1839,10 +1839,10 @@ app.post('/inventory/import', authenticateToken, authorizeRoles(['admin', 'manag
 });
 
 app.post('/inventory/export', authenticateToken, authorizeRoles(['admin', 'manager']), async (req, res) => {
-  const { product_id, quantity } = req.body;
+  const { product_id, quantity, reason } = req.body;
   const qty = Number(quantity || 0);
-  if (!product_id || qty <= 0) {
-    return res.status(400).send('Sản phẩm hoặc số lượng không hợp lệ.');
+  if (!product_id || qty <= 0 || !reason) {
+    return res.status(400).send('Sản phẩm, số lượng hoặc lý do không hợp lệ.');
   }
   try {
     const products = await query('SELECT id, stock FROM products WHERE id = ? LIMIT 1', [product_id]);
@@ -1855,7 +1855,7 @@ app.post('/inventory/export', authenticateToken, authorizeRoles(['admin', 'manag
     }
     await query(
       'INSERT INTO inventory_logs (product_id, quantity_change, reason, created_by) VALUES (?, ?, ?, ?)',
-      [product_id, -qty, 'Xuất kho', req.user.id]
+      [product_id, -qty, reason, req.user.id]
     );
     await query('UPDATE products SET stock = GREATEST(stock - ?, 0) WHERE id = ?', [qty, product_id]);
     res.json({ success: true });

@@ -2154,20 +2154,26 @@ app.post('/api/purchase-orders/:id/confirm', authenticateToken, authorizeRoles([
       console.log('[DEBUG] processing item', item);
       try {
         console.log('[DEBUG] about to update product stock for product_id=', item.product_id, 'qty=', item.quantity);
-        // Update product stock
         await query('UPDATE products SET stock = stock + ? WHERE id = ?', [item.quantity, item.product_id]);
         console.log('[DEBUG] product stock updated for product_id=', item.product_id);
-
-        // Log inventory change (use established schema)
-        await query(
-          `INSERT INTO inventory_logs (product_id, quantity_change, reason, created_by) VALUES (?, ?, ?, ?)`,
-          [item.product_id, item.quantity, `Nhập từ đơn hàng PO-${poId}`, req.user && req.user.id ? req.user.id : null]
-        );
-        console.log('[DEBUG] inventory_logs inserted for product_id=', item.product_id);
       } catch (innerErr) {
         console.error('[ERROR] processing PO item', item, innerErr && innerErr.stack ? innerErr.stack : innerErr);
         return res.status(500).send(innerErr && innerErr.message ? `Lỗi xử lý sản phẩm ${item.product_id}: ${innerErr.message}` : 'Lỗi xử lý sản phẩm.');
       }
+    }
+
+    // Log one shared inventory history record for the whole PO
+    try {
+      const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+      const firstProductId = items.length > 0 ? items[0].product_id : null;
+      await query(
+        `INSERT INTO inventory_logs (product_id, quantity_change, reason, created_by) VALUES (?, ?, ?, ?)`,
+        [firstProductId, totalQuantity, `Nhập kho từ đơn hàng PO-${poId}`, req.user && req.user.id ? req.user.id : null]
+      );
+      console.log('[DEBUG] inventory_logs inserted for PO=', poId, 'totalQuantity=', totalQuantity);
+    } catch (logErr) {
+      console.error('[ERROR] inserting inventory log for PO', poId, logErr && logErr.stack ? logErr.stack : logErr);
+      return res.status(500).send(logErr && logErr.message ? 'Lỗi ghi lịch sử nhập kho.' : 'Lỗi ghi lịch sử nhập kho.');
     }
 
     // Update PO status and record confirmer

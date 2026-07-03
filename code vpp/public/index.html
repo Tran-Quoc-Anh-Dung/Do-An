@@ -773,7 +773,15 @@
 
         <div class="card">
           <h3>Lịch sử</h3>
-          <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Nhà cung cấp</th><th>Số lượng thay đổi</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
+          <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; align-items:end; margin-bottom:16px;">
+            <div class="form-control" style="margin-bottom:0;"><label for="historyFromDate">Từ ngày</label><input id="historyFromDate" type="date"></div>
+            <div class="form-control" style="margin-bottom:0;"><label for="historyToDate">Đến ngày</label><input id="historyToDate" type="date"></div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="button" style="min-width:120px;" onclick="filterInventoryHistory()">Lọc</button>
+              <button class="button-outline" style="min-width:120px;" onclick="clearInventoryHistoryFilter()">Xóa</button>
+            </div>
+          </div>
+          <table class="table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Nhà cung cấp</th><th style="width:115px; white-space:nowrap;">Số lượng</th><th>Lý do</th><th>Người thực hiện</th></tr></thead><tbody id="inventoryTable"></tbody></table>
         </div>
 
         <div class="card" style="margin-top:20px;">
@@ -3982,17 +3990,9 @@ Số lượng tồn kho</label>
       if (document.getElementById('assignProductSearch').value.trim()) {
         filterAssignProducts();
       }
-      // Load inventory logs
-      document.getElementById('inventoryTable').innerHTML = logs.map(log => `
-        <tr>
-          <td>${formatDateTime(log.created_at)}</td>
-          <td>${log.product_name || '-'}</td>
-          <td>${log.supplier_name || '-'}</td>
-          <td>${log.quantity_change}</td>
-          <td>${log.reason || '-'}</td>
-          <td>${log.created_by_user || '-'}</td>
-        </tr>
-      `).join('');
+      // Load inventory logs into state for filtering
+      state.inventoryLogs = logs || [];
+      renderInventoryLogs(state.inventoryLogs);
 
       // Fill PO supplier select
       const poSupplierSelect = document.getElementById('poSupplier');
@@ -4056,6 +4056,45 @@ Số lượng tồn kho</label>
     document.getElementById('invProduct').innerHTML = '<option value="">-- Chọn sản phẩm --</option>';
     document.getElementById('invQuantity').value = '1';
     showInventoryMessage('Đã xóa tìm kiếm sản phẩm.', true);
+  }
+
+  async function clearInventoryHistoryFilter() {
+    document.getElementById('historyFromDate').value = '';
+    document.getElementById('historyToDate').value = '';
+    renderInventoryLogs(state.inventoryLogs || []);
+  }
+
+  function filterInventoryHistory() {
+    const fromDateValue = document.getElementById('historyFromDate').value;
+    const toDateValue = document.getElementById('historyToDate').value;
+    const fromTimestamp = fromDateValue ? new Date(fromDateValue + 'T00:00:00').getTime() : null;
+    const toTimestamp = toDateValue ? new Date(toDateValue + 'T23:59:59').getTime() : null;
+    const filteredLogs = (state.inventoryLogs || []).filter(log => {
+      const createdAt = log.created_at ? new Date(log.created_at).getTime() : null;
+      if (!createdAt) return false;
+      if (fromTimestamp && createdAt < fromTimestamp) return false;
+      if (toTimestamp && createdAt > toTimestamp) return false;
+      return true;
+    });
+    renderInventoryLogs(filteredLogs);
+  }
+
+  function renderInventoryLogs(logs) {
+    const tableBody = document.getElementById('inventoryTable');
+    if (!Array.isArray(logs) || logs.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--muted);">Không có lịch sử.</td></tr>';
+      return;
+    }
+    tableBody.innerHTML = logs.map(log => `
+      <tr>
+        <td>${formatDateTime(log.created_at)}</td>
+        <td>${log.product_name || '-'}</td>
+        <td>${log.supplier_name || '-'}</td>
+        <td>${log.quantity_change}</td>
+        <td>${log.reason || '-'}</td>
+        <td>${log.created_by_user || '-'}</td>
+      </tr>
+    `).join('');
   }
 
   async function importInventory() {

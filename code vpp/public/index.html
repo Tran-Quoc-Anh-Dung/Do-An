@@ -2708,10 +2708,10 @@ Số lượng tồn kho</label>
 
     const { paymentMethod, customerName, customerPhone, customerCompany, customerTaxCode, totalAmount, invoiceType } = { ...pendingTransferOrder };
     closeTransferModal();
-    await processOrder(paymentMethod, customerName, customerPhone, totalAmount, null, null, 0, invoiceType, customerCompany, customerTaxCode);
+    await processOrder(paymentMethod, customerName, customerPhone, totalAmount, null, null, 0, invoiceType, customerCompany, customerTaxCode, pendingTransferOrder.orderReference);
   }
 
-  async function processOrder(paymentMethod, customerName, customerPhone, totalAmount, cashReceived = null, cashChange = null, discountPercent = 0, invoiceType = 'normal', customerCompany = null, customerTaxCode = null) {
+  async function processOrder(paymentMethod, customerName, customerPhone, totalAmount, cashReceived = null, cashChange = null, discountPercent = 0, invoiceType = 'normal', customerCompany = null, customerTaxCode = null, paymentReference = null) {
     try {
       const res = await apiFetch('/orders', {
         method: 'POST',
@@ -2727,7 +2727,8 @@ Số lượng tồn kho</label>
           },
           payment: {
             cashReceived: cashReceived != null ? cashReceived : undefined,
-            cashChange: cashChange != null ? cashChange : undefined
+            cashChange: cashChange != null ? cashChange : undefined,
+            reference: paymentReference || undefined
           },
           discountPercent: discountPercent,
           totalAfterDiscount: totalAmount

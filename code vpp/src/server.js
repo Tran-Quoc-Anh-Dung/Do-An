@@ -889,6 +889,11 @@ async function ensureDatabase() {
   await ensureColumn("orders", "invoice_type", "invoice_type VARCHAR(40) DEFAULT NULL");
   await ensureColumn("orders", "created_at", "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
   await ensureColumn("orders", "order_number", "order_number VARCHAR(50) DEFAULT NULL");
+
+  // Payment tracking for transfer payments (Sepay/webhook)
+  await ensureColumn("orders", "payment_reference", "payment_reference VARCHAR(120) DEFAULT NULL");
+  await ensureColumn("orders", "payment_confirmed", "payment_confirmed TINYINT(1) DEFAULT 0");
+  await ensureColumn("orders", "payment_confirmed_at", "payment_confirmed_at TIMESTAMP NULL");
   await ensureColumn("shifts", "ending_cash", "ending_cash DECIMAL(10,2) DEFAULT NULL");
   await ensureColumn("shifts", "cash_difference", "cash_difference DECIMAL(10,2) DEFAULT NULL");
   await query(`CREATE TABLE IF NOT EXISTS gtgt_requests (
@@ -2363,6 +2368,53 @@ app.get('/orders', async (req, res) => {
   }
 });
 
+// Sepay (bank/QR) webhook to confirm transfer payments
+console.log('[ROUTE] Registering /webhook/sepay');
+console.log('REGISTER /webhook/sepay');
+// Optional GET endpoint to help manual testing (webhook provider must POST)
+app.get('/webhook/sepay', (req, res) => {
+  res.send("Webhook OK 🚀");
+});
+app.post('/webhook/sepay', express.json(), async (req, res) => {
+  try {
+    // Optional secret verification
+    const secret = process.env.SEPAY_WEBHOOK_SECRET;
+    if (secret) {
+      const incoming = req.headers['x-sepay-secret'] || req.headers['x-webhook-secret'] || req.headers['x-sepay-signature'];
+      if (!incoming || String(incoming) !== String(secret)) {
+        console.warn('[SEPAY-WEBHOOK] invalid secret header', incoming ? 'present' : 'missing');
+        return res.status(401).send('Invalid webhook secret');
+      }
+    }
+
+    // Try common fields for reference
+    const ref = String((req.body && (req.body.orderReference || req.body.reference || req.body.addInfo || req.body.order_reference)) || '').trim();
+    if (!ref) {
+      console.warn('[SEPAY-WEBHOOK] no reference in payload', req.body);
+      return res.status(400).send('Missing order reference');
+    }
+
+    // Find orders linked to this payment_reference
+    const rows = await query('SELECT DISTINCT order_number FROM orders WHERE payment_reference = ? LIMIT 1', [ref]);
+    if (!rows || rows.length === 0) {
+      console.warn('[SEPAY-WEBHOOK] no order found for reference', ref);
+      return res.status(404).send('Order not found');
+    }
+
+    const orderNumber = rows[0].order_number;
+    // Mark payment as confirmed
+    await query('UPDATE orders SET payment_confirmed = 1, payment_confirmed_at = NOW() WHERE payment_reference = ?', [ref]);
+    console.log('[SEPAY-WEBHOOK] payment confirmed for', orderNumber, 'ref=', ref);
+
+    // Optionally, if you want to update any GTGT requests or notify, do it here (fire-and-forget)
+
+    res.json({ success: true, orderNumber, reference: ref });
+  } catch (err) {
+    console.error('[SEPAY-WEBHOOK] error', err && err.stack ? err.stack : err);
+    res.status(500).send('Webhook handling error');
+  }
+});
+
 app.get('/shifts/current', authenticateToken, async (req, res) => {
   try {
     const status = String(req.query.status || '').trim().toUpperCase();
@@ -2839,6 +2891,17 @@ app.post('/orders', authenticateToken, async (req, res) => {
     for (const item of cart) {
       if (!item.product_id || !item.quantity) continue;
       await query('UPDATE products SET stock = GREATEST(stock - ?, 0) WHERE id = ?', [item.quantity, item.product_id]);
+    }
+
+    // If client provided a payment reference (for transfer payments), store it on the order rows
+    const paymentReference = req.body && req.body.payment && (req.body.payment.reference || req.body.payment.orderReference) ? String(req.body.payment.reference || req.body.payment.orderReference).trim() : null;
+    if (paymentReference) {
+      try {
+        await query('UPDATE orders SET payment_reference = ?, payment_confirmed = 0 WHERE order_number = ?', [paymentReference, baseOrderNumber]);
+        console.log('[PAYMENT] Stored payment_reference for order', baseOrderNumber, paymentReference);
+      } catch (e) {
+        console.warn('[PAYMENT] Could not store payment_reference', e && e.message ? e.message : e);
+      }
     }
 
     res.json({ success: true, orderNumber: baseOrderNumber, pointsEarned: currentPoints != null ? earnedPoints : 0, currentPoints });

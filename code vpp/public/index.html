@@ -32,6 +32,15 @@
 
     .page { max-width: 1400px; margin: 0 auto; padding: 0 24px 24px; display: grid; gap: 24px; }
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; box-shadow: var(--shadow); padding: 24px; }
+    #authSection { max-width: 420px; margin: 64px auto; width: min(100%, 420px); position: relative; overflow: hidden; border-radius: 32px; background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,255,0.98)); border: 1px solid rgba(255,255,255,0.85); box-shadow: 0 30px 90px rgba(15, 23, 42, 0.16); }
+    #authSection::before { content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 20% 20%, rgba(59,130,246,0.14), transparent 28%), radial-gradient(circle at 80% 70%, rgba(16,185,129,0.12), transparent 24%);
+      pointer-events: none;
+    }
+    #authSection .form-control input { background: rgba(255,255,255,0.96); border: 1px solid rgba(148,163,184,0.24); }
+    #authSection .button { width: 100%; border-radius: 16px; padding: 16px 20px; background: linear-gradient(135deg, #2563eb, #3b82f6); box-shadow: 0 14px 30px rgba(37, 99, 235, 0.18); }
     .card h2 { margin-top: 0; font-size: 22px; }
     #dashboardSection h2 { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; color: #0f172a; margin-bottom: 24px; }
     #dashboardSection .card h3 { margin-top: 0; font-size: 20px; font-weight: 700; color: #111827; letter-spacing: -0.02em; }
@@ -159,9 +168,8 @@
 <header>
   <h1>POS Văn Phòng Phẩm</h1>
   <div class="meta">
-    <span id="userStatus">Chưa đăng nhập</span>
+    <span id="userStatus"></span>
     <span id="shiftStatus" class="status-chip hidden">Chưa có ca mở</span>
-    <span id="time" style="margin-left:16px; font-weight:600; color:#0f172a;">Đang tải...</span>
     <button class="button hidden" id="shiftActionButton" onclick="onShiftActionClick()">Mở ca</button>
     <button class="button-outline hidden" id="profileButton" onclick="openSection('profile')">Hồ sơ</button>
     <button class="button-outline hidden" id="logoutButton" onclick="logout()">Đăng xuất</button>
@@ -281,9 +289,6 @@
 
 <div class="page">
   <section id="authSection" class="card">
-    <div class="tabs">
-      <button class="tab-button active" id="tabLogin" onclick="showAuthTab('login')">Đăng nhập</button>
-    </div>
     <div id="loginBox">
       <div class="form-grid">
         <div class="form-control"><label for="loginUsername">Tên đăng nhập</label><input id="loginUsername" type="text" placeholder="admin"></div>
@@ -883,50 +888,6 @@ Số lượng tồn kho</label>
     button { display: none !important; }
   }
 </style>
-
-<script>
-  async function viewPurchaseOrder(poId) {
-    try {
-      const res = await apiFetch(`/api/purchase-orders/${poId}`, { method: 'GET' });
-      const data = await res.json();
-      const po = data.purchase_order;
-      const items = data.items || [];
-      const logs = data.inventory_logs || [];
-
-      document.getElementById('poDetailTitle').textContent = `PO-${po.id}`;
-      const parts = [];
-      // Determine confirmer: prefer explicit field, fallback to inventory log creator
-      const confirmer = po.confirmed_by_user || (logs && logs.length > 0 ? logs[0].created_by_user : null);
-      parts.push(`<div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;"><div><strong>Nhà cung cấp:</strong> ${po.supplier_name || ''}</div><div><strong>Trạng thái:</strong> ${po.status}</div><div><strong>Ngày tạo:</strong> ${formatDateTime(po.created_at)}</div><div><strong>Tổng:</strong> ${formatCurrency(po.total_amount || 0)}</div>${confirmer ? `<div><strong>Người xác nhận:</strong> ${confirmer}</div>` : ''}</div>`);
-
-      parts.push('<h4>Sản phẩm</h4>');
-      if (items.length === 0) {
-        parts.push('<div>Không có sản phẩm</div>');
-      } else {
-        parts.push('<table class="table" style="font-size:14px;"><thead><tr><th>Sản phẩm</th><th>SL</th><th>Giá</th><th>Thành tiền</th></tr></thead><tbody>');
-        for (const it of items) {
-          const name = it.product_name || `ID-${it.product_id}`;
-          parts.push(`<tr><td>${it.product_code ? it.product_code + ' - ' : ''}${name}</td><td>${it.quantity}</td><td>${formatCurrency(it.unit_price || 0)}</td><td>${formatCurrency((it.quantity || 0) * (it.unit_price || 0))}</td></tr>`);
-        }
-        parts.push('</tbody></table>');
-      }
-
-      // Show total amount for the purchase order
-      parts.push(`<div style="text-align:right; margin-top:12px; font-size:15px;"><strong>Tổng tiền đơn: ${formatCurrency(po.total_amount || 0)}</strong></div>`);
-
-      document.getElementById('poDetailBody').innerHTML = parts.join('');
-      document.getElementById('poDetailModal').style.display = 'flex';
-    } catch (err) {
-      showPOMessage(err.message || 'Không thể tải chi tiết đơn hàng.', false);
-    }
-  }
-
-  function closePODetailModal() {
-    document.getElementById('poDetailModal').style.display = 'none';
-    document.getElementById('poDetailBody').innerHTML = '';
-    document.getElementById('poDetailTitle').textContent = '';
-  }
-</script>
 
 <script>
   const state = { token: null, user: null, products: [], categories: [], cart: [], orders: [], editProductId: null, editCustomerId: null, editUserId: null, users: [], reportData: [], customerDiscount: 0, customerTier: null, currentShift: null, shifts: [], inventoryProducts: [], suppliers: [], gtgtRequests: [] };
@@ -2781,6 +2742,14 @@ Số lượng tồn kho</label>
 
       state.cart = [];
       renderCart();
+      const cashInput = document.getElementById('cashReceived');
+      if (cashInput) {
+        cashInput.value = 0;
+      }
+      const cashChangeElement = document.getElementById('cashChange');
+      if (cashChangeElement) {
+        cashChangeElement.textContent = formatCurrency(0);
+      }
       loadProductList();
       loadDashboard();
     } catch (err) {
@@ -4341,6 +4310,54 @@ Số lượng tồn kho</label>
     }
   }
 
+  window.viewPurchaseOrder = async function (poId) {
+    try {
+      const id = Number(poId);
+      if (!id) {
+        alert('ID đơn hàng không hợp lệ.');
+        return;
+      }
+      const res = await apiFetch(`/api/purchase-orders/${id}`, { method: 'GET' });
+      const data = await res.json();
+      const po = data.purchase_order;
+      const items = data.items || [];
+      const logs = data.inventory_logs || [];
+
+      document.getElementById('poDetailTitle').textContent = `PO-${po.id}`;
+      const statusText = po.status === 'confirmed' ? 'Đã nhập kho' : po.status === 'pending' ? 'Chờ xác nhận' : po.status;
+      const confirmer = po.confirmed_by_user || (logs && logs.length > 0 ? logs[0].created_by_user : null);
+      const parts = [];
+      parts.push(`<div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;"><div><strong>Nhà cung cấp:</strong> ${po.supplier_name || ''}</div><div><strong>Trạng thái:</strong> ${statusText}</div><div><strong>Ngày tạo:</strong> ${formatDateTime(po.created_at)}</div><div><strong>Tổng:</strong> ${formatCurrency(po.total_amount || 0)}</div>${confirmer ? `<div><strong>Người xác nhận:</strong> ${confirmer}</div>` : ''}</div>`);
+
+      parts.push('<h4>Sản phẩm</h4>');
+      if (items.length === 0) {
+        parts.push('<div>Không có sản phẩm</div>');
+      } else {
+        parts.push('<table class="table" style="font-size:14px;"><thead><tr><th>Sản phẩm</th><th>SL</th><th>Giá</th><th>Thành tiền</th></tr></thead><tbody>');
+        for (const it of items) {
+          const name = it.product_name || `ID-${it.product_id}`;
+          parts.push(`<tr><td>${it.product_code ? it.product_code + ' - ' : ''}${name}</td><td>${it.quantity}</td><td>${formatCurrency(it.unit_price || 0)}</td><td>${formatCurrency((it.quantity || 0) * (it.unit_price || 0))}</td></tr>`);
+        }
+        parts.push('</tbody></table>');
+      }
+
+      parts.push(`<div style="text-align:right; margin-top:12px; font-size:15px;"><strong>Tổng tiền đơn: ${formatCurrency(po.total_amount || 0)}</strong></div>`);
+      document.getElementById('poDetailBody').innerHTML = parts.join('');
+      document.getElementById('poDetailModal').style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+      document.getElementById('poDetailModal').scrollTop = 0;
+    } catch (err) {
+      showPOMessage(err.message || 'Không thể tải chi tiết đơn hàng.', false);
+    }
+  }
+
+  function closePODetailModal() {
+    document.getElementById('poDetailModal').style.display = 'none';
+    document.getElementById('poDetailBody').innerHTML = '';
+    document.getElementById('poDetailTitle').textContent = '';
+    document.body.style.overflow = '';
+  }
+
   function showPOMessage(text, success) {
     const msg = document.getElementById('poMessage');
     msg.textContent = text;
@@ -4366,7 +4383,6 @@ Số lượng tồn kho</label>
   // Branch functions removed because branch management is disabled.
 
   window.onload = init;
-</script>
 </script>
 
   <!-- PO Detail Modal (global) -->

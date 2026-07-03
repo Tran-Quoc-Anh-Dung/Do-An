@@ -961,6 +961,31 @@ async function ensureDatabase() {
   const legacySupplierNames = ['Sunhouse', 'Kangaroo', 'LifeGood', 'SamsungHome', 'PanHome'];
   await query(`DELETE FROM suppliers WHERE name IN (?)`, [legacySupplierNames]).catch(() => {});
 
+  await query(`CREATE TABLE IF NOT EXISTS purchase_orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    supplier_id INT NOT NULL,
+    total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    status VARCHAR(40) NOT NULL DEFAULT 'pending',
+    confirmed_by INT DEFAULT NULL,
+    confirmed_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    FOREIGN KEY (confirmed_by) REFERENCES users(id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+
+  await query(`CREATE TABLE IF NOT EXISTS purchase_order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    po_id INT NOT NULL,
+    product_id INT DEFAULT NULL,
+    quantity INT NOT NULL DEFAULT 0,
+    unit_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+
+  await ensureColumn("purchase_orders", "confirmed_by", "confirmed_by INT DEFAULT NULL");
+  await ensureColumn("purchase_orders", "confirmed_at", "confirmed_at TIMESTAMP NULL");
+
   await query(`CREATE TABLE IF NOT EXISTS inventory_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     product_id INT NOT NULL,

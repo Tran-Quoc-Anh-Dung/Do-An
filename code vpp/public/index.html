@@ -686,20 +686,23 @@
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h2>Quản lý Nhà cung cấp</h2></div>
         <div class="card" style="margin-bottom:20px;">
           <h3>Nhập/Xuất hàng</h3>
-          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+          <div class="form-grid" style="grid-template-columns: 1.4fr 1.4fr 1.2fr; gap:16px; align-items:end;">
             <div class="form-control"><label for="invSupplier">Nhà cung cấp</label><select id="invSupplier" onchange="filterProductsBySupplier()"><option value="">-- Tất cả NCC --</option></select></div>
             <div class="form-control"><label for="invProductCode">Mã sản phẩm</label><input id="invProductCode" type="text" placeholder="Nhập mã hoặc barcode"></div>
-            <div class="form-control" style="align-self:end;">
-              <button class="button" style="width:100%;" onclick="searchInventoryProductByCode()">Tìm sản phẩm</button>
+            <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px; width:100%;">
+              <button class="button" style="height:48px;" onclick="searchInventoryProductByCode()">Tìm sản phẩm</button>
+              <button class="button-outline" style="height:48px;" onclick="clearInventorySearch()">Xóa tìm kiếm</button>
             </div>
-            <div class="form-control"><label for="invProduct">Sản phẩm</label><select id="invProduct"></select></div>
+          </div>
+          <div class="form-grid" style="grid-template-columns: repeat(2, minmax(220px, 1fr)); gap:16px; margin-top:20px;">
+            <div class="form-control"><label for="invProduct">Sản phẩm</label><select id="invProduct"><option value="">-- Chọn sản phẩm --</option></select></div>
             <div class="form-control"><label for="invQuantity">Số lượng</label><input id="invQuantity" type="number" min="1" value="1"></div>
           </div>
-          <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
-            <button class="button" onclick="importInventory()">Nhập hàng</button>
-            <button class="button-outline" onclick="exportInventory()">Xuất hàng</button>
+          <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap;">
+            <button class="button" onclick="importInventory()" style="min-width:160px;">Nhập hàng</button>
+            <button class="button-outline" onclick="exportInventory()" style="min-width:160px;">Xuất hàng</button>
           </div>
-          <div id="inventoryMessage" class="notification hidden"></div>
+          <div id="inventoryMessage" class="notification hidden" style="margin-top:14px;"></div>
         </div>
 
         <div class="card" style="margin-bottom:20px;">
@@ -4040,12 +4043,19 @@ Số lượng tồn kho</label>
         showInventoryMessage('Không tìm thấy sản phẩm với mã này.', false);
         return;
       }
-      prodSelect.innerHTML = products.map(p => `<option value="${p.id}">${p.code || p.barcode || p.name}</option>`).join('');
+      prodSelect.innerHTML = products.map(p => `<option value="${p.id}">${p.name || p.code || p.barcode}</option>`).join('');
       showInventoryMessage('Đã tìm thấy sản phẩm.', true);
     } catch (err) {
       console.error(err);
       showInventoryMessage('Lỗi tìm sản phẩm.', false);
     }
+  }
+
+  function clearInventorySearch() {
+    document.getElementById('invProductCode').value = '';
+    document.getElementById('invProduct').innerHTML = '<option value="">-- Chọn sản phẩm --</option>';
+    document.getElementById('invQuantity').value = '1';
+    showInventoryMessage('Đã xóa tìm kiếm sản phẩm.', true);
   }
 
   async function importInventory() {

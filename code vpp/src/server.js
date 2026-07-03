@@ -297,7 +297,7 @@ async function sendInvoiceEmail(orderNumber, toEmail) {
       throw new Error('Không thể khởi tạo kết nối SMTP để gửi email.');
     }
     const origin = process.env.APP_ORIGIN || `http://localhost:${PORT}`;
-    const htmlInvoiceUrl = `${origin.replace(/\/$/, '')}/gtgt_invoice.html?orderNumber=${encodeURIComponent(orderNumber)}`;
+    const htmlInvoiceUrl = `${origin.replace(/\/$/, '')}/gtgt_form.html?orderNumber=${encodeURIComponent(orderNumber)}`;
     const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@example.com';
     const info = await transporter.sendMail({
       from,

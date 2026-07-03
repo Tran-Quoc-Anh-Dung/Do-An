@@ -1177,7 +1177,7 @@ Số lượng tồn kho</label>
       showGtgtInvoice({
         ...invoiceData,
         createdAt: formatDateTime(invoiceData.createdAt),
-        gtgtFormLink: `${window.location.origin}/gtgt_invoice.html?orderNumber=${encodeURIComponent(orderNumber)}`
+        gtgtFormLink: `${window.location.origin}/gtgt_form.html?orderNumber=${encodeURIComponent(orderNumber)}`
       });
 
       window.currentInvoiceOrderNumber = orderNumber;
@@ -2736,7 +2736,7 @@ Số lượng tồn kho</label>
       });
       const result = await res.json();
 
-      const gtgtFormLink = `${window.location.origin}/gtgt_invoice.html?orderNumber=${encodeURIComponent(result.orderNumber)}`;
+      const gtgtFormLink = `${window.location.origin}/gtgt_form.html?orderNumber=${encodeURIComponent(result.orderNumber)}`;
 
       showInvoice({
         orderNumber: result.orderNumber,
@@ -3155,7 +3155,7 @@ Số lượng tồn kho</label>
         totalAmount: totalAmount,
         pointsEarned: 0,
         currentPoints: 0,
-        gtgtFormLink: `${window.location.origin}/gtgt_invoice.html?orderNumber=${encodeURIComponent(normalizeOrderNumber(order.order_number || `#${order.id}`))}`,
+        gtgtFormLink: `${window.location.origin}/gtgt_form.html?orderNumber=${encodeURIComponent(normalizeOrderNumber(order.order_number || `#${order.id}`))}`,
         items: orderItems.map(item => ({
           product_name: item.product_name || 'Sản phẩm',
           price: Number(item.price || 0),

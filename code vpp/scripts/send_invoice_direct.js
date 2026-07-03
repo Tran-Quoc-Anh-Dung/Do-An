@@ -12,7 +12,7 @@
     const orderNumber = 'ORD-1782287598231-497';
     const toEmail = 'test@example.com';
     const origin = 'http://localhost:3000';
-    const invoiceUrl = `${origin}/gtgt_invoice.html?orderNumber=${encodeURIComponent(orderNumber)}`;
+    const invoiceUrl = `${origin}/gtgt_form.html?orderNumber=${encodeURIComponent(orderNumber)}`;
     const info = await transporter.sendMail({
       from: `Test <${testAccount.user}>`,
       to: toEmail,

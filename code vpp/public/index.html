@@ -1864,10 +1864,27 @@ Số lượng tồn kho</label>
       const list = await res.json();
       const html = (list.filter(c => c.id && c.id > 0).map(c => {
         const label = c.label || c.name || c.value || 'Danh mục không tên';
-        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #eee;"><div>${escapeHtml(label)}</div><div>${state.user && state.user.role === 'admin' ? `<button class="button-danger" onclick="deleteCategory(${c.id})">Xóa</button>` : ''}</div></div>`;
+        const buttons = state.user && state.user.role === 'admin'
+          ? `<button class="button-outline" onclick="editCategory(${c.id}, '${escapeHtml(label).replace(/'/g, "\\'")}')">Sửa</button> <button class="button-danger" onclick="deleteCategory(${c.id})">Xóa</button>`
+          : '';
+        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #eee;"><div>${escapeHtml(label)}</div><div>${buttons}</div></div>`;
       }).join('')) || '<div class="small-card">Chưa có danh mục.</div>';
       document.getElementById('categoriesList').innerHTML = html;
     } catch (err) { console.error(err); }
+  }
+
+  async function editCategory(id, currentName) {
+    const name = prompt('Chỉnh sửa tên danh mục:', currentName);
+    if (name === null) return;
+    const trimmed = String(name).trim();
+    if (!trimmed) return alert('Tên danh mục không được để trống.');
+    try {
+      await apiFetch(`/categories/${id}`, { method: 'PUT', body: JSON.stringify({ name: trimmed }) });
+      await loadCategories();
+      alert('Cập nhật danh mục thành công.');
+    } catch (err) {
+      alert(err.message || 'Cập nhật danh mục thất bại.');
+    }
   }
 
   async function deleteCategory(id) {

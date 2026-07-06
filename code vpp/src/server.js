@@ -331,7 +331,7 @@ async function sendInvoiceEmail(orderNumber, toEmail) {
       throw new Error('Không thể khởi tạo kết nối SMTP để gửi email.');
     }
     const origin = process.env.APP_ORIGIN || `http://localhost:${PORT}`;
-    const htmlInvoiceUrl = `${origin.replace(/\/$/, '')}/gtgt_form.html?orderNumber=${encodeURIComponent(orderNumber)}`;
+    const htmlInvoiceUrl = `${origin.replace(/\/$/, '')}/gtgt_invoice.html?orderNumber=${encodeURIComponent(orderNumber)}`;
     const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@example.com';
     const info = await transporter.sendMail({
       from,
@@ -1036,30 +1036,6 @@ async function ensureDatabase() {
     FOREIGN KEY (created_by) REFERENCES users(id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
   
-  await query(`CREATE TABLE IF NOT EXISTS supplier_orders (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    order_number VARCHAR(80) NOT NULL UNIQUE,
-    supplier_id INT NOT NULL,
-    status VARCHAR(30) NOT NULL DEFAULT 'REQUESTED',
-    note TEXT,
-    created_by INT DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
-    FOREIGN KEY (created_by) REFERENCES users(id)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
-
-  await query(`CREATE TABLE IF NOT EXISTS supplier_order_items (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    supplier_order_id INT NOT NULL,
-    product_id INT DEFAULT NULL,
-    product_name VARCHAR(255) NOT NULL,
-    quantity INT NOT NULL DEFAULT 0,
-    unit_cost DECIMAL(10,2) DEFAULT 0,
-    FOREIGN KEY (supplier_order_id) REFERENCES supplier_orders(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
-
   await ensureColumn("inventory_logs", "product_id", "product_id INT NOT NULL");
   await ensureColumn("inventory_logs", "quantity_change", "quantity_change INT NOT NULL");
   await ensureColumn("inventory_logs", "reason", "reason VARCHAR(100) DEFAULT NULL");
@@ -2237,11 +2213,19 @@ app.delete('/users/:id', authenticateToken, authorizeRoles(['admin']), async (re
     if (user.length === 0) {
       return res.status(404).send('Người dùng không tồn tại.');
     }
+
+    // Clear foreign key references before deleting the user to avoid constraint errors
+    await query('DELETE FROM shifts WHERE user_id = ?', [userId]);
+    await query('UPDATE orders SET user_id = NULL WHERE user_id = ?', [userId]).catch(() => {});
+    await query('UPDATE orders SET seller_id = NULL WHERE seller_id = ?', [userId]).catch(() => {});
+    await query('UPDATE purchase_orders SET confirmed_by = NULL WHERE confirmed_by = ?', [userId]);
+    await query('UPDATE inventory_logs SET created_by = NULL WHERE created_by = ?', [userId]);
+
     await query('DELETE FROM users WHERE id = ?', [userId]);
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).send('Không thể xóa tài khoản.');
+    console.error('[DELETE USER ERROR]', err && err.stack ? err.stack : err);
+    res.status(500).send(err && err.message ? err.message : 'Không thể xóa tài khoản.');
   }
 });
 

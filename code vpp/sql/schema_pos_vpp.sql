@@ -53,19 +53,6 @@ CREATE TABLE orders (
         ON DELETE SET NULL
 );
 
--- ORDER DETAILS
-CREATE TABLE order_details (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    order_id INT NOT NULL,
-    product_id INT,
-    quantity INT NOT NULL,
-    price DECIMAL(10,2) NOT NULL,
-    FOREIGN KEY (order_id) REFERENCES orders(id)
-        ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id)
-        ON DELETE SET NULL
-);
-
 -- SUPPLIERS
 CREATE TABLE suppliers (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -95,38 +82,6 @@ CREATE TABLE purchase_order_items (
     unit_price DECIMAL(12,2) DEFAULT 0,
     FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-);
-
--- IMPORTS
-CREATE TABLE imports (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    supplier_id INT,
-    total_amount DECIMAL(12,2) DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
-        ON DELETE SET NULL
-);
-
--- IMPORT DETAILS
-CREATE TABLE import_details (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    import_id INT NOT NULL,
-    product_id INT,
-    quantity INT NOT NULL,
-    cost_price DECIMAL(10,2) NOT NULL,
-    FOREIGN KEY (import_id) REFERENCES imports(id)
-        ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id)
-        ON DELETE SET NULL
-);
-
--- PROMOTIONS
-CREATE TABLE promotions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(150),
-    discount_percent INT,
-    start_date DATE,
-    end_date DATE
 );
 
 -- INVENTORY LOGS (OPTIONAL - NÂNG CAO)

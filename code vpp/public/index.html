@@ -585,7 +585,7 @@
           <div class="card" style="margin-top:20px;"><h3>Doanh thu theo tuần</h3><div style="position:relative; width:100%; height:280px; margin-bottom:12px;"><canvas id="reportChartWeekly" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Tuần</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportWeeklyTable"></tbody></table></div>
           <div class="card" style="margin-top:20px;"><h3>Doanh thu theo tháng</h3><div style="position:relative; width:100%; height:280px; margin-bottom:12px;"><canvas id="reportChartMonthly" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Tháng</th><th>Đơn hàng</th><th>Doanh thu</th></tr></thead><tbody id="reportMonthlyTable"></tbody></table></div>
 
-          <div class="card" style="margin-top:20px;" id="ollamaInventoryAnalysisCard"><h3>Phân tích tồn kho 10 sản phẩm bán chạy</h3><div id="ollamaInventoryAnalysisContent" class="small-card">Nhấn nút <strong>Phân tích tồn kho</strong> để truy vấn Ollama và nhận gợi ý nhập hàng cùng dự kiến bán hết.</div><div style="margin-top:12px; display:flex; justify-content:flex-end;"><button class="button button-success" id="report-ollama-analyze" style="padding:10px 16px;">Phân tích tồn kho</button></div></div>
+          <div class="card" style="margin-top:20px;" id="ollamaInventoryAnalysisCard"><h3>Phân tích tồn kho 10 sản phẩm bán chạy</h3><div id="ollamaInventoryAnalysisContent" class="small-card">Nhấn nút <strong>Phân tích tồn kho</strong> để truy vấn Ollama và nhận gợi ý nhập hàng cùng dự kiến bán hết.</div><div style="margin-top:16px; display:grid; gap:16px;"><div style="position:relative; width:100%; height:300px; display:none;" id="ollamaChartStock"><canvas id="ollamaChartStockCanvas" style="max-width:100%;"></canvas></div><div style="position:relative; width:100%; height:300px; display:none;" id="ollamaChartRevenue"><canvas id="ollamaChartRevenueCanvas" style="max-width:100%;"></canvas></div><div style="position:relative; width:100%; height:300px; display:none;" id="ollamaChartSales"><canvas id="ollamaChartSalesCanvas" style="max-width:100%;"></canvas></div></div><div style="margin-top:12px; display:flex; justify-content:flex-end;"><button class="button button-success" id="report-ollama-analyze" style="padding:10px 16px;">Phân tích tồn kho</button></div></div>
 
           <div class="card" style="margin-top:20px;"><h3 style="font-size:26px; margin:0 0 16px 0;">Sản phẩm bán chạy</h3><div style="position:relative; width:100%; height:380px; margin-bottom:12px;"><canvas id="reportChartProducts" style="max-width:100%;"></canvas></div><table class="table"><thead><tr><th>Sản phẩm</th><th>SL</th><th>Doanh thu</th><th>Tồn kho</th></tr></thead><tbody id="reportProductsTable"></tbody></table></div>
 
@@ -3817,6 +3817,8 @@ Số lượng tồn kho</label>
     } catch (e) { console.error('loadProductsReport', e); }
   }
 
+  let ollamaChartStock = null, ollamaChartRevenue = null, ollamaChartSales = null;
+
   async function analyzeInventoryWithOllama() {
     const contentEl = document.getElementById('ollamaInventoryAnalysisContent');
     if (!contentEl) return;
@@ -3861,11 +3863,111 @@ Trả lời hoàn toàn bằng tiếng Việt. Không sử dụng tiếng Anh ho
       }
       const result = await response.json();
       const reply = result.reply || result.response || '';
-      contentEl.innerHTML = `<pre style="white-space:pre-wrap; word-break:break-word; margin:0;">${escapeHtml(reply)}</pre>`;
+      
+      // Display analysis text and charts
+      contentEl.innerHTML = `<pre style="white-space:pre-wrap; word-break:break-word; margin:0; padding:16px; background:#f9fafb; border-radius:8px;">${escapeHtml(reply)}</pre>`;
+      
+      // Render charts
+      renderOllamaCharts(topItems);
     } catch (err) {
       console.error('analyzeInventoryWithOllama', err);
       contentEl.innerHTML = `<div class="small-card">Lỗi gọi Ollama: ${escapeHtml(err.message || 'Không xác định')}</div>`;
     }
+  }
+
+  function renderOllamaCharts(items) {
+    // Prepare data
+    const labels = items.map(item => item.product_name || 'Sản phẩm').slice(0, 10);
+    const stockData = items.map(item => item.stock != null ? Number(item.stock) : 0).slice(0, 10);
+    const revenueData = items.map(item => Number(item.total_revenue || 0)).slice(0, 10);
+    const salesQty = items.map(item => Number(item.total_qty || 0)).slice(0, 10);
+    
+    // Show chart containers
+    document.getElementById('ollamaChartStock').style.display = 'block';
+    document.getElementById('ollamaChartRevenue').style.display = 'block';
+    document.getElementById('ollamaChartSales').style.display = 'block';
+
+    // Stock level chart (Horizontal bars)
+    const ctxStock = document.getElementById('ollamaChartStockCanvas').getContext('2d');
+    if (ollamaChartStock) ollamaChartStock.destroy();
+    ollamaChartStock = new Chart(ctxStock, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Tồn kho',
+          data: stockData,
+          backgroundColor: 'rgba(59, 130, 246, 0.8)',
+          borderColor: '#2563eb',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { x: { beginAtZero: true, title: { display: true, text: 'Số lượng' } } },
+        plugins: { legend: { display: true, position: 'top' }, title: { display: true, text: 'Tồn kho theo sản phẩm' } }
+      }
+    });
+
+    // Revenue chart (Horizontal bars)
+    const ctxRevenue = document.getElementById('ollamaChartRevenueCanvas').getContext('2d');
+    if (ollamaChartRevenue) ollamaChartRevenue.destroy();
+    ollamaChartRevenue = new Chart(ctxRevenue, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Doanh thu',
+          data: revenueData,
+          backgroundColor: 'rgba(16, 185, 129, 0.8)',
+          borderColor: '#10b981',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { x: { beginAtZero: true, title: { display: true, text: 'Doanh thu (VND)' } } },
+        plugins: { legend: { display: true, position: 'top' }, title: { display: true, text: 'Doanh thu theo sản phẩm' } }
+      }
+    });
+
+    // Sales quantity chart (Pie chart)
+    const ctxSales = document.getElementById('ollamaChartSalesCanvas').getContext('2d');
+    if (ollamaChartSales) ollamaChartSales.destroy();
+    ollamaChartSales = new Chart(ctxSales, {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: salesQty,
+          backgroundColor: labels.map((_, i) => `hsl(${(i * 36) % 360} 70% 50%)`)
+        }]
+      },
+      plugins: [ChartDataLabels],
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'left', align: 'center', labels: { boxWidth: 18, padding: 14, font: { size: 12 } } },
+          datalabels: {
+            color: '#000000',
+            formatter: (value, context) => {
+              const dataset = context.chart.data.datasets[0];
+              const total = dataset.data.reduce((sum, item) => sum + item, 0);
+              return total ? `${Math.round((value / total) * 100)}%` : '';
+            },
+            font: { weight: 'bold', size: 12 },
+            anchor: 'center',
+            align: 'center'
+          },
+          title: { display: true, text: 'Phân bố bán hàng theo sản phẩm' }
+        }
+      }
+    });
   }
 
   function escapeHtml(text) {

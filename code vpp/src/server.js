@@ -688,6 +688,24 @@ async function ensureColumn(table, column, definition) {
   }
 }
 
+async function ensureForeignKey(table, column, referenceTable, referenceColumn = 'id', onDeleteAction = 'SET NULL') {
+  const rows = await query(`
+    SELECT CONSTRAINT_NAME
+    FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = ?
+      AND COLUMN_NAME = ?
+      AND REFERENCED_TABLE_NAME IS NOT NULL
+  `, [table, column]);
+
+  const hasExistingFk = rows.some(row => row.CONSTRAINT_NAME);
+  if (hasExistingFk) return;
+
+  const constraintName = `${table}_${column}_fk`;
+  const action = onDeleteAction ? ` ON DELETE ${onDeleteAction}` : '';
+  await query(`ALTER TABLE \`${table}\` ADD CONSTRAINT \`${constraintName}\` FOREIGN KEY (\`${column}\`) REFERENCES \`${referenceTable}\` (\`${referenceColumn}\`)${action}`);
+}
+
 async function ensureEnumValues(table, column, values) {
   const columns = await query(`SHOW COLUMNS FROM \`${table}\` LIKE ?`, [column]);
   if (!columns.length) return;
@@ -923,6 +941,10 @@ async function ensureDatabase() {
   await ensureColumn("orders", "invoice_type", "invoice_type VARCHAR(40) DEFAULT NULL");
   await ensureColumn("orders", "created_at", "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
   await ensureColumn("orders", "order_number", "order_number VARCHAR(50) DEFAULT NULL");
+  await ensureForeignKey("orders", "product_id", "products");
+  await ensureForeignKey("orders", "seller_id", "users");
+  await ensureForeignKey("orders", "customer_id", "customers");
+  await ensureForeignKey("orders", "shift_id", "shifts");
 
   // Payment tracking for transfer payments (Sepay/webhook)
   await ensureColumn("orders", "payment_reference", "payment_reference VARCHAR(120) DEFAULT NULL");
@@ -993,6 +1015,8 @@ async function ensureDatabase() {
   await ensureColumn("suppliers", "email", "email VARCHAR(120) DEFAULT NULL");
   await ensureColumn("suppliers", "address", "address VARCHAR(255) DEFAULT NULL");
   await ensureColumn("suppliers", "status", "status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE'");
+  await ensureForeignKey("products", "category_id", "categories");
+  await ensureForeignKey("products", "supplier_id", "suppliers");
 
   const unwantedSlugs = ['do-nha-bep', 'dien-gia-dung', 'vat-dung-gia-dinh'];
   await query(`DELETE FROM categories WHERE slug IN (?) OR name IN (?)`, [unwantedSlugs, ['Đồ nhà bếp','Điện gia dụng','Vật dụng gia đình']]).catch(() => {});
@@ -1021,9 +1045,13 @@ async function ensureDatabase() {
     FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+  await ensureForeignKey("purchase_order_items", "po_id", "purchase_orders", "id", "CASCADE");
+  await ensureForeignKey("purchase_order_items", "product_id", "products");
 
   await ensureColumn("purchase_orders", "confirmed_by", "confirmed_by INT DEFAULT NULL");
   await ensureColumn("purchase_orders", "confirmed_at", "confirmed_at TIMESTAMP NULL");
+  await ensureForeignKey("purchase_orders", "supplier_id", "suppliers");
+  await ensureForeignKey("purchase_orders", "confirmed_by", "users");
 
   await query(`CREATE TABLE IF NOT EXISTS inventory_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -1040,6 +1068,8 @@ async function ensureDatabase() {
   await ensureColumn("inventory_logs", "quantity_change", "quantity_change INT NOT NULL");
   await ensureColumn("inventory_logs", "reason", "reason VARCHAR(100) DEFAULT NULL");
   await ensureColumn("inventory_logs", "created_by", "created_by INT DEFAULT NULL");
+  await ensureForeignKey("inventory_logs", "product_id", "products");
+  await ensureForeignKey("inventory_logs", "created_by", "users");
 
   await query(`CREATE TABLE IF NOT EXISTS customers (
     id INT AUTO_INCREMENT PRIMARY KEY,

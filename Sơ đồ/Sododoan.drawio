@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net" pages="3">
-  <diagram name="Use Case" id="8PrYYwkFbC1qEtAR_jBw">
-    <mxGraphModel dx="1212" dy="661" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+  <diagram name="Use Case" id="GsrKhXBSHLwGHh4J1Lp5">
+    <mxGraphModel dx="1030" dy="562" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -213,8 +213,8 @@
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="Ag5AgGNWaxn2Che3TLW4" name="Activity Bán hàng">
-    <mxGraphModel dx="1030" dy="562" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+  <diagram name="Activity Bán hàng" id="_u7j6U0229NEW8yhw3zD">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -334,8 +334,8 @@
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="ktF20jWq3d0FYkDbmoWU" name="Activity Nhập hàng">
-    <mxGraphModel dx="1030" dy="562" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+  <diagram name="Activity Nhập hàng" id="ZefjPTfqEJt-PrOwQ1Lx">
+    <mxGraphModel dx="1873" dy="1022" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -467,6 +467,12 @@
             </Array>
             <mxPoint x="390" y="820" as="sourcePoint" />
             <mxPoint x="470" y="860" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="iUrgn3uxzHzJUe_vnvbc-1" edge="1" parent="1" source="JW4WMMHa_j36Ip79PHCv-12" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="JW4WMMHa_j36Ip79PHCv-13" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="390" y="570" as="sourcePoint" />
+            <mxPoint x="440" y="520" as="targetPoint" />
           </mxGeometry>
         </mxCell>
       </root>
